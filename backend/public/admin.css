@@ -68,10 +68,38 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;font-size:16px}body{fon
 }
 .admin-conversation-card .message.system{
   align-self:center;
+  width:min(86%,680px);
   max-width:90%;
-  margin-inline:auto;
-  background:#f0f5fb;
-  border-color:#dfe7f1;
+  margin:12px auto;
+  padding:10px 16px;
+  border:1px solid #d9e2ec;
+  border-radius:12px;
+  background:#eef2f7;
+  color:#526176;
+  box-shadow:none;
+  text-align:center;
+}
+.admin-conversation-card .message.system .message-meta{
+  justify-content:center;
+  gap:8px;
+  margin-bottom:4px;
+}
+.admin-conversation-card .message.system .message-meta strong{
+  color:#56657a;
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.admin-conversation-card .message.system .message-meta time{
+  color:#8994a4;
+  font-size:9px;
+}
+.admin-conversation-card .message.system .message-body{
+  color:#45536a;
+  font-size:12px;
+  line-height:1.55;
+  text-align:center;
 }
 .dispatch-card{
   padding:12px 14px;
@@ -232,6 +260,12 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;font-size:16px}body{fon
 }
 
 @media(max-width:680px){
+  .admin-conversation-card .message.system{
+    width:94%;
+    max-width:94%;
+    margin-block:9px;
+    padding:9px 12px;
+  }
   .dispatch-secondary,
   .dispatch-actions{grid-template-columns:1fr}
   .dispatch-secondary input{min-height:auto}
