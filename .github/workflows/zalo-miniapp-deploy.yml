@@ -134,6 +134,7 @@ jobs:
           test -d dist
           test -f dist/index.html
           test -d dist/assets
+          test -f dist/app-config.json
           test -f app-config.json
           test -f zmp-cli.json
 
@@ -159,11 +160,16 @@ jobs:
           mkdir -p www
           cp -a dist/. www/
 
+          # zmp-cli 4.x validates this exact path before upload.
+          cp app-config.json www/app-config.json
+
           test -f www/index.html
+          test -f www/app-config.json
           test -d www/assets
           test -n "$(find www/assets -maxdepth 1 -type f -name '*.js' -print -quit)"
 
           echo "ZMP bundle prepared at miniapp/www."
+          find www -maxdepth 2 -type f -print | sort
           du -sh www
 
       - name: Install Zalo Mini App CLI
