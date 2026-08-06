@@ -43,3 +43,196 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;font-size:16px}body{fon
 
 @media(max-width:900px){.ticket-dialog{overflow:auto}.ticket-workbench{height:auto;min-height:calc(100vh - 90px);min-height:calc(100dvh - 90px);overflow:visible;display:flex;flex-direction:column;padding:12px}.workbench-main{height:min(68vh,660px);height:min(68dvh,660px);min-height:500px}.workbench-side{display:grid;grid-template-columns:1fr;grid-template-rows:auto auto 540px;overflow:visible}.admin-conversation-card{height:100%}.admin-reply-composer{grid-template-columns:42px minmax(0,1fr) auto}.admin-reply-composer .primary-button{grid-column:auto;width:auto;min-width:104px}.ticket-context-card{height:540px}}
 @media(max-width:680px){.ticket-dialog>.dialog-head{min-height:66px}.ticket-dialog>.dialog-head h2{font-size:18px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.ticket-workbench{min-height:calc(100vh - 66px);min-height:calc(100dvh - 66px);padding:8px}.workbench-main{height:calc(100vh - 82px);height:calc(100dvh - 82px);min-height:520px}.admin-conversation-card .messages{padding:12px 10px}.admin-conversation-card .message{max-width:90%}.conversation-admin-head{padding:13px 14px}.conversation-admin-head h3{font-size:16px}.conversation-admin-head p{display:none}.admin-reply-dock{padding:8px 9px 10px}.admin-reply-composer{grid-template-columns:40px minmax(0,1fr) 46px}.admin-reply-composer .primary-button{grid-column:auto;width:46px;min-width:46px;padding:0;font-size:0}.admin-reply-composer .primary-button:after{content:"➤";font-size:16px}.admin-reply-dock .reply-security-note{display:none}.message-meta{gap:8px}.message-meta time{font-size:8px}.message-body{font-size:12px}.admin-ticket-summary{align-items:flex-start}.admin-summary-badges{display:flex;grid-column:1/-1;margin-left:53px;margin-top:-5px}.dispatch-actions{grid-template-columns:1fr}.ticket-context-tabs{grid-template-columns:1.15fr .62fr .72fr 1fr}.ticket-context-tabs button{font-size:9px;padding:0 4px}.ticket-context-card{height:520px}.ticket-context-panel .sla-panel{grid-template-columns:1fr 1fr}}
+
+/* v5.8 — summary-first Admin workspace */
+.ticket-workbench{
+  grid-template-columns:minmax(0,1fr) clamp(420px,31vw,500px);
+}
+.workbench-side{
+  grid-template-rows:auto minmax(300px,1fr) auto;
+}
+.admin-conversation-card .message.user{
+  margin-right:auto;
+}
+.admin-conversation-card .message.technician,
+.admin-conversation-card .message.assistant{
+  align-self:flex-end;
+  margin-left:auto;
+  border-color:#cfe1fb;
+  border-radius:16px 5px 16px 16px;
+  background:#eaf3ff;
+}
+.admin-conversation-card .message.assistant{
+  background:#f0f5fb;
+  border-color:#dfe7f1;
+}
+.admin-conversation-card .message.system{
+  align-self:center;
+  max-width:90%;
+  margin-inline:auto;
+  background:#f0f5fb;
+  border-color:#dfe7f1;
+}
+.dispatch-card{
+  padding:12px 14px;
+}
+.dispatch-card .card-head{
+  margin-bottom:7px;
+}
+.dispatch-card .control-grid textarea{
+  min-height:58px;
+  max-height:76px;
+}
+.dispatch-secondary{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.dispatch-card .control-grid .two,
+.dispatch-actions{
+  gap:8px;
+}
+.dispatch-card .control-grid label,
+.dispatch-secondary label{
+  min-width:0;
+}
+.dispatch-card .control-grid input,
+.dispatch-card .control-grid select,
+.dispatch-card .control-grid textarea{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+.dispatch-secondary input{
+  min-height:58px;
+}
+.dispatch-actions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.dispatch-actions .button{
+  width:100%;
+}
+.ticket-context-card{
+  min-height:300px;
+  border-color:#d6e4f7;
+  box-shadow:0 10px 28px rgba(24,78,153,.075);
+}
+.ticket-context-tabs{
+  gap:4px;
+  padding:6px;
+  background:#eef4fc;
+  border-bottom-color:#dce7f5;
+}
+.ticket-context-tabs button{
+  height:40px;
+  font-size:11px;
+  font-weight:780;
+}
+.ticket-context-tabs button:hover{
+  background:rgba(255,255,255,.7);
+}
+.ticket-context-tabs button.active{
+  box-shadow:0 2px 10px rgba(25,53,94,.1);
+}
+.ticket-context-tabs em{
+  min-width:19px;
+  height:19px;
+  font-size:9px;
+}
+.ticket-context-tabs .context-dot{
+  min-width:7px;
+  width:7px;
+  height:7px;
+}
+.ticket-context-panel{
+  gap:11px;
+  padding:14px;
+}
+.ticket-context-panel .meta-box{
+  padding:10px;
+}
+.ticket-context-panel .meta-box span,
+.ticket-context-panel .sla-box span{
+  font-size:9px;
+}
+.ticket-context-panel .meta-box strong,
+.ticket-context-panel .sla-box strong{
+  font-size:11px;
+}
+.ticket-context-panel .sla-box{
+  padding:10px 11px;
+}
+.side-description{
+  padding:11px;
+  background:#f7faff;
+  border-color:#e4edf9;
+}
+.side-description>strong,
+.context-section-title{
+  font-size:10px;
+  color:#6e7e94;
+  margin-bottom:6px;
+}
+.side-description .description{
+  max-height:150px;
+  font-size:12px;
+  line-height:1.58;
+}
+
+@media(max-width:980px){
+  .ticket-dialog{overflow:auto}
+  .ticket-workbench{
+    height:auto;
+    min-height:calc(100vh - 90px);
+    min-height:calc(100dvh - 90px);
+    overflow:visible;
+    display:flex;
+    flex-direction:column;
+    padding:12px;
+  }
+  .workbench-main{
+    height:min(68vh,660px);
+    height:min(68dvh,660px);
+    min-height:500px;
+  }
+  .workbench-side{
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-rows:auto 540px auto;
+    overflow:visible;
+  }
+  .admin-conversation-card{height:100%}
+  .admin-reply-composer{grid-template-columns:42px minmax(0,1fr) auto}
+  .admin-reply-composer .primary-button{
+    grid-column:auto;
+    width:auto;
+    min-width:104px;
+  }
+  .ticket-context-card{height:540px}
+}
+
+@media(max-height:800px) and (min-width:981px){
+  .workbench-side{grid-template-rows:auto minmax(250px,1fr) auto}
+  .ticket-context-card{min-height:250px}
+  .dispatch-card{padding:9px 12px}
+  .dispatch-card .card-head{margin-bottom:4px}
+  .dispatch-card .control-grid{gap:5px}
+  .dispatch-card .control-grid label{gap:3px;font-size:9px}
+  .dispatch-card .control-grid input,
+  .dispatch-card .control-grid select,
+  .dispatch-card .control-grid textarea{padding:6px 9px}
+  .dispatch-card .control-grid textarea{
+    min-height:44px;
+    max-height:52px;
+  }
+  .dispatch-secondary{gap:5px}
+  .dispatch-secondary input{min-height:44px}
+  .dispatch-actions{gap:5px}
+  .dispatch-actions .button{min-height:35px;padding:6px 9px}
+}
+
+@media(max-width:680px){
+  .dispatch-secondary,
+  .dispatch-actions{grid-template-columns:1fr}
+  .dispatch-secondary input{min-height:auto}
+}
