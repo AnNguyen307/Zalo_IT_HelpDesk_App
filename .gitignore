@@ -3,6 +3,7 @@
 
 # Build output
 miniapp/dist/
+miniapp/www/
 miniapp/.vite/
 coverage/
 
