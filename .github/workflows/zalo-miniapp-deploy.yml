@@ -125,13 +125,15 @@ jobs:
         working-directory: miniapp
         run: npm run build
 
-      - name: Validate deployment bundle and project metadata
+      - name: Validate project metadata
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
         working-directory: miniapp
         shell: bash
         run: |
           set -euo pipefail
           test -d dist
+          test -f dist/index.html
+          test -d dist/assets
           test -f app-config.json
           test -f zmp-cli.json
 
@@ -143,8 +145,26 @@ jobs:
             }
           '
 
-          echo "Bundle size:"
+          echo "Vite bundle size:"
           du -sh dist
+
+      - name: Prepare ZMP www deployment directory
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        working-directory: miniapp
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf www
+          mkdir -p www
+          cp -a dist/. www/
+
+          test -f www/index.html
+          test -d www/assets
+          test -n "$(find www/assets -maxdepth 1 -type f -name '*.js' -print -quit)"
+
+          echo "ZMP bundle prepared at miniapp/www."
+          du -sh www
 
       - name: Install Zalo Mini App CLI
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
@@ -228,7 +248,6 @@ jobs:
 
           {
             printf 'APP_ID=%s\n' "$MINI_APP_ID"
-            printf 'ZMP_TOKEN=%s\n' "$NEW_ACCESS_TOKEN"
             printf 'VITE_API_BASE_URL=%s\n' "$BASE_URL"
           } > .env
 
@@ -246,11 +265,13 @@ jobs:
             NEW_ACCESS_TOKEN="$NEW_ACCESS_TOKEN" \
             npx --no-install zmp-developer-token deploy "$MINI_APP_ID"
 
-      - name: Remove ephemeral Mini App credentials
+      - name: Remove ephemeral Mini App files
         if: always()
         working-directory: miniapp
         shell: bash
-        run: rm -f .env
+        run: |
+          rm -f .env
+          rm -rf www
 
       - name: Write workflow summary
         if: success()
