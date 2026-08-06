@@ -69,5 +69,5 @@ test("escalation reply never contains a speculative checklist", () => {
   const reply = formatAgentReply(result);
   assert.doesNotMatch(reply, /Các bước theo Playbook:/i);
   assert.doesNotMatch(reply, /1\./);
-  assert.match(reply, /Đã chuyển kỹ thuật viên/i);
+  assert.equal(reply, "Đã chuyển yêu cầu cho kỹ thuật viên.");
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { AttachmentGallery, AttachmentList } from "../components/AttachmentList";
 import { Icon } from "../components/Icon";
 import { useApp } from "../context";
@@ -45,6 +45,8 @@ export function TicketDetailPage() {
   const [ratingComment, setRatingComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const messageEndRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     if (!selectedTicketId) return;
@@ -61,6 +63,18 @@ export function TicketDetailPage() {
   }, [selectedTicketId, refreshNotifications]);
 
   useEffect(() => { load().catch((error) => { toast(error.message); setLoading(false); }); }, [load]);
+  useEffect(() => {
+    if (!loading && messages.length) window.requestAnimationFrame(() => {
+      const thread = messageEndRef.current?.parentElement;
+      if (thread) thread.scrollTo({ top: thread.scrollHeight });
+    });
+  }, [loading, messages.length]);
+  useEffect(() => {
+    if (!contextOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setContextOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [contextOpen]);
 
   function chooseReplyFiles(event: ChangeEvent<HTMLInputElement>) {
     const picked = [...(event.target.files || [])];
@@ -119,45 +133,74 @@ export function TicketDetailPage() {
   const finished = ["resolved", "closed"].includes(ticket.status);
   const ai = ticket.aiAnalysis;
   const guided = Boolean(ai?.canAutoHandle);
+  const escalatedByAi = Boolean(ai && !ai.canAutoHandle);
   const humanOnly = Boolean(ticket.humanHandoff?.locked);
   const icon = categoryIcon[ticket.category] || "other";
-  return <>
-    <button className="back-button" onClick={() => navigate("tickets")}><Icon name="arrow-left" /> Danh sách ticket</button>
+  return <div className={`ticket-detail-page ${finished ? "" : "has-sticky-composer"}`}>
+    <div className="ticket-detail-toolbar">
+      <button className="back-button" onClick={() => navigate("tickets")}><Icon name="arrow-left" /> Danh sách</button>
+      <button className="ticket-info-button" onClick={() => setContextOpen(true)}><Icon name="file" size={16} /> Thông tin</button>
+    </div>
+
     <section className="ticket-detail-head">
-      <span className={`ticket-detail-icon category-${ticket.category}`}><Icon name={icon} size={26} /></span>
-      <div><span className="ticket-code">{ticket.code}</span><h1>{ticket.title}</h1><p>{categoryLabel[ticket.category] || ticket.category} · {priorityLabel[ticket.priority]} · {formatDate(ticket.createdAt, true)}</p></div>
-      <span className={`pill status-${ticket.status}`}>{statusLabel[ticket.status]}</span>
+      <div className="ticket-summary-main">
+        <span className={`ticket-detail-icon category-${ticket.category}`}><Icon name={icon} size={21} /></span>
+        <div className="ticket-summary-copy">
+          <div className="ticket-summary-kicker"><span className="ticket-code">{ticket.code}</span><span className={`pill status-${ticket.status}`}>{statusLabel[ticket.status]}</span></div>
+          <h1>{ticket.title}</h1>
+          <p>{categoryLabel[ticket.category] || ticket.category} · {priorityLabel[ticket.priority]} · {formatDate(ticket.createdAt, true)}</p>
+        </div>
+      </div>
+      <div className={`ticket-quick-sla ${ticket.sla.overdue ? "overdue" : ""}`}>
+        <div><span><small>Phản hồi</small><strong>{ticket.sla.firstRespondedAt ? "Đã phản hồi" : timeLeft(ticket.sla.firstResponseDueAt)}</strong></span></div>
+        <div><span><small>Hạn xử lý</small><strong>{finished ? "Đã hoàn tất" : timeLeft(ticket.sla.resolutionDueAt)}</strong></span></div>
+      </div>
     </section>
 
-    <section className={`sla-card ${ticket.sla.overdue ? "overdue" : ""}`}><div><Icon name="clock" /><span><strong>SLA phản hồi</strong><small>{ticket.sla.firstRespondedAt ? `Đã phản hồi ${formatDate(ticket.sla.firstRespondedAt, true)}` : timeLeft(ticket.sla.firstResponseDueAt)}</small></span></div><div><strong>Hạn xử lý</strong><small>{finished ? "Đã hoàn tất" : timeLeft(ticket.sla.resolutionDueAt)}</small></div></section>
+    <section className="conversation conversation-card">
+      <div className="conversation-head"><div><span className="eyebrow">TRAO ĐỔI TRỰC TIẾP</span><h2>Hội thoại hỗ trợ</h2></div><span className="message-count">{messages.length}</span></div>
 
-    {ai && <section className={`agent-card ${guided ? "safe" : "escalated"}`}>
-      <div className="agent-title"><span className="agent-icon"><Icon name={guided ? "book" : "alert"} /></span><div><span className="eyebrow">QUYẾT ĐỊNH TỰ ĐỘNG</span><h3>{guided ? "Có Playbook phù hợp" : "Đã chuyển kỹ thuật viên"}</h3></div><b>{guided ? "Tự hướng dẫn" : "Escalated"}</b></div>
-      <p>{ai.summary}</p>
-      <div className="agent-runtime"><span><Icon name="bot" size={15} /> {ai.source.includes("playbook") ? "Enterprise Playbook" : ai.source}</span>{ai.model && <span>{ai.model}</span>}<span>{Math.round(ai.confidence * 100)}%</span></div>
-      {guided && !!ai.steps?.length && <div className="playbook-steps"><strong><Icon name="book" /> Các bước theo Playbook</strong><ol>{ai.steps.map((step, index) => <li key={`${step}-${index}`}><b>{index + 1}</b><span>{step}</span></li>)}</ol></div>}
-      {!guided && <div className="handoff-note"><Icon name="shield" /><span>Hệ thống không đưa gợi ý suy đoán. Kỹ thuật viên sẽ tiếp nhận và phản hồi trực tiếp.</span></div>}
-      <small>{ai.reason}</small>
-    </section>}
+      {guided && ai && !!ai.steps?.length && <details className="guidance-drawer">
+        <summary><span><Icon name="book" size={18} /></span><div><strong>Hướng dẫn xử lý theo Playbook</strong><small>{ai.steps.length} bước đã được phê duyệt</small></div><b>Mở</b></summary>
+        <div className="playbook-steps"><ol>{ai.steps.map((step, index) => <li key={`${step}-${index}`}><b>{index + 1}</b><span>{step}</span></li>)}</ol></div>
+        {!humanOnly && <button className="resolve-button" onClick={resolve}><Icon name="check" /> Tôi đã xử lý được</button>}
+      </details>}
 
-    {humanOnly && <section className="human-only-banner"><span><Icon name="shield" /></span><div><strong>AI đã rời khỏi hội thoại này</strong><p>Từ thời điểm bàn giao, mọi phản hồi mới chỉ được trao đổi giữa bạn và Kỹ thuật viên/Quản trị viên HelpDesk. AI không đọc, phân tích hoặc trả lời thêm trong ticket này.</p></div></section>}
-
-    <section className="description-card"><div className="card-title-row"><span className="card-title-icon"><Icon name="file" /></span><div><h3>Mô tả sự cố</h3><small>Thông tin ban đầu</small></div></div><p>{ticket.description}</p>{(ticket.device || ticket.location) && <div className="detail-meta">{ticket.device && <span><Icon name="device" /> {ticket.device}</span>}{ticket.location && <span><Icon name="location" /> {ticket.location}</span>}</div>}</section>
-    <AttachmentList attachments={attachments} />
-
-    <section className="conversation"><div className="section-heading"><div><span className="eyebrow">TRAO ĐỔI</span><h2>Lịch sử hội thoại</h2></div><small>{messages.length} tin nhắn</small></div>{messages.map((message) => {
-      const linked = attachments.filter((attachment) => attachment.messageId === message.id);
-      return <article key={message.id} className={`bubble ${message.role}`}><span className="bubble-avatar">{message.role === "assistant" ? <Icon name="bot" /> : message.role === "technician" ? "IT" : message.authorName?.[0] || "U"}</span><div><strong>{message.authorName}</strong><p>{message.body}</p>{linked.length > 0 && <AttachmentGallery attachments={linked} compact />}<time>{formatDate(message.createdAt, true)}</time></div></article>;
-    })}</section>
-
-    {!finished && <section className="ticket-actions">{guided && !humanOnly && <button className="resolve-button" onClick={resolve}><Icon name="check" /> Đã xử lý được</button>}<form className="reply-composer" onSubmit={send}>
-      <SelectedReplyFiles files={replyFiles} remove={(index) => setReplyFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))} />
-      <div className="reply-composer-row"><label className="reply-attach-button" title="Thêm ảnh hoặc file"><input type="file" multiple accept={ACCEPTED} onChange={chooseReplyFiles} disabled={sending} /><Icon name="attachment" /></label><textarea value={reply} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setReply(event.target.value)} placeholder={humanOnly ? "Gửi thông tin trực tiếp cho kỹ thuật viên…" : guided ? "Gửi kết quả hoặc ảnh sau khi thực hiện Playbook…" : "Bổ sung ảnh, mã lỗi hoặc thông tin cho kỹ thuật viên…"} rows={3} /><button className="reply-send-button" disabled={sending || (!reply.trim() && !replyFiles.length)}>{sending ? "…" : <Icon name="send" />}</button></div>
-      <small className="reply-hint">Có thể gửi riêng ảnh/file · tối đa {MAX_REPLY_FILES} file · mỗi file tối đa 30 MB · tổng tối đa 120 MB</small>
-    </form></section>}
+      <div className="conversation-thread">
+        {messages.length ? messages.map((message) => {
+          const linked = attachments.filter((attachment) => attachment.messageId === message.id);
+          const body = escalatedByAi && message.role === "assistant" ? "Đã chuyển yêu cầu cho kỹ thuật viên." : message.body;
+          return <article key={message.id} className={`bubble ${message.role}`}><span className="bubble-avatar">{message.role === "assistant" ? <Icon name="bot" /> : message.role === "technician" ? "IT" : message.authorName?.[0] || "U"}</span><div><strong>{message.authorName}</strong><p>{body}</p>{linked.length > 0 && <AttachmentGallery attachments={linked} compact />}<time>{formatDate(message.createdAt, true)}</time></div></article>;
+        }) : <div className="conversation-empty">Chưa có trao đổi trong ticket này.</div>}
+        <div ref={messageEndRef} aria-hidden="true" />
+      </div>
+      {!finished && <div className="conversation-composer"><form className="reply-composer" onSubmit={send}>
+        <SelectedReplyFiles files={replyFiles} remove={(index) => setReplyFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))} />
+        <div className="reply-composer-row"><label className="reply-attach-button" title="Thêm ảnh hoặc file"><input type="file" multiple accept={ACCEPTED} onChange={chooseReplyFiles} disabled={sending} /><Icon name="attachment" /></label><textarea value={reply} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setReply(event.target.value)} placeholder={humanOnly ? "Nhắn cho kỹ thuật viên…" : guided ? "Gửi kết quả sau khi thực hiện…" : "Nhập phản hồi hoặc mã lỗi…"} rows={1} /><button className="reply-send-button" aria-label="Gửi phản hồi" disabled={sending || (!reply.trim() && !replyFiles.length)}>{sending ? "…" : <Icon name="send" />}</button></div>
+        <small className="reply-hint">Tối đa {MAX_REPLY_FILES} file · 30 MB/file · tổng 120 MB</small>
+      </form></div>}
+    </section>
 
     {finished && <section className="completion-actions"><button className="reopen-button" onClick={reopen}><Icon name="refresh" /> Mở lại ticket</button><div className="rating-card"><div className="card-title-row"><span className="card-title-icon amber"><Icon name="star" /></span><div><h3>Đánh giá hài lòng</h3><small>Giúp HelpDesk cải thiện</small></div></div><div className="stars">{[1,2,3,4,5].map(value => <button key={value} className={value <= rating ? "active" : ""} onClick={() => setRating(value)}><Icon name="star" size={29} /></button>)}</div><textarea rows={3} value={ratingComment} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setRatingComment(event.target.value)} placeholder="Điều gì đã làm tốt hoặc cần cải thiện?" /><button className="primary" onClick={submitRating}>{ticket.satisfaction ? "Cập nhật đánh giá" : "Gửi đánh giá"}</button></div></section>}
 
-    <details className="history-card"><summary><Icon name="refresh" /> Lịch sử thay đổi</summary><div className="history-list">{history.map(item => <div key={item.id}><span className="history-dot"/><div><strong>{historyLabel[item.type] || item.type}</strong>{item.note && <p>{item.note}</p>}<small>{item.actorName} · {formatDate(item.createdAt, true)}</small></div></div>)}</div></details>
-  </>;
+    {contextOpen && <div className="ticket-context-backdrop" onClick={() => setContextOpen(false)}>
+      <section className="ticket-context-sheet" role="dialog" aria-modal="true" aria-labelledby="ticket-context-title" onClick={(event) => event.stopPropagation()}>
+        <header><div><span>CHI TIẾT TICKET</span><h2 id="ticket-context-title">Thông tin hỗ trợ</h2></div><button onClick={() => setContextOpen(false)} aria-label="Đóng thông tin ticket">×</button></header>
+        <div className="ticket-context-scroll">
+          <section className="context-section"><div className="card-title-row"><div><h3>Mô tả sự cố</h3><small>Thông tin ban đầu</small></div></div><p>{ticket.description}</p>{(ticket.device || ticket.location) && <div className="detail-meta">{ticket.device && <span><Icon name="device" /> {ticket.device}</span>}{ticket.location && <span><Icon name="location" /> {ticket.location}</span>}</div>}</section>
+
+          {ai && <section className={`agent-card embedded ${guided ? "safe" : "escalated"}`}>
+            <div className="agent-title"><span className="agent-icon"><Icon name={guided ? "book" : "alert"} /></span><div><span className="eyebrow">QUYẾT ĐỊNH TỰ ĐỘNG</span><h3>{guided ? "Có Playbook phù hợp" : "Đã chuyển kỹ thuật viên"}</h3></div><b>{guided ? "Hướng dẫn" : "Escalated"}</b></div>
+            <p>{ai.summary}</p>
+            <div className="agent-runtime"><span><Icon name="bot" size={15} /> {ai.source.includes("playbook") ? "Enterprise Playbook" : ai.source}</span>{ai.model && <span>{ai.model}</span>}<span>{Math.round(ai.confidence * 100)}%</span></div>
+            {!guided && <div className="handoff-note"><Icon name="shield" /><span>Không đưa gợi ý suy đoán. Ticket đã được chuyển để HelpDesk kiểm tra trực tiếp.</span></div>}
+            <small>{ai.reason}</small>
+          </section>}
+          <AttachmentList attachments={attachments} />
+
+          <section className="context-history"><h3><Icon name="refresh" size={17} /> Lịch sử thay đổi</h3><div className="history-list">{history.map(item => <div key={item.id}><span className="history-dot"/><div><strong>{historyLabel[item.type] || item.type}</strong>{item.note && <p>{item.note}</p>}<small>{item.actorName} · {formatDate(item.createdAt, true)}</small></div></div>)}</div></section>
+        </div>
+      </section>
+    </div>}
+  </div>;
 }

@@ -581,13 +581,10 @@ Hiện AI local chưa kết nối được; ticket vẫn được lưu và chuy�
 }
 
 export function formatAgentReply(analysis) {
-  const reply = compactText(analysis.reply || analysis.summary, 3000);
   if (!analysis.canAutoHandle) {
-    const sources = Array.isArray(analysis.playbookSources) && analysis.playbookSources.length
-      ? `\n\nĐối chiếu Playbook: ${analysis.playbookSources.map((item) => `${item.id}${item.version ? ` v${item.version}` : ""}`).join(", ")}`
-      : "";
-    return `${reply}${sources}\n\nTrạng thái: Đã chuyển kỹ thuật viên tiếp nhận.`.trim();
+    return "Đã chuyển yêu cầu cho kỹ thuật viên.";
   }
+  const reply = compactText(analysis.reply || analysis.summary, 3000);
   const steps = Array.isArray(analysis.steps) && analysis.steps.length
     ? `\n\nCác bước theo Playbook:\n${analysis.steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}`
     : "";
