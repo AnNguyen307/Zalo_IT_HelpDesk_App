@@ -10,7 +10,7 @@ import { corsHeaders, notFound, routeMatch, serveStatic } from "./http.mjs";
 import { analysisRequiresHumanHandoff, isHumanHandoffLocked, lockHumanHandoff, publicHumanHandoff, statusAfterHumanReply } from "./handoff.mjs";
 import { KB_SEED } from "./kb.mjs";
 import { buildPlaybookIndex, getPlaybookStatus, loadPlaybook, queuePlaybookReindex, searchPlaybook } from "./playbook.mjs";
-import { pushNotification } from "./notifications.mjs";
+import { publicNotification, pushNotification } from "./notifications.mjs";
 import {
   createPlaybookDraft,
   createPlaybookVersion,
@@ -28,6 +28,7 @@ import {
 } from "./playbook-governance.mjs";
 import { createSla, ensureSla, markFirstResponse, publicSla, recalculateSla } from "./sla.mjs";
 import { audit, closeStore, getStoreStatus, initializeStore, pushHistory, readDb, seedKnowledgeBase, updateDb } from "./store.mjs";
+import { plainSystemText } from "./system-text.mjs";
 import { id, json, nowIso, readJson, slug } from "./utils.mjs";
 
 await initializeStore();
@@ -102,7 +103,10 @@ async function getTicketBundle(ticketId) {
   if (!ticket) throw Object.assign(new Error("Không tìm thấy ticket"), { status: 404 });
   ensureSla(ticket);
   const user = db.users.find((item) => item.id === ticket.userId) || null;
-  const messages = db.messages.filter((item) => item.ticketId === ticket.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const messages = db.messages
+    .filter((item) => item.ticketId === ticket.id)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((message) => message.role === "system" ? { ...message, body: plainSystemText(message.body, "Cập nhật từ hệ thống.") } : message);
   const attachments = db.attachments.filter((item) => item.ticketId === ticket.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(publicAttachment);
   const history = db.ticketHistory.filter((item) => item.ticketId === ticket.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   return { db, ticket, user, messages, attachments, history };
@@ -115,7 +119,7 @@ function addSystemMessage(db, ticketId, body, createdAt = nowIso()) {
     authorId: "system",
     authorName: "Hệ thống HelpDesk",
     role: "system",
-    body,
+    body: plainSystemText(body, "Cập nhật từ hệ thống."),
     createdAt,
   };
   db.messages.push(message);
@@ -375,7 +379,7 @@ async function processOverdueTickets() {
         const at = nowIso();
         sla.firstResponseBreachedAt = at;
         sla.lastReminderAt = at;
-        addSystemMessage(db, ticket.id, "⏰ Ticket đã quá thời hạn phản hồi đầu tiên theo SLA. HelpDesk đã được nhắc tự động.", at);
+        addSystemMessage(db, ticket.id, "Ticket đã quá thời hạn phản hồi đầu tiên theo SLA. HelpDesk đã được nhắc tự động.", at);
         pushHistory(db, { ticketId: ticket.id, actorId: "system", actorName: "SLA Monitor", type: "sla_overdue", note: "Quá hạn phản hồi đầu tiên" });
         notifyRequester(db, ticket, "sla_overdue", `${ticket.code} đã quá hạn phản hồi`, "Hệ thống đã tự động nhắc HelpDesk phản hồi ticket của bạn.");
         ticket.updatedAt = at;
@@ -384,7 +388,7 @@ async function processOverdueTickets() {
         const at = nowIso();
         sla.resolutionBreachedAt = at;
         sla.lastReminderAt = at;
-        addSystemMessage(db, ticket.id, "⏰ Ticket đã quá thời hạn xử lý theo SLA. HelpDesk đã được nhắc tự động.", at);
+        addSystemMessage(db, ticket.id, "Ticket đã quá thời hạn xử lý theo SLA. HelpDesk đã được nhắc tự động.", at);
         pushHistory(db, { ticketId: ticket.id, actorId: "system", actorName: "SLA Monitor", type: "sla_overdue", note: "Quá hạn xử lý" });
         notifyRequester(db, ticket, "sla_overdue", `${ticket.code} đã quá hạn xử lý`, "Hệ thống đã ghi nhận quá hạn và nhắc HelpDesk tiếp tục xử lý.");
         ticket.updatedAt = at;
@@ -438,7 +442,8 @@ async function handleApi(req, res, url, headers) {
     const notifications = db.notifications
       .filter((item) => item.userId === session.sub)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, 100);
+      .slice(0, 100)
+      .map(publicNotification);
     return json(res, 200, { notifications, unreadCount: notifications.filter((item) => !item.readAt).length }, headers);
   }
 
@@ -451,7 +456,7 @@ async function handleApi(req, res, url, headers) {
       item.readAt = item.readAt || nowIso();
       return item;
     });
-    return json(res, 200, { notification }, headers);
+    return json(res, 200, { notification: publicNotification(notification) }, headers);
   }
 
   if (req.method === "POST" && pathname === "/api/notifications/read-all") {

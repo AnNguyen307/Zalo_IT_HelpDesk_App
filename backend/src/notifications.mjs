@@ -1,4 +1,5 @@
 import { id, nowIso } from "./utils.mjs";
+import { plainSystemText } from "./system-text.mjs";
 
 export function createNotification({ userId, ticketId = "", type = "info", title, body }) {
   return {
@@ -6,10 +7,18 @@ export function createNotification({ userId, ticketId = "", type = "info", title
     userId,
     ticketId,
     type,
-    title: String(title || "Thông báo").slice(0, 160),
-    body: String(body || "").slice(0, 1000),
+    title: plainSystemText(title, "Thông báo").slice(0, 160),
+    body: plainSystemText(body).slice(0, 1000),
     readAt: null,
     createdAt: nowIso(),
+  };
+}
+
+export function publicNotification(notification) {
+  return {
+    ...notification,
+    title: plainSystemText(notification?.title, "Thông báo"),
+    body: plainSystemText(notification?.body),
   };
 }
 
