@@ -1,0 +1,20 @@
+{
+  "app": {
+    "title": "IT HelpDesk",
+    "headerTitle": "IT HelpDesk",
+    "headerColor": "#0866FF",
+    "textColor": "white",
+    "statusBarColor": "#0866FF",
+    "actionBarHidden": false,
+    "hideAndroidBottomNavigationBar": false,
+    "hideIOSSafeAreaBottom": false
+  },
+  "debug": false,
+  "listCSS": [
+    "assets/index.BKmKc04S.css"
+  ],
+  "listSyncJS": [
+    "assets/index.ToIiMEhX.module.js"
+  ],
+  "listAsyncJS": []
+}

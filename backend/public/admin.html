@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b1830" />
+  <title>IT HelpDesk Control Center</title>
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <main id="loginView" class="login-screen">
+    <section class="login-showcase" aria-hidden="true">
+      <div class="showcase-brand"><span class="brand-symbol">IT</span><span>Enterprise HelpDesk</span></div>
+      <div class="showcase-copy">
+        <span class="overline">CONTROL CENTER 2026</span>
+        <h1>Một nơi duy nhất để vận hành hỗ trợ IT.</h1>
+        <p>Tiếp nhận ticket, kiểm soát SLA, quản lý Playbook doanh nghiệp và giám sát AI Agent theo nguyên tắc không suy đoán.</p>
+        <div class="showcase-points">
+          <div><span>01</span><strong>Ưu tiên Playbook</strong><small>Chỉ hướng dẫn khi có quy trình đã duyệt.</small></div>
+          <div><span>02</span><strong>Escalate ngay</strong><small>Không đủ căn cứ sẽ chuyển kỹ thuật viên.</small></div>
+          <div><span>03</span><strong>Minh bạch SLA</strong><small>Theo dõi phản hồi và thời hạn xử lý.</small></div>
+        </div>
+      </div>
+      <div class="showcase-glow"></div>
+    </section>
+
+    <section class="login-panel">
+      <form id="loginForm" class="login-card">
+        <div class="login-logo">IT</div>
+        <span class="overline">STAFF PORTAL</span>
+        <h2>Chào mừng trở lại</h2>
+        <p>Đăng nhập với quyền quản trị viên hoặc kỹ thuật viên để vận hành HelpDesk và đề xuất Playbook.</p>
+        <label class="field-label" for="staffName">Tên nhân sự (dùng để ghi lịch sử thay đổi)</label><div class="input-shell"><span>IT</span><input id="staffName" autocomplete="name" placeholder="VD: Nguyễn Văn An" /></div><label class="field-label login-password-label" for="password">Mật khẩu quản trị viên / kỹ thuật viên</label>
+        <div class="input-shell"><span>●</span><input id="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required /></div>
+        <button class="button primary-button login-submit" type="submit"><span>Đăng nhập an toàn</span><b>→</b></button>
+        <div id="loginError" class="form-error" role="alert"></div>
+        <div class="login-foot"><span class="status-dot"></span> Dữ liệu được lưu trong hệ thống nội bộ</div>
+      </form>
+    </section>
+  </main>
+
+  <section id="appView" class="admin-layout hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand"><span class="brand-symbol">IT</span><div><strong>HelpDesk</strong><small>Control Center</small></div></div>
+      <nav class="sidebar-nav" aria-label="Điều hướng quản trị">
+        <span class="nav-label">VẬN HÀNH</span>
+        <button class="tab active" data-tab="tickets"><span class="nav-icon">▦</span><span>Tickets</span><b id="openTicketBadge">0</b></button>
+        <button class="tab" data-tab="knowledge"><span class="nav-icon">◇</span><span>Knowledge Base</span></button>
+        <span class="nav-label">TRÍ TUỆ HỆ THỐNG</span>
+        <button class="tab" data-tab="governance"><span class="nav-icon">◫</span><span>Vòng đời Playbook</span><b id="reviewBadge">0</b></button>
+        <button class="tab" data-tab="playbook"><span class="nav-icon">▤</span><span>Enterprise Playbook</span></button>
+        <button class="tab" data-tab="agent"><span class="nav-icon">✦</span><span>AI Agent</span></button>
+      </nav>
+      <div class="sidebar-health">
+        <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
+        <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
+      </div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.4</span></div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="main-header">
+        <div class="header-copy"><span class="overline">IT OPERATIONS</span><h1 id="activeSectionTitle">Tổng quan Ticket</h1><p id="activeSectionDescription">Theo dõi yêu cầu, SLA và quyết định xử lý theo thời gian thực.</p></div>
+        <div class="header-actions"><button id="refreshBtn" class="button icon-button" title="Làm mới"><span>↻</span></button><button id="logoutBtn" class="button subtle-button"><span>Đăng xuất</span><b>↗</b></button></div>
+      </header>
+
+      <div class="main-content">
+        <section id="ticketsTab" class="workspace-section">
+          <div id="stats" class="stats-grid"></div>
+          <article class="policy-banner">
+            <span class="policy-icon">✓</span>
+            <div><strong>Chế độ phản hồi nghiêm ngặt đang bật</strong><p>AI chỉ được hướng dẫn khi có Playbook phù hợp, đã phê duyệt và đủ độ tin cậy. Mọi trường hợp còn lại được chuyển IT ngay lập tức.</p></div>
+            <span class="policy-chip">STRICT MODE</span>
+          </article>
+          <div class="filter-panel">
+            <label class="admin-search"><span>⌕</span><input id="search" placeholder="Tìm mã ticket, tiêu đề, người yêu cầu…" /></label>
+            <select id="statusFilter" aria-label="Lọc trạng thái">
+              <option value="">Tất cả trạng thái</option><option value="open">Mới mở</option><option value="waiting_user">Chờ người dùng</option><option value="in_progress">Đang xử lý</option><option value="resolved">Đã xử lý</option><option value="closed">Đã đóng</option>
+            </select>
+            <select id="priorityFilter" aria-label="Lọc ưu tiên"><option value="">Mọi ưu tiên</option><option value="urgent">Khẩn cấp</option><option value="high">Cao</option><option value="normal">Bình thường</option><option value="low">Thấp</option></select>
+            <select id="categoryFilter" aria-label="Lọc danh mục"><option value="">Mọi danh mục</option><option value="network">Mạng</option><option value="printer">Máy in</option><option value="windows">Windows</option><option value="office">Office</option><option value="account">Tài khoản</option><option value="software">Phần mềm</option><option value="hardware">Phần cứng</option><option value="other">Khác</option></select>
+            <button id="resetFiltersBtn" class="button subtle-button compact">Đặt lại</button>
+          </div>
+          <div class="table-panel">
+            <div class="table-heading"><div><h2>Hàng đợi hỗ trợ</h2><p id="ticketResultCount">Đang tải dữ liệu…</p></div><span class="live-indicator"><i></i> Tự làm mới 30 giây</span></div>
+            <div class="table-scroll"><table><thead><tr><th>Yêu cầu</th><th>Phân loại</th><th>Trạng thái / SLA</th><th>Quyết định Agent</th><th>Cập nhật</th></tr></thead><tbody id="ticketRows"></tbody></table></div>
+            <div id="emptyTickets" class="empty-state hidden"><span>⌕</span><h3>Không có ticket phù hợp</h3><p>Hãy thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p></div>
+          </div>
+        </section>
+
+        <section id="knowledgeTab" class="workspace-section hidden">
+          <div class="section-toolbar"><div><span class="overline">GUIDANCE LIBRARY</span><h2>Knowledge Base</h2><p>Các checklist ngắn hỗ trợ Playbook, không thay thế quy trình đã phê duyệt.</p></div><button id="newKbBtn" class="button primary-button"><span>＋</span> Thêm hướng dẫn</button></div>
+          <article class="info-banner"><span>i</span><p><strong>Nguyên tắc:</strong> Knowledge Base chỉ được dùng làm ngữ cảnh. Trong Strict Mode, KB đơn lẻ không đủ điều kiện để AI tự hướng dẫn người dùng.</p></article>
+          <div id="kbList" class="kb-grid"></div>
+        </section>
+
+        <section id="playbookTab" class="workspace-section hidden">
+          <div class="section-toolbar"><div><span class="overline">SOURCE OF TRUTH</span><h2>Enterprise Playbook</h2><p>Quy trình nội bộ đã làm sạch, phân quyền và lập chỉ mục semantic.</p></div><div class="header-actions"><button id="refreshPlaybookBtn" class="button subtle-button">↻ Kiểm tra</button><button id="reindexPlaybookBtn" class="button primary-button">Re-index semantic</button></div></div>
+          <div id="playbookStatus" class="health-grid"></div>
+          <div class="split-workspace">
+            <form id="playbookSearchForm" class="workspace-card query-card">
+              <span class="card-kicker">PLAYBOOK SEARCH</span><h3>Kiểm thử tình huống</h3><p>Nhập triệu chứng giống cách người dùng mô tả để kiểm tra procedure được ưu tiên.</p>
+              <label>Tình huống<textarea id="playbookSearchPrompt" rows="7" placeholder="Ví dụ: Client VLAN80 nhận IP nhưng không ra Internet" required></textarea></label>
+              <label>Phạm vi hiển thị<select id="playbookAudience"><option value="employee">Employee-safe</option><option value="technician" selected>Technician</option><option value="all">Tất cả</option></select></label>
+              <button type="submit" class="button primary-button full">⌕ Tìm trong Playbook</button>
+            </form>
+            <div id="playbookSearchResult" class="playbook-results"><div class="empty-state compact-empty"><span>▤</span><h3>Chưa chạy tra cứu</h3><p>Kết quả và điểm tương đồng sẽ xuất hiện tại đây.</p></div></div>
+          </div>
+        </section>
+
+        <section id="governanceTab" class="workspace-section hidden">
+          <div class="section-toolbar"><div><span class="overline">CONTROLLED LEARNING</span><h2>Quản trị vòng đời Playbook</h2><p>Kỹ thuật viên tạo đề xuất; quản trị viên duyệt và phát hành. AI chỉ học từ phiên bản Published.</p></div><div class="header-actions"><button id="seedPlaybookBtn" class="button subtle-button admin-only">Nhập baseline</button><button id="newPlaybookDraftBtn" class="button primary-button"><span>＋</span> Tạo bản nháp</button></div></div>
+          <article class="governance-banner"><div class="governance-flow"><span>Draft</span><b>→</b><span>Submitted</span><b>→</b><span>Admin Review</span><b>→</b><span>Published</span><b>→</b><span>Auto Re-index</span></div><p>Không có cơ chế “học trực tiếp” từ ticket chưa được duyệt. Điều này ngăn AI ghi nhớ hướng xử lý sai hoặc thông tin nhạy cảm.</p></article>
+          <div id="governanceStats" class="stats-grid governance-stats"></div>
+          <div class="filter-panel governance-filter">
+            <label class="admin-search"><span>⌕</span><input id="governanceSearch" placeholder="Tìm mã, tiêu đề, nội dung procedure…" /></label>
+            <select id="governanceStatus"><option value="">Mọi trạng thái phiên bản</option><option value="submitted">Chờ duyệt</option><option value="draft">Bản nháp</option><option value="rejected">Bị từ chối</option><option value="published">Đã phát hành</option><option value="superseded">Phiên bản cũ</option></select>
+            <select id="governanceLifecycle"><option value="">Mọi vòng đời</option><option value="active">Đang hoạt động</option><option value="deprecated">Ngừng dùng</option><option value="archived">Lưu trữ</option></select>
+            <button id="refreshGovernanceBtn" class="button subtle-button compact">↻ Làm mới</button>
+          </div>
+          <div class="governance-layout">
+            <div class="table-panel"><div class="table-heading"><div><h2>Procedure và đề xuất</h2><p id="governanceCount">Đang tải…</p></div><span id="indexStateChip" class="badge">INDEX</span></div><div id="governanceList" class="governance-list"></div></div>
+            <aside class="workspace-card governance-help"><span class="card-kicker">QUYỀN HẠN</span><h3>Ai được làm gì?</h3><div class="permission-row"><b>Kỹ thuật viên</b><span>Tạo/sửa draft, tạo từ ticket, gửi duyệt.</span></div><div class="permission-row"><b>Quản trị viên</b><span>Duyệt, publish, reject, deprecate và rollback.</span></div><div class="permission-row"><b>AI Agent</b><span>Chỉ đọc procedure Published + Active.</span></div><hr/><p>Ngay sau Publish, cache được làm mới và semantic index được rebuild tự động trong nền.</p></aside>
+          </div>
+        </section>
+
+        <section id="agentTab" class="workspace-section hidden">
+          <div class="section-toolbar"><div><span class="overline">LOCAL AI RUNTIME</span><h2>AI HelpDesk Agent</h2><p>Ollama cục bộ, Playbook-first và tự động handoff khi không chắc chắn.</p></div><button id="refreshAgentBtn" class="button subtle-button">↻ Kiểm tra lại</button></div>
+          <article class="strict-agent-banner"><div class="strict-orb">✦</div><div><strong>Không trả lời mông lung</strong><p>Không có Playbook phù hợp, procedure không auto-eligible, confidence thấp hoặc Ollama không sẵn sàng đều dẫn đến escalation ngay.</p></div><span>ZERO GUESSING</span></article>
+          <div id="agentStatus" class="health-grid"></div>
+          <div class="split-workspace">
+            <form id="agentTestForm" class="workspace-card query-card">
+              <span class="card-kicker">AGENT SANDBOX</span><h3>Kiểm thử quyết định</h3><p>Test phản hồi và xem Agent hướng dẫn hay chuyển kỹ thuật viên.</p>
+              <label>Tình huống<textarea id="agentTestPrompt" rows="8" placeholder="Ví dụ: Máy in Ricoh báo Offline, tôi đã xóa hàng đợi nhưng vẫn không in được." required></textarea></label>
+              <button type="submit" class="button primary-button full">✦ Phân tích bằng AI Agent</button>
+            </form>
+            <pre id="agentTestResult" class="agent-test-result">Chưa chạy kiểm thử.</pre>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <dialog id="ticketDialog" class="ticket-dialog">
+    <form method="dialog" class="dialog-head"><div><span class="overline">TICKET WORKSPACE</span><h2 id="dialogTicketCode">Ticket</h2></div><button class="dialog-close" aria-label="Đóng">×</button></form>
+    <div id="ticketDetail"></div>
+  </dialog>
+
+  <dialog id="kbDialog" class="form-dialog">
+    <form id="kbForm">
+      <div class="dialog-head"><div><span class="overline">KNOWLEDGE EDITOR</span><h2 id="kbDialogTitle">Thêm hướng dẫn</h2></div><button type="button" class="dialog-close" data-close-kb aria-label="Đóng">×</button></div>
+      <input id="kbId" type="hidden" />
+      <div class="form-grid">
+        <label class="wide">Tiêu đề<input id="kbTitle" required maxlength="180" /></label>
+        <label>Phân loại<select id="kbCategory"><option>network</option><option>printer</option><option>windows</option><option>office</option><option>account</option><option>software</option><option>hardware</option><option>other</option></select></label>
+        <label>Rủi ro<select id="kbRisk"><option>low</option><option>medium</option><option>high</option></select></label>
+        <label class="wide">Từ khóa, cách nhau bởi dấu phẩy<input id="kbKeywords" /></label>
+        <label class="wide">Tóm tắt<textarea id="kbSummary" rows="3"></textarea></label>
+        <label class="wide">Các bước, mỗi dòng một bước<textarea id="kbSteps" rows="9" required></textarea></label>
+        <label class="toggle-label"><input id="kbAuto" type="checkbox" /><span></span> Cho phép tự hướng dẫn</label>
+        <label class="toggle-label"><input id="kbActive" type="checkbox" checked /><span></span> Đang hoạt động</label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="button subtle-button" data-close-kb>Hủy</button><button type="submit" class="button primary-button">Lưu hướng dẫn</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="playbookEditorDialog" class="form-dialog playbook-editor-dialog">
+    <form id="playbookEditorForm">
+      <div class="dialog-head"><div><span class="overline">PLAYBOOK LIFECYCLE</span><h2 id="playbookEditorTitle">Bản nháp Playbook</h2><p id="playbookEditorMeta" class="muted"></p></div><button type="button" class="dialog-close" data-close-playbook-editor aria-label="Đóng">×</button></div>
+      <input id="pbProcedureId" type="hidden"/><input id="pbVersionId" type="hidden"/>
+      <div class="form-grid playbook-form-grid">
+        <label>Mã procedure<input id="pbCode" maxlength="100" placeholder="VD: VS-NET-013" required/></label>
+        <label>Tiêu đề<input id="pbTitle" maxlength="220" required/></label>
+        <label>Phân loại<select id="pbCategory"><option>network</option><option>printer</option><option>windows</option><option>office</option><option>account</option><option>software</option><option>hardware</option><option>other</option></select></label>
+        <label>Đối tượng<select id="pbAudience"><option value="employee">Employee-safe</option><option value="technician">Technician only</option><option value="both">Cả hai</option></select></label>
+        <label>Rủi ro<select id="pbRisk"><option>low</option><option>medium</option><option>high</option></select></label>
+        <label>Ưu tiên<select id="pbPriority"><option>low</option><option selected>normal</option><option>high</option><option>urgent</option></select></label>
+        <label class="wide">Tóm tắt<textarea id="pbSummary" rows="3" required></textarea></label>
+        <label class="wide">Triệu chứng, mỗi dòng một mục<textarea id="pbSymptoms" rows="4"></textarea></label>
+        <label class="wide">Câu hỏi khoanh vùng, mỗi dòng một câu<textarea id="pbQuestions" rows="5"></textarea></label>
+        <label class="wide">Các bước xử lý, mỗi dòng một bước<textarea id="pbSteps" rows="9" required></textarea></label>
+        <label class="wide">Bước bị cấm / cảnh báo an toàn<textarea id="pbForbidden" rows="5"></textarea></label>
+        <label class="wide">Từ khóa, cách nhau bằng dấu phẩy<input id="pbKeywords" required/></label>
+        <label class="wide">Ghi chú nội bộ<textarea id="pbNotes" rows="3"></textarea></label>
+        <label class="wide">Tóm tắt thay đổi<input id="pbChangeSummary" maxlength="1000" placeholder="Lý do tạo hoặc cập nhật phiên bản"/></label>
+        <label class="toggle-label"><input id="pbAutoEligible" type="checkbox"/><span></span> Cho phép AI tự hướng dẫn</label>
+      </div>
+      <div id="playbookValidationHint" class="info-banner editor-hint"><span>i</span><p>Procedure rủi ro cao và procedure Technician-only luôn bị tắt auto-eligible. Publish sẽ bị chặn nếu thiếu điều kiện an toàn.</p></div>
+      <div id="playbookVersionHistory" class="version-history"></div>
+      <div class="dialog-actions lifecycle-actions"><button type="button" class="button subtle-button" data-close-playbook-editor>Đóng</button><button id="pbSaveBtn" type="submit" class="button subtle-button">Lưu draft</button><button id="pbSubmitBtn" type="button" class="button primary-button">Gửi duyệt</button><button id="pbRejectBtn" type="button" class="button danger-button admin-only">Từ chối</button><button id="pbPublishBtn" type="button" class="button success-button admin-only">Duyệt & Publish</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

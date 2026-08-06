@@ -1,0 +1,57 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+miniapp/dist/
+miniapp/.vite/
+coverage/
+
+# Runtime configuration and secrets
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+miniapp/.env
+miniapp/.env.*
+!miniapp/.env.example
+
+# Databases and runtime data
+backend/data/db.json
+backend/data/db-*.json
+backend/data/*.bak
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+
+# Generated semantic index
+backend/data/playbook-index*.json
+backend/data/*embedding*
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+.cache/
+
+# Backups and corrupted files
+backup/
+backups/
+*.bak
+*.backup
+.env.corrupt-*
+.env-before-*
+.env.before-*
+
+# Credentials and keys
+*.key
+*.pem
+*.pfx
+*.token
+credentials*
+secrets*
+ngrok.yml
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/*.log
