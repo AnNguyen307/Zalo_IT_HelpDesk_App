@@ -17,7 +17,6 @@ on:
         required: false
         type: string
   schedule:
-    # Keep the Zalo refresh-token chain alive once per week.
     - cron: "17 1 * * 0"
 
 permissions:
@@ -84,12 +83,6 @@ jobs:
         working-directory: miniapp
         run: npm ci
 
-      - name: Remove conflicting legacy ZMP token
-        shell: bash
-        run: |
-          unset ZMP_TOKEN || true
-          echo "ZMP_TOKEN=" >> "$GITHUB_ENV"
-
       - name: Check public backend health
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
         shell: bash
@@ -119,15 +112,20 @@ jobs:
         run: |
           set -euo pipefail
           BASE_URL="${API_BASE_URL%/}"
-          printf 'VITE_API_BASE_URL=%s\n' "$BASE_URL" > .env
-          echo "Generated miniapp/.env for this CI build."
+
+          {
+            printf 'APP_ID=%s\n' "$MINI_APP_ID"
+            printf 'VITE_API_BASE_URL=%s\n' "$BASE_URL"
+          } > .env
+
+          echo "Generated Mini App build configuration."
 
       - name: Build Mini App
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
         working-directory: miniapp
         run: npm run build
 
-      - name: Validate deployment bundle
+      - name: Validate deployment bundle and project metadata
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
         working-directory: miniapp
         shell: bash
@@ -135,6 +133,16 @@ jobs:
           set -euo pipefail
           test -d dist
           test -f app-config.json
+          test -f zmp-cli.json
+
+          node -e '
+            const fs = require("fs");
+            const cfg = JSON.parse(fs.readFileSync("zmp-cli.json", "utf8"));
+            if (String(cfg.appId) !== String(process.env.MINI_APP_ID)) {
+              throw new Error("zmp-cli.json appId does not match MINI_APP_ID");
+            }
+          '
+
           echo "Bundle size:"
           du -sh dist
 
@@ -142,34 +150,54 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
         run: npm install --global zmp-cli@4.0.3
 
-      - name: Refresh Zalo deployment credentials
+      - name: Refresh and securely export Zalo credentials
         working-directory: miniapp
         shell: bash
         run: |
           set -euo pipefail
-          npx --no-install zmp-developer-token login \
-            "$ZALO_APP_ID" \
-            "$ZALO_APP_SECRET" \
-            "$ZALO_REFRESH_TOKEN" >> "$GITHUB_ENV"
 
-      - name: Validate and mask refreshed credentials
-        shell: bash
-        run: |
-          set -euo pipefail
+          LOGIN_OUTPUT="$(
+            npx --no-install zmp-developer-token login \
+              "$ZALO_APP_ID" \
+              "$ZALO_APP_SECRET" \
+              "$ZALO_REFRESH_TOKEN"
+          )"
 
-          if [ -z "${NEW_ACCESS_TOKEN:-}" ]; then
+          ACCESS_TOKEN_VALUE="$(
+            printf '%s\n' "$LOGIN_OUTPUT" |
+              sed -n 's/^NEW_ACCESS_TOKEN=//p' |
+              tail -n 1 |
+              tr -d '\r'
+          )"
+
+          REFRESH_TOKEN_VALUE="$(
+            printf '%s\n' "$LOGIN_OUTPUT" |
+              sed -n 's/^NEW_REFRESH_TOKEN=//p' |
+              tail -n 1 |
+              tr -d '\r'
+          )"
+
+          unset LOGIN_OUTPUT
+
+          if [ -z "$ACCESS_TOKEN_VALUE" ]; then
             echo "::error::Zalo login did not return NEW_ACCESS_TOKEN"
             exit 1
           fi
 
-          if [ -z "${NEW_REFRESH_TOKEN:-}" ]; then
+          if [ -z "$REFRESH_TOKEN_VALUE" ]; then
             echo "::error::Zalo login did not return NEW_REFRESH_TOKEN"
             exit 1
           fi
 
-          echo "::add-mask::${NEW_ACCESS_TOKEN}"
-          echo "::add-mask::${NEW_REFRESH_TOKEN}"
-          echo "Zalo credentials refreshed successfully."
+          echo "::add-mask::$ACCESS_TOKEN_VALUE"
+          echo "::add-mask::$REFRESH_TOKEN_VALUE"
+
+          {
+            printf 'NEW_ACCESS_TOKEN=%s\n' "$ACCESS_TOKEN_VALUE"
+            printf 'NEW_REFRESH_TOKEN=%s\n' "$REFRESH_TOKEN_VALUE"
+          } >> "$GITHUB_ENV"
+
+          echo "Zalo credentials refreshed and masked successfully."
 
       - name: Save rotated Zalo refresh token
         shell: bash
@@ -189,13 +217,40 @@ jobs:
 
           echo "Rotated ZALO_REFRESH_TOKEN was saved to GitHub Actions secrets."
 
-      - name: Deploy Development version to Zalo
+      - name: Prepare authenticated ZMP deployment configuration
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
         working-directory: miniapp
         shell: bash
         run: |
           set -euo pipefail
-          npx --no-install zmp-developer-token deploy "$MINI_APP_ID"
+          BASE_URL="${API_BASE_URL%/}"
+          umask 077
+
+          {
+            printf 'APP_ID=%s\n' "$MINI_APP_ID"
+            printf 'ZMP_TOKEN=%s\n' "$NEW_ACCESS_TOKEN"
+            printf 'VITE_API_BASE_URL=%s\n' "$BASE_URL"
+          } > .env
+
+          echo "Authenticated deployment configuration prepared."
+
+      - name: Deploy Testing version to Zalo
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        working-directory: miniapp
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env -u ZMP_TOKEN \
+            APP_ID="$MINI_APP_ID" \
+            NEW_ACCESS_TOKEN="$NEW_ACCESS_TOKEN" \
+            npx --no-install zmp-developer-token deploy "$MINI_APP_ID"
+
+      - name: Remove ephemeral Mini App credentials
+        if: always()
+        working-directory: miniapp
+        shell: bash
+        run: rm -f .env
 
       - name: Write workflow summary
         if: success()
@@ -207,7 +262,7 @@ jobs:
             echo "- Operation: ${{ github.event_name == 'schedule' && 'refresh-token' || inputs.operation }}"
             echo "- Mini App ID: ${MINI_APP_ID}"
             if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${{ inputs.operation }}" = "deploy" ]; then
-              echo "- Deployment type: Development"
+              echo "- Deployment type: Testing"
               echo "- Backend: ${API_BASE_URL%/}"
               echo "- Commit: ${GITHUB_SHA}"
             fi
