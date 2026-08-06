@@ -55,3 +55,7 @@ ngrok.yml
 .DS_Store
 Thumbs.db
 .vscode/*.log
+
+# Local organizer and VS Code backups
+.organizer-backup/
+.vscode-before-*/
