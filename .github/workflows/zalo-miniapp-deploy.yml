@@ -1,0 +1,214 @@
+name: Zalo Mini App CI/CD
+run-name: ${{ github.event_name == 'schedule' && 'Refresh Zalo deployment token' || format('Zalo Mini App - {0}', inputs.operation) }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Operation to run"
+        required: true
+        default: "deploy"
+        type: choice
+        options:
+          - deploy
+          - refresh-token
+      api_base_url:
+        description: "Current public HTTPS backend URL; required for deploy"
+        required: false
+        type: string
+  schedule:
+    # Keep the Zalo refresh-token chain alive once per week.
+    - cron: "17 1 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zalo-miniapp-cicd
+  cancel-in-progress: false
+
+jobs:
+  deploy-or-refresh:
+    name: Build, refresh credentials, and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      ZALO_APP_ID: ${{ vars.ZALO_APP_ID }}
+      MINI_APP_ID: ${{ vars.MINI_APP_ID }}
+      ZALO_APP_SECRET: ${{ secrets.ZALO_APP_SECRET }}
+      ZALO_REFRESH_TOKEN: ${{ secrets.ZALO_REFRESH_TOKEN }}
+      API_BASE_URL: ${{ inputs.api_base_url }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: miniapp/package-lock.json
+
+      - name: Validate CI/CD configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required_names=(
+            ZALO_APP_ID
+            MINI_APP_ID
+            ZALO_APP_SECRET
+            ZALO_REFRESH_TOKEN
+          )
+
+          for name in "${required_names[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions variable or secret: ${name}"
+              exit 1
+            fi
+          done
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${{ inputs.operation }}" = "deploy" ]; then
+            case "${API_BASE_URL:-}" in
+              https://*) ;;
+              *)
+                echo "::error::api_base_url is required for deploy and must start with https://"
+                exit 1
+                ;;
+            esac
+          fi
+
+      - name: Install Mini App dependencies
+        working-directory: miniapp
+        run: npm ci
+
+      - name: Remove conflicting legacy ZMP token
+        shell: bash
+        run: |
+          unset ZMP_TOKEN || true
+          echo "ZMP_TOKEN=" >> "$GITHUB_ENV"
+
+      - name: Check public backend health
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="${API_BASE_URL%/}"
+
+          echo "Checking ${BASE_URL}/health"
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            --retry 5 \
+            --retry-delay 3 \
+            --max-time 30 \
+            --header "ngrok-skip-browser-warning: github-actions" \
+            "${BASE_URL}/health" > /dev/null
+
+          echo "Backend health check passed."
+
+      - name: Generate Mini App build environment
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        working-directory: miniapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="${API_BASE_URL%/}"
+          printf 'VITE_API_BASE_URL=%s\n' "$BASE_URL" > .env
+          echo "Generated miniapp/.env for this CI build."
+
+      - name: Build Mini App
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        working-directory: miniapp
+        run: npm run build
+
+      - name: Validate deployment bundle
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        working-directory: miniapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d dist
+          test -f app-config.json
+          echo "Bundle size:"
+          du -sh dist
+
+      - name: Install Zalo Mini App CLI
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        run: npm install --global zmp-cli@4.0.3
+
+      - name: Refresh Zalo deployment credentials
+        working-directory: miniapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install zmp-developer-token login \
+            "$ZALO_APP_ID" \
+            "$ZALO_APP_SECRET" \
+            "$ZALO_REFRESH_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Validate and mask refreshed credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${NEW_ACCESS_TOKEN:-}" ]; then
+            echo "::error::Zalo login did not return NEW_ACCESS_TOKEN"
+            exit 1
+          fi
+
+          if [ -z "${NEW_REFRESH_TOKEN:-}" ]; then
+            echo "::error::Zalo login did not return NEW_REFRESH_TOKEN"
+            exit 1
+          fi
+
+          echo "::add-mask::${NEW_ACCESS_TOKEN}"
+          echo "::add-mask::${NEW_REFRESH_TOKEN}"
+          echo "Zalo credentials refreshed successfully."
+
+      - name: Save rotated Zalo refresh token
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.REPO_SECRET_PAT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::Missing repository secret REPO_SECRET_PAT"
+            exit 1
+          fi
+
+          printf '%s' "$NEW_REFRESH_TOKEN" | \
+            gh secret set ZALO_REFRESH_TOKEN \
+              --repo "$GITHUB_REPOSITORY"
+
+          echo "Rotated ZALO_REFRESH_TOKEN was saved to GitHub Actions secrets."
+
+      - name: Deploy Development version to Zalo
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'deploy' }}
+        working-directory: miniapp
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install zmp-developer-token deploy "$MINI_APP_ID"
+
+      - name: Write workflow summary
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "## Zalo Mini App CI/CD succeeded"
+            echo ""
+            echo "- Operation: ${{ github.event_name == 'schedule' && 'refresh-token' || inputs.operation }}"
+            echo "- Mini App ID: ${MINI_APP_ID}"
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${{ inputs.operation }}" = "deploy" ]; then
+              echo "- Deployment type: Development"
+              echo "- Backend: ${API_BASE_URL%/}"
+              echo "- Commit: ${GITHUB_SHA}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
