@@ -59,7 +59,7 @@ test("staff account API reports duplicate errors and persists activation on crea
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.7.1");
+  assert.equal(health.version, "5.7.2");
 
   const login = async (username, password = "HelpDesk2026") => {
     const response = await fetch(`${baseUrl}/api/auth/staff`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
