@@ -380,7 +380,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .table-heading>div{min-width:0}
 .table-heading .overline{font-size:9px}
 .table-heading h2{margin-top:3px;font-size:17px}
-.table-scroll{overscroll-behavior:contain}
+.table-scroll{overscroll-behavior-x:contain;overscroll-behavior-y:auto}
 table{min-width:940px}
 th,td{padding:13px 16px}
 th{position:sticky;top:0;z-index:1;background:#f7f9fc}
