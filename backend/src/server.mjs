@@ -32,6 +32,7 @@ import { createSla, ensureSla, markFirstResponse, pauseSla, publicSla, recalcula
 import { createStaffAccountRecord, ensureUniqueStaffUsername, hashStaffPassword, normalizeStaffActive, normalizeUsername, publicStaffAccount, STAFF_ROLES, validateStaffAccountTransition } from "./staff-accounts.mjs";
 import { audit, closeStore, getStoreStatus, initializeStore, pushHistory, readDb, seedKnowledgeBase, updateDb } from "./store.mjs";
 import { plainSystemText } from "./system-text.mjs";
+import { DEFAULT_TICKET_PRIORITY, priorityFromAgentAnalysis } from "./ticket-priority.mjs";
 import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
 
 await initializeStore();
@@ -167,6 +168,7 @@ ${input.description}`, createdAt,
     messages: [userMessage],
     attachments: [],
   });
+  const priority = priorityFromAgentAnalysis(analysis);
   const status = analysis.canAutoHandle ? "waiting_user" : "open";
   const ticket = {
     id: id("tkt"),
@@ -174,7 +176,7 @@ ${input.description}`, createdAt,
     userId: session.sub,
     ...input,
     category: analysis.category,
-    priority: analysis.priority,
+    priority,
     risk: analysis.risk,
     status,
     assignedTo: "",
@@ -189,7 +191,7 @@ ${input.description}`, createdAt,
     satisfaction: null,
     reopenCount: 0,
     lastReopenedAt: null,
-    sla: createSla(analysis.priority, createdAt),
+    sla: createSla(priority, createdAt),
     createdAt,
     updatedAt: createdAt,
     resolvedAt: null,
@@ -214,7 +216,10 @@ ${input.description}`, createdAt,
     target.messages.push(userMessage, agentMessage);
     pushHistory(target, {
       ticketId: ticket.id, actorId: session.sub, actorName: session.name || "Người dùng",
-      type: "created", from: null, to: status, note: `Ticket được tạo với ưu tiên ${ticket.priority}; agent=${analysis.source}`,
+      type: "created", from: null, to: status,
+      note: analysis.priorityDetermined
+        ? `Ticket mặc định ${DEFAULT_TICKET_PRIORITY}; AI Agent xác định ưu tiên ${ticket.priority}; agent=${analysis.source}`
+        : `Ticket mặc định ${DEFAULT_TICKET_PRIORITY}; AI Agent chưa xác định chắc chắn nên giữ ${DEFAULT_TICKET_PRIORITY}; agent=${analysis.source}`,
     });
     if (ticket.aiHandoffLocked) {
       pushHistory(target, {
@@ -355,9 +360,11 @@ async function appendMessage(session, ticketId, body, options = {}) {
 
     db.messages.push(agentMessage);
     const oldStatus = ticket.status;
+    const oldPriority = ticket.priority;
+    const nextPriority = priorityFromAgentAnalysis(analysis);
     ticket.aiAnalysis = analysis;
     ticket.category = analysis.category;
-    ticket.priority = analysis.priority;
+    ticket.priority = nextPriority;
     ticket.risk = analysis.risk;
     ticket.status = analysis.canAutoHandle ? "waiting_user" : "open";
     if (analysisRequiresHumanHandoff(analysis)) {
@@ -369,10 +376,23 @@ async function appendMessage(session, ticketId, body, options = {}) {
       });
       if (newlyLocked) pushHistory(db, { ticketId, actorId: "ai-agent", actorName: agentDisplayName(analysis), type: "ai_handoff", from: "ai_active", to: "human_only", note: `AI đã bàn giao và rời hội thoại: ${ticket.aiHandoffReason}` });
     }
-    recalculateSla(ticket, analysis.priority);
+    recalculateSla(ticket, nextPriority);
     syncSlaForStatus(ticket, oldStatus, nowIso(), { id: "ai-agent", name: agentDisplayName(analysis) });
     ticket.updatedAt = nowIso();
     recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Phân loại lại sau phản hồi người dùng");
+    if (oldPriority !== nextPriority) {
+      pushHistory(db, {
+        ticketId,
+        actorId: "ai-agent",
+        actorName: agentDisplayName(analysis),
+        type: "priority",
+        from: oldPriority,
+        to: nextPriority,
+        note: analysis.priorityDetermined
+          ? "AI Agent đã xác định lại mức ưu tiên"
+          : "AI Agent chưa xác định chắc chắn; trả về mức Bình thường",
+      });
+    }
     pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "message", note: attachments.length ? `Người dùng gửi phản hồi kèm ${attachments.length} file` : "Người dùng gửi phản hồi mới" });
     if (attachments.length) pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "attachment", note: attachmentNames });
     return { ticket, agentAccepted: true };
@@ -439,7 +459,7 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.7.2",
+      version: "5.7.3",
       time: nowIso(),
       features: ["staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
       agent: { ...agent, paidApiRequired: false },

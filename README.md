@@ -1,4 +1,4 @@
-# Zalo IT HelpDesk v5.7.2 - Operations
+# Zalo IT HelpDesk v5.7.3 - AI Priority Classification
 
 Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App, được thiết kế để **không phụ thuộc API AI trả phí hoặc cloud server thuê theo tháng**.
 
