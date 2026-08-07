@@ -36,6 +36,7 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.7/CHANGES_V5_7_OPERATIONS.md](./releases/v5.7/CHANGES_V5_7_OPERATIONS.md)
 - [releases/v5.7/UPGRADE_V5_7_OPERATIONS.md](./releases/v5.7/UPGRADE_V5_7_OPERATIONS.md)
 - [releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md](./releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md)
+- [releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md](./releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
