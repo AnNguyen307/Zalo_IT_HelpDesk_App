@@ -15,15 +15,16 @@
     <section class="login-showcase" aria-hidden="true">
       <div class="showcase-brand"><span class="brand-symbol">IT</span><span>Enterprise HelpDesk</span></div>
       <div class="showcase-copy">
-        <span class="overline">CONTROL CENTER 2026</span>
-        <h1>Một nơi duy nhất để vận hành hỗ trợ IT.</h1>
-        <p>Tiếp nhận ticket, kiểm soát SLA, quản lý Playbook doanh nghiệp và giám sát AI Agent theo nguyên tắc không suy đoán.</p>
+        <span class="overline">HELPDESK OPERATIONS</span>
+        <h1>Nắm tình hình.<br/>Xử lý đúng việc.</h1>
+        <p>Ticket, SLA, Playbook và AI trong một workspace thống nhất.</p>
         <div class="showcase-points">
-          <div><span>01</span><strong>Ưu tiên Playbook</strong><small>Chỉ hướng dẫn khi có quy trình đã duyệt.</small></div>
-          <div><span>02</span><strong>Escalate ngay</strong><small>Không đủ căn cứ sẽ chuyển kỹ thuật viên.</small></div>
-          <div><span>03</span><strong>Minh bạch SLA</strong><small>Theo dõi phản hồi và thời hạn xử lý.</small></div>
+          <div><span>01</span><strong>Đúng Playbook</strong></div>
+          <div><span>02</span><strong>Rõ SLA</strong></div>
+          <div><span>03</span><strong>Có người xử lý</strong></div>
         </div>
       </div>
+      <img class="showcase-art" src="/assets/admin-operations-1280.webp" alt="" width="1280" height="720" />
       <div class="showcase-glow"></div>
     </section>
 
@@ -32,7 +33,7 @@
         <div class="login-logo">IT</div>
         <span class="overline">STAFF PORTAL</span>
         <h2>Chào mừng trở lại</h2>
-        <p>Đăng nhập với quyền quản trị viên hoặc kỹ thuật viên để vận hành HelpDesk và đề xuất Playbook.</p>
+        <p>Đăng nhập để tiếp nhận và điều phối yêu cầu.</p>
         <label class="field-label" for="staffName">Tên nhân sự (dùng để ghi lịch sử thay đổi)</label><div class="input-shell"><span>IT</span><input id="staffName" autocomplete="name" placeholder="VD: Nguyễn Văn An" /></div><label class="field-label login-password-label" for="password">Mật khẩu quản trị viên / kỹ thuật viên</label>
         <div class="input-shell"><span>●</span><input id="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required /></div>
         <button class="button primary-button login-submit" type="submit"><span>Đăng nhập an toàn</span><b>→</b></button>
@@ -47,11 +48,11 @@
       <div class="sidebar-brand"><span class="brand-symbol">IT</span><div><strong>HelpDesk</strong><small>Control Center</small></div></div>
       <nav class="sidebar-nav" aria-label="Điều hướng quản trị">
         <span class="nav-label">VẬN HÀNH</span>
-        <button class="tab active" data-tab="tickets"><span class="nav-icon">▦</span><span>Tickets</span><b id="openTicketBadge">0</b></button>
-        <button class="tab" data-tab="knowledge"><span class="nav-icon">◇</span><span>Knowledge Base</span></button>
+        <button class="tab active" data-tab="tickets"><span class="nav-icon">▦</span><span>Yêu cầu</span><b id="openTicketBadge">0</b></button>
+        <button class="tab" data-tab="knowledge"><span class="nav-icon">◇</span><span>Kho kiến thức</span></button>
         <span class="nav-label">TRÍ TUỆ HỆ THỐNG</span>
-        <button class="tab" data-tab="governance"><span class="nav-icon">◫</span><span>Vòng đời Playbook</span><b id="reviewBadge">0</b></button>
-        <button class="tab" data-tab="playbook"><span class="nav-icon">▤</span><span>Enterprise Playbook</span></button>
+        <button class="tab" data-tab="governance"><span class="nav-icon">◫</span><span>Vòng đời</span><b id="reviewBadge">0</b></button>
+        <button class="tab" data-tab="playbook"><span class="nav-icon">▤</span><span>Playbook</span></button>
         <button class="tab" data-tab="agent"><span class="nav-icon">✦</span><span>AI Agent</span></button>
       </nav>
       <div class="sidebar-health">
@@ -71,9 +72,9 @@
         <section id="ticketsTab" class="workspace-section">
           <div id="stats" class="stats-grid"></div>
           <article class="policy-banner">
-            <span class="policy-icon">✓</span>
-            <div><strong>Chế độ phản hồi nghiêm ngặt đang bật</strong><p>AI chỉ được hướng dẫn khi có Playbook phù hợp, đã phê duyệt và đủ độ tin cậy. Mọi trường hợp còn lại được chuyển IT ngay lập tức.</p></div>
-            <span class="policy-chip">STRICT MODE</span>
+            <img src="/assets/admin-operations-1280.webp" alt="" width="1280" height="720" />
+            <div><span class="overline">VẬN HÀNH AN TOÀN</span><strong>Playbook-first đang bật</strong><p>Không đủ căn cứ, AI chuyển kỹ thuật viên.</p></div>
+            <div class="policy-tags"><span>Đúng quy trình</span><span>Không suy đoán</span><span>Theo dõi SLA</span></div>
           </article>
           <div class="filter-panel">
             <label class="admin-search"><span>⌕</span><input id="search" placeholder="Tìm mã ticket, tiêu đề, người yêu cầu…" /></label>
@@ -85,7 +86,7 @@
             <button id="resetFiltersBtn" class="button subtle-button compact">Đặt lại</button>
           </div>
           <div class="table-panel">
-            <div class="table-heading"><div><h2>Hàng đợi hỗ trợ</h2><p id="ticketResultCount">Đang tải dữ liệu…</p></div><span class="live-indicator"><i></i> Tự làm mới 30 giây</span></div>
+            <div class="table-heading"><div><span class="overline">WORK QUEUE</span><h2>Hàng đợi hỗ trợ</h2><p id="ticketResultCount">Đang tải dữ liệu…</p></div><span class="live-indicator"><i></i> 30 giây</span></div>
             <div class="table-scroll"><table><thead><tr><th>Yêu cầu</th><th>Phân loại</th><th>Trạng thái / SLA</th><th>Quyết định Agent</th><th>Cập nhật</th></tr></thead><tbody id="ticketRows"></tbody></table></div>
             <div id="emptyTickets" class="empty-state hidden"><span>⌕</span><h3>Không có ticket phù hợp</h3><p>Hãy thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p></div>
           </div>
