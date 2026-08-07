@@ -3893,3 +3893,27 @@ select:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+.ticket-sla-paused {
+  border-color: #dcd2f6;
+  background: linear-gradient(135deg, #fff, #faf8ff);
+}
+
+.sla-paused-mini {
+  color: #6b55b5;
+  font-weight: 800;
+}
+
+.ticket-quick-sla.paused {
+  border-color: #ddd2fa;
+  background: #faf8ff;
+}
+
+.ticket-quick-sla.paused strong {
+  color: #6650ad;
+}
+
+.ticket-quick-sla.at-risk {
+  border-color: #f1ddb1;
+  background: #fffaf0;
+}

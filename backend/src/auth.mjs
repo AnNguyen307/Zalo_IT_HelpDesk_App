@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { config } from "./config.mjs";
 import { readDb, updateDb } from "./store.mjs";
+import { normalizeUsername, publicStaffAccount, STAFF_ROLES, verifyStaffPassword } from "./staff-accounts.mjs";
 import { id, nowIso, safeEqual } from "./utils.mjs";
 
 function base64url(value) {
@@ -44,13 +45,20 @@ export async function requireAuth(req, { admin = false, staff = false, roles = [
   const session = verifySession(bearerToken(req));
   const allowedRoles = new Set(roles);
   if (admin) allowedRoles.add("admin");
-  if (staff) { allowedRoles.add("admin"); allowedRoles.add("technician"); }
+  if (staff) { allowedRoles.add("admin"); allowedRoles.add("technician"); allowedRoles.add("viewer"); }
   const roleDenied = allowedRoles.size > 0 && (!session || !allowedRoles.has(session.role));
   if (!session || roleDenied) {
     const label = admin ? "Admin authentication required" : staff ? "Staff authentication required" : "Authentication required";
     const error = new Error(label);
     error.status = session ? 403 : 401;
     throw error;
+  }
+  if (session.sub?.startsWith("stf_")) {
+    const db = await readDb();
+    const account = db.staffAccounts.find((item) => item.id === session.sub);
+    if (!account || account.active === false || account.role !== session.role || Number(account.sessionVersion || 1) !== Number(session.sv || 1)) {
+      throw Object.assign(new Error("Phiên đăng nhập nhân sự không còn hiệu lực"), { status: 401 });
+    }
   }
   return session;
 }
@@ -115,35 +123,53 @@ export async function loginWithZalo({ accessToken, userId, name, avatar, phone, 
 }
 
 export async function loginAdmin(password) {
-  if (!safeEqual(password || "", config.adminPassword)) {
-    throw Object.assign(new Error("Invalid admin password"), { status: 401 });
-  }
-  return {
-    token: issueSession({ sub: "admin", role: "admin", name: "HelpDesk Admin" }),
-    user: { id: "admin", role: "admin", name: "HelpDesk Admin" },
-  };
+  return loginStaff({ username: "admin", password });
 }
 
-export async function loginStaff(password, displayName = "") {
-  if (safeEqual(password || "", config.adminPassword)) {
+export async function loginStaff({ username = "", password = "", name = "" } = {}) {
+  const normalized = normalizeUsername(username || name);
+  if (config.legacyStaffLoginEnabled && normalized === "admin" && safeEqual(password || "", config.adminPassword)) {
     return {
       token: issueSession({ sub: "admin", role: "admin", name: "HelpDesk Admin" }),
-      user: { id: "admin", role: "admin", name: "HelpDesk Admin" },
+      user: { id: "admin", username: "admin", role: "admin", name: "HelpDesk Admin", legacy: true },
     };
   }
-  if (config.technicianPassword && safeEqual(password || "", config.technicianPassword)) {
-    const name = String(displayName || "HelpDesk Technician").trim().slice(0, 120) || "HelpDesk Technician";
-    const staffId = `technician:${crypto.createHash("sha256").update(name.toLowerCase()).digest("hex").slice(0, 12)}`;
+  const db = await readDb();
+  const account = db.staffAccounts.find((item) => item.username === normalized);
+  if (account) {
+    if (account.active === false || !await verifyStaffPassword(password, account.passwordHash)) {
+      throw Object.assign(new Error("Tên đăng nhập hoặc mật khẩu không đúng"), { status: 401 });
+    }
+    const loginAt = nowIso();
+    await updateDb((target) => {
+      const current = target.staffAccounts.find((item) => item.id === account.id);
+      if (current) { current.lastLoginAt = loginAt; current.updatedAt = loginAt; }
+    });
+    const user = { ...publicStaffAccount(account), name: account.displayName };
     return {
-      token: issueSession({ sub: staffId, role: "technician", name }),
-      user: { id: staffId, role: "technician", name },
+      token: issueSession({ sub: account.id, role: account.role, name: account.displayName, sv: Number(account.sessionVersion || 1) }),
+      user,
     };
   }
-  throw Object.assign(new Error("Invalid staff password"), { status: 401 });
+
+  if (config.legacyStaffLoginEnabled && config.technicianPassword && safeEqual(password || "", config.technicianPassword)) {
+    const displayName = String(name || username || "HelpDesk Technician").trim().slice(0, 120) || "HelpDesk Technician";
+    const staffId = `technician:${crypto.createHash("sha256").update(displayName.toLowerCase()).digest("hex").slice(0, 12)}`;
+    return {
+      token: issueSession({ sub: staffId, role: "technician", name: displayName }),
+      user: { id: staffId, role: "technician", name: displayName, legacy: true },
+    };
+  }
+  throw Object.assign(new Error("Tên đăng nhập hoặc mật khẩu không đúng"), { status: 401 });
 }
 
 export async function sessionUser(session) {
-  if (["admin", "technician"].includes(session.role)) return { id: session.sub, role: session.role, name: session.name };
+  if (STAFF_ROLES.includes(session.role)) {
+    if (!session.sub?.startsWith("stf_")) return { id: session.sub, role: session.role, name: session.name, legacy: true };
+    const db = await readDb();
+    const account = db.staffAccounts.find((item) => item.id === session.sub && item.active !== false);
+    return account ? { ...publicStaffAccount(account), name: account.displayName } : null;
+  }
   const db = await readDb();
   return db.users.find((user) => user.id === session.sub) || null;
 }

@@ -9,6 +9,7 @@ import { isMultipartRequest, readMultipartAttachments } from "./multipart.mjs";
 import { corsHeaders, notFound, routeMatch, serveStatic } from "./http.mjs";
 import { analysisRequiresHumanHandoff, isHumanHandoffLocked, lockHumanHandoff, publicHumanHandoff, statusAfterHumanReply } from "./handoff.mjs";
 import { KB_SEED } from "./kb.mjs";
+import { buildOperationsReport, matchesSmartQueue, smartQueueCounts, ticketsCsv } from "./operations.mjs";
 import { buildPlaybookIndex, getPlaybookStatus, loadPlaybook, queuePlaybookReindex, searchPlaybook } from "./playbook.mjs";
 import { publicNotification, pushNotification } from "./notifications.mjs";
 import {
@@ -26,16 +27,18 @@ import {
   submitPlaybookVersion,
   updatePlaybookDraft,
 } from "./playbook-governance.mjs";
-import { createSla, ensureSla, markFirstResponse, publicSla, recalculateSla } from "./sla.mjs";
+import { createSla, ensureSla, markFirstResponse, pauseSla, publicSla, recalculateSla, syncSlaForStatus } from "./sla.mjs";
+import { activeAdminCount, createStaffAccountRecord, hashStaffPassword, normalizeUsername, publicStaffAccount, STAFF_ROLES } from "./staff-accounts.mjs";
 import { audit, closeStore, getStoreStatus, initializeStore, pushHistory, readDb, seedKnowledgeBase, updateDb } from "./store.mjs";
 import { plainSystemText } from "./system-text.mjs";
-import { id, json, nowIso, readJson, slug } from "./utils.mjs";
+import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
 
 await initializeStore();
 await seedKnowledgeBase(KB_SEED);
 
 const STATUSES = ["open", "waiting_user", "in_progress", "resolved", "closed"];
 const PRIORITIES = ["low", "normal", "high", "urgent"];
+const STAFF_WRITE_ROLES = ["admin", "technician"];
 
 function securityHeaders(cors = {}) {
   return {
@@ -61,6 +64,7 @@ function publicTicket(ticket, db = null) {
     location: ticket.location,
     device: ticket.device,
     assignedTo: ticket.assignedTo,
+    assignedToId: ticket.assignedToId || "",
     aiAnalysis: ticket.aiAnalysis,
     humanHandoff: publicHumanHandoff(ticket),
     resolution: ticket.resolution,
@@ -81,7 +85,12 @@ function ticketCode() {
 }
 
 function canAccessTicket(session, ticket) {
-  return ["admin", "technician"].includes(session.role) || ticket.userId === session.sub;
+  return ["admin", "technician", "viewer"].includes(session.role) || ticket.userId === session.sub;
+}
+
+function requireWritableStaffSession(session) {
+  if (!STAFF_WRITE_ROLES.includes(session.role)) throw Object.assign(new Error("Vai trò Viewer chỉ được xem dữ liệu"), { status: 403 });
+  return session;
 }
 
 function validateTicketInput(body) {
@@ -168,6 +177,7 @@ ${input.description}`, createdAt,
     risk: analysis.risk,
     status,
     assignedTo: "",
+    assignedToId: "",
     aiAnalysis: analysis,
     aiHandoffLocked: false,
     aiHandoffAt: null,
@@ -191,6 +201,7 @@ ${input.description}`, createdAt,
       actorName: agentDisplayName(analysis),
     });
   }
+  if (ticket.status === "waiting_user") pauseSla(ticket, createdAt, "waiting_user", { id: "ai-agent", name: agentDisplayName(analysis) });
   userMessage.ticketId = ticket.id;
   const agentMessage = {
     id: id("msg"), ticketId: ticket.id, authorId: "ai-agent",
@@ -221,6 +232,7 @@ ${input.description}`, createdAt,
 }
 
 async function appendMessage(session, ticketId, body, options = {}) {
+  if (session.role === "viewer") throw Object.assign(new Error("Vai trò Viewer không được gửi phản hồi"), { status: 403 });
   const attachments = Array.isArray(options.attachments) ? options.attachments : [];
   const text = String(body.message || "").trim();
   if ((!text && !attachments.length) || text.length > 5000) {
@@ -255,6 +267,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
       });
       if (["open", "waiting_user"].includes(ticket.status)) ticket.status = "in_progress";
       markFirstResponse(ticket, createdAt);
+      syncSlaForStatus(ticket, oldStatus, createdAt, { id: session.sub, name: session.name });
       ticket.updatedAt = createdAt;
       recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Kỹ thuật viên đã phản hồi");
       if (newlyLocked) pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "ai_handoff", from: "ai_active", to: "human_only", note: "Kỹ thuật viên đã tham gia; AI bị khóa vĩnh viễn khỏi hội thoại ticket này" });
@@ -279,6 +292,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
         actorName: ticket.aiHandoffByName || "Hệ thống HelpDesk",
       });
       ticket.status = statusAfterHumanReply(ticket.status);
+      syncSlaForStatus(ticket, oldStatus, createdAt, { id: session.sub, name: session.name });
       ticket.updatedAt = createdAt;
       recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Người dùng đã phản hồi cho kỹ thuật viên; AI không tham gia");
       if (newlyLocked) pushHistory(db, { ticketId, actorId: "system", actorName: "Hệ thống HelpDesk", type: "ai_handoff", from: "ai_active", to: "human_only", note: "Khóa AI được khôi phục từ trạng thái bàn giao hiện có" });
@@ -330,6 +344,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
         actorName: ticket.aiHandoffByName || "Hệ thống HelpDesk",
       });
       ticket.status = statusAfterHumanReply(ticket.status);
+      syncSlaForStatus(ticket, oldStatus, createdAt, { id: session.sub, name: session.name });
       ticket.updatedAt = createdAt;
       recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Người dùng đã phản hồi cho kỹ thuật viên; kết quả AI bị hủy");
       pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "message", note: "Người dùng gửi phản hồi; kết quả AI bị hủy vì ticket đã bàn giao" });
@@ -354,6 +369,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
       if (newlyLocked) pushHistory(db, { ticketId, actorId: "ai-agent", actorName: agentDisplayName(analysis), type: "ai_handoff", from: "ai_active", to: "human_only", note: `AI đã bàn giao và rời hội thoại: ${ticket.aiHandoffReason}` });
     }
     recalculateSla(ticket, analysis.priority);
+    syncSlaForStatus(ticket, oldStatus, nowIso(), { id: "ai-agent", name: agentDisplayName(analysis) });
     ticket.updatedAt = nowIso();
     recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Phân loại lại sau phản hồi người dùng");
     pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "message", note: attachments.length ? `Người dùng gửi phản hồi kèm ${attachments.length} file` : "Người dùng gửi phản hồi mới" });
@@ -373,6 +389,22 @@ async function processOverdueTickets() {
     for (const ticket of db.tickets) {
       if (["resolved", "closed"].includes(ticket.status)) continue;
       const sla = ensureSla(ticket);
+      if (sla.pausedAt) continue;
+      const markWarning = (phase, ratio) => {
+        const prefix = phase === "firstResponse" ? "firstResponse" : "resolution";
+        const threshold = new Date(sla[`${prefix}Warn${ratio}At`]).getTime();
+        const flag = `${prefix}Warned${ratio}At`;
+        if ((phase !== "firstResponse" || !sla.firstRespondedAt) && !sla[flag] && now >= threshold) {
+          const at = nowIso();
+          sla[flag] = at;
+          pushHistory(db, { ticketId: ticket.id, actorId: "system", actorName: "SLA Monitor", type: "sla_warning", note: `${phase === "firstResponse" ? "Phản hồi đầu tiên" : "Xử lý"} đã dùng ${ratio}% SLA` });
+          ticket.updatedAt = at;
+        }
+      };
+      markWarning("firstResponse", 70);
+      markWarning("firstResponse", 90);
+      markWarning("resolution", 70);
+      markWarning("resolution", 90);
       const firstDue = new Date(sla.firstResponseDueAt).getTime();
       const resolutionDue = new Date(sla.resolutionDueAt).getTime();
       if (!sla.firstRespondedAt && !sla.firstResponseBreachedAt && now > firstDue) {
@@ -387,6 +419,7 @@ async function processOverdueTickets() {
       if (!sla.resolutionBreachedAt && now > resolutionDue) {
         const at = nowIso();
         sla.resolutionBreachedAt = at;
+        sla.escalatedAt = at;
         sla.lastReminderAt = at;
         addSystemMessage(db, ticket.id, "Ticket đã quá thời hạn xử lý theo SLA. HelpDesk đã được nhắc tự động.", at);
         pushHistory(db, { ticketId: ticket.id, actorId: "system", actorName: "SLA Monitor", type: "sla_overdue", note: "Quá hạn xử lý" });
@@ -405,9 +438,9 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.6.0",
+      version: "5.7.0",
       time: nowIso(),
-      features: ["playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      features: ["staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
       agent: { ...agent, paidApiRequired: false },
       playbook,
       playbookGovernance,
@@ -426,7 +459,7 @@ async function handleApi(req, res, url, headers) {
 
   if (req.method === "POST" && pathname === "/api/auth/staff") {
     const body = await readJson(req);
-    return json(res, 200, await loginStaff(body.password, body.name), headers);
+    return json(res, 200, await loginStaff(body), headers);
   }
 
   if (req.method === "GET" && pathname === "/api/me") {
@@ -471,15 +504,21 @@ async function handleApi(req, res, url, headers) {
   if (req.method === "GET" && pathname === "/api/tickets") {
     const session = await requireAuth(req);
     const db = await readDb();
-    let tickets = ["admin", "technician"].includes(session.role) ? db.tickets : db.tickets.filter((item) => item.userId === session.sub);
+    const staffSession = ["admin", "technician", "viewer"].includes(session.role);
+    const available = staffSession ? db.tickets : db.tickets.filter((item) => item.userId === session.sub);
+    const queueCounts = staffSession ? smartQueueCounts(available, session, db.messages) : undefined;
+    let tickets = available;
+    const queue = searchParams.get("queue") || "all";
+    if (staffSession) tickets = tickets.filter((ticket) => matchesSmartQueue(ticket, queue, session, db.messages));
     const status = searchParams.get("status");
     if (status) tickets = tickets.filter((item) => item.status === status);
     tickets = tickets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    return json(res, 200, { tickets: tickets.map((ticket) => publicTicket(ticket, db)) }, headers);
+    return json(res, 200, { tickets: tickets.map((ticket) => publicTicket(ticket, db)), queue, queueCounts }, headers);
   }
 
   if (req.method === "POST" && pathname === "/api/tickets") {
     const session = await requireAuth(req);
+    if (session.role === "viewer") requireWritableStaffSession(session);
     const result = await createTicket(session, await readJson(req));
     return json(res, 201, { ticket: publicTicket(result.ticket), messages: result.messages }, headers);
   }
@@ -498,6 +537,7 @@ async function handleApi(req, res, url, headers) {
   params = routeMatch(pathname, "/api/tickets/:ticketId/replies");
   if (req.method === "POST" && params) {
     const session = await requireAuth(req);
+    if (session.role === "viewer") requireWritableStaffSession(session);
     const bundle = await getTicketBundle(params.ticketId);
     if (!canAccessTicket(session, bundle.ticket)) throw Object.assign(new Error("Bạn không có quyền truy cập ticket này"), { status: 403 });
     const messageId = id("msg");
@@ -553,12 +593,14 @@ async function handleApi(req, res, url, headers) {
   params = routeMatch(pathname, "/api/tickets/:ticketId/messages");
   if (req.method === "POST" && params) {
     const session = await requireAuth(req);
+    if (session.role === "viewer") requireWritableStaffSession(session);
     return json(res, 201, await appendMessage(session, params.ticketId, await readJson(req)), headers);
   }
 
   params = routeMatch(pathname, "/api/tickets/:ticketId/attachments");
   if (req.method === "POST" && params) {
     const session = await requireAuth(req);
+    if (session.role === "viewer") requireWritableStaffSession(session);
     const bundle = await getTicketBundle(params.ticketId);
     if (!canAccessTicket(session, bundle.ticket)) throw Object.assign(new Error("Bạn không có quyền truy cập ticket này"), { status: 403 });
     if (bundle.attachments.length >= config.maxAttachmentsPerTicket) {
@@ -631,6 +673,7 @@ async function handleApi(req, res, url, headers) {
   params = routeMatch(pathname, "/api/tickets/:ticketId/read-notifications");
   if (req.method === "POST" && params) {
     const session = await requireAuth(req);
+    if (session.role === "viewer") requireWritableStaffSession(session);
     const bundle = await getTicketBundle(params.ticketId);
     if (!canAccessTicket(session, bundle.ticket)) throw Object.assign(new Error("Bạn không có quyền truy cập ticket này"), { status: 403 });
     await updateDb((db) => {
@@ -643,6 +686,7 @@ async function handleApi(req, res, url, headers) {
   params = routeMatch(pathname, "/api/tickets/:ticketId/confirm-resolved");
   if (req.method === "POST" && params) {
     const session = await requireAuth(req);
+    if (session.role === "viewer") requireWritableStaffSession(session);
     const bundle = await getTicketBundle(params.ticketId);
     if (!canAccessTicket(session, bundle.ticket)) throw Object.assign(new Error("Bạn không có quyền truy cập ticket này"), { status: 403 });
     const body = await readJson(req);
@@ -665,6 +709,7 @@ async function handleApi(req, res, url, headers) {
   params = routeMatch(pathname, "/api/tickets/:ticketId/reopen");
   if (req.method === "POST" && params) {
     const session = await requireAuth(req);
+    if (session.role === "viewer") requireWritableStaffSession(session);
     const bundle = await getTicketBundle(params.ticketId);
     if (!canAccessTicket(session, bundle.ticket)) throw Object.assign(new Error("Bạn không có quyền truy cập ticket này"), { status: 403 });
     if (!["resolved", "closed"].includes(bundle.ticket.status)) throw Object.assign(new Error("Chỉ ticket đã xử lý hoặc đã đóng mới có thể mở lại"), { status: 409 });
@@ -760,7 +805,7 @@ async function handleApi(req, res, url, headers) {
   }
 
   if (req.method === "POST" && pathname === "/api/admin/playbook/reindex") {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const index = await buildPlaybookIndex({ force: true });
     const playbook = await getPlaybookStatus({ force: true });
     await audit(session.sub, "reindex", "playbook", config.playbookEmbedModel, { entries: index.records.length });
@@ -768,7 +813,7 @@ async function handleApi(req, res, url, headers) {
   }
 
   if (req.method === "POST" && pathname === "/api/admin/agent/test") {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const body = await readJson(req);
     const prompt = String(body.prompt || "").trim().slice(0, 3000);
     if (prompt.length < 4) throw Object.assign(new Error("Nhập tình huống kiểm thử AI Agent"), { status: 400 });
@@ -789,8 +834,94 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, { analysis, reply: formatAgentReply(analysis) }, headers);
   }
 
-  if (req.method === "GET" && pathname === "/api/admin/stats") {
+  if (req.method === "GET" && pathname === "/api/admin/staff") {
+    await requireAuth(req, { admin: true });
+    const db = await readDb();
+    const accounts = db.staffAccounts.map(publicStaffAccount).sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"));
+    return json(res, 200, { accounts, legacyLoginEnabled: config.legacyStaffLoginEnabled }, headers);
+  }
+
+  if (req.method === "GET" && pathname === "/api/staff/directory") {
+    const session = await requireAuth(req, { staff: true });
+    const db = await readDb();
+    const accounts = db.staffAccounts
+      .filter((item) => item.active !== false && ["admin", "technician"].includes(item.role))
+      .map(publicStaffAccount)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"));
+    if (STAFF_WRITE_ROLES.includes(session.role) && !accounts.some((item) => item.id === session.sub)) {
+      accounts.unshift({ id: session.sub, username: "legacy", displayName: session.name, role: session.role, active: true, legacy: true });
+    }
+    return json(res, 200, { accounts }, headers);
+  }
+
+  if (req.method === "POST" && pathname === "/api/admin/staff") {
+    const session = await requireAuth(req, { admin: true });
+    const body = await readJson(req);
+    const account = await createStaffAccountRecord(body, session.sub);
+    await updateDb((db) => {
+      if (db.staffAccounts.some((item) => item.username === account.username)) throw Object.assign(new Error("Tên đăng nhập đã tồn tại"), { status: 409 });
+      db.staffAccounts.push(account);
+    });
+    await audit(session.sub, "create", "staffAccount", account.id, { username: account.username, role: account.role });
+    return json(res, 201, { account: publicStaffAccount(account) }, headers);
+  }
+
+  params = routeMatch(pathname, "/api/admin/staff/:staffId");
+  if (req.method === "PATCH" && params) {
+    const session = await requireAuth(req, { admin: true });
+    const body = await readJson(req);
+    const passwordHash = body.password ? await hashStaffPassword(body.password) : null;
+    const updated = await updateDb((db) => {
+      const account = db.staffAccounts.find((item) => item.id === params.staffId);
+      if (!account) throw Object.assign(new Error("Không tìm thấy tài khoản nhân sự"), { status: 404 });
+      const nextRole = body.role === undefined ? account.role : body.role;
+      const nextActive = body.active === undefined ? account.active !== false : Boolean(body.active);
+      if (!STAFF_ROLES.includes(nextRole)) throw Object.assign(new Error("Vai trò nhân sự không hợp lệ"), { status: 400 });
+      if (account.id === session.sub && (!nextActive || nextRole !== "admin")) throw Object.assign(new Error("Không thể tự khóa hoặc hạ quyền tài khoản đang đăng nhập"), { status: 409 });
+      if (account.role === "admin" && account.active !== false && (!nextActive || nextRole !== "admin") && activeAdminCount(db.staffAccounts) <= 1) {
+        throw Object.assign(new Error("Hệ thống phải còn ít nhất một tài khoản Admin hoạt động"), { status: 409 });
+      }
+      if (body.username !== undefined) {
+        const username = normalizeUsername(body.username);
+        if (username.length < 3) throw Object.assign(new Error("Tên đăng nhập phải có ít nhất 3 ký tự"), { status: 400 });
+        if (db.staffAccounts.some((item) => item.id !== account.id && item.username === username)) throw Object.assign(new Error("Tên đăng nhập đã tồn tại"), { status: 409 });
+        account.username = username;
+      }
+      if (body.displayName !== undefined) {
+        const displayName = String(body.displayName || "").trim().slice(0, 120);
+        if (displayName.length < 2) throw Object.assign(new Error("Tên hiển thị phải có ít nhất 2 ký tự"), { status: 400 });
+        account.displayName = displayName;
+      }
+      const sessionChanged = account.role !== nextRole || (account.active !== false) !== nextActive || Boolean(passwordHash);
+      account.role = nextRole;
+      account.active = nextActive;
+      if (passwordHash) account.passwordHash = passwordHash;
+      if (sessionChanged) account.sessionVersion = Number(account.sessionVersion || 1) + 1;
+      account.updatedAt = nowIso();
+      return account;
+    });
+    await audit(session.sub, "update", "staffAccount", updated.id, { username: updated.username, role: updated.role, active: updated.active, passwordReset: Boolean(passwordHash) });
+    return json(res, 200, { account: publicStaffAccount(updated) }, headers);
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/operations") {
     await requireAuth(req, { staff: true });
+    const db = await readDb();
+    const days = Math.min(365, Math.max(7, Number(searchParams.get("days") || 30)));
+    return json(res, 200, { report: buildOperationsReport(db, { days }) }, headers);
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/reports/tickets.csv") {
+    await requireAuth(req, { staff: true });
+    const db = await readDb();
+    const days = Math.min(3650, Math.max(1, Number(searchParams.get("days") || 30)));
+    const from = Date.now() - days * 86_400_000;
+    const tickets = db.tickets.filter((ticket) => new Date(ticket.createdAt).getTime() >= from);
+    return sendText(res, 200, ticketsCsv(db, tickets), "text/csv; charset=utf-8", { ...headers, "Content-Disposition": `attachment; filename="helpdesk-report-${new Date().toISOString().slice(0, 10)}.csv"` });
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/stats") {
+    const session = await requireAuth(req, { staff: true });
     const db = await readDb();
     const byStatus = Object.fromEntries(STATUSES.map((status) => [status, db.tickets.filter((ticket) => ticket.status === status).length]));
     const byCategory = {};
@@ -799,28 +930,44 @@ async function handleApi(req, res, url, headers) {
     const overdue = db.tickets.filter((ticket) => publicSla(ticket).overdue).length;
     const scores = db.tickets.map((ticket) => ticket.satisfaction?.score).filter(Number.isFinite);
     const averageSatisfaction = scores.length ? Number((scores.reduce((sum, value) => sum + value, 0) / scores.length).toFixed(2)) : null;
-    return json(res, 200, { total: db.tickets.length, byStatus, byCategory, autoHandled, overdue, averageSatisfaction, ratedTickets: scores.length, users: db.users.length }, headers);
+    return json(res, 200, { total: db.tickets.length, byStatus, byCategory, autoHandled, overdue, averageSatisfaction, ratedTickets: scores.length, users: db.users.length, queueCounts: smartQueueCounts(db.tickets, session, db.messages), operations: buildOperationsReport(db, { days: 30 }).summary }, headers);
   }
 
   params = routeMatch(pathname, "/api/admin/tickets/:ticketId");
   if (req.method === "PATCH" && params) {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const body = await readJson(req);
     const updated = await updateDb((db) => {
       const ticket = db.tickets.find((item) => item.id === params.ticketId);
       if (!ticket) throw Object.assign(new Error("Không tìm thấy ticket"), { status: 404 });
       ensureSla(ticket);
+      const at = nowIso();
       const oldStatus = ticket.status;
       const oldPriority = ticket.priority;
       const oldAssignee = ticket.assignedTo || "";
+      const oldAssigneeId = ticket.assignedToId || "";
       if (body.status && STATUSES.includes(body.status)) ticket.status = body.status;
       if (body.priority && PRIORITIES.includes(body.priority)) ticket.priority = body.priority;
-      if (body.assignedTo !== undefined) ticket.assignedTo = String(body.assignedTo).trim().slice(0, 120);
+      if (body.assignedToId !== undefined) {
+        const assignedToId = String(body.assignedToId || "").trim();
+        if (!assignedToId) {
+          ticket.assignedToId = "";
+          ticket.assignedTo = "";
+        } else {
+          const account = db.staffAccounts.find((item) => item.id === assignedToId && item.active !== false && ["admin", "technician"].includes(item.role));
+          if (!account && assignedToId !== session.sub) throw Object.assign(new Error("Người phụ trách không còn hoạt động hoặc không có quyền xử lý"), { status: 400 });
+          ticket.assignedToId = account?.id || session.sub;
+          ticket.assignedTo = account?.displayName || session.name;
+        }
+      } else if (body.assignedTo !== undefined) {
+        ticket.assignedTo = String(body.assignedTo).trim().slice(0, 120);
+        ticket.assignedToId = "";
+      }
       if (body.resolution !== undefined) ticket.resolution = String(body.resolution).trim().slice(0, 1000);
       const humanTakeoverRequested = Boolean(ticket.assignedTo) || ticket.status === "in_progress";
       if (humanTakeoverRequested) {
         const newlyLocked = lockHumanHandoff(ticket, {
-          at: nowIso(),
+          at,
           reason: Boolean(ticket.assignedTo) ? "assigned_to_staff" : "staff_in_progress",
           actorId: session.sub,
           actorName: session.name,
@@ -828,18 +975,19 @@ async function handleApi(req, res, url, headers) {
         if (newlyLocked) pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "ai_handoff", from: "ai_active", to: "human_only", note: "Ticket đã được kỹ thuật viên tiếp nhận; AI bị khóa khỏi hội thoại" });
       }
       if (oldPriority !== ticket.priority) {
-        recalculateSla(ticket, ticket.priority);
+        recalculateSla(ticket, ticket.priority, at);
         pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "priority", from: oldPriority, to: ticket.priority });
       }
-      if (oldAssignee !== ticket.assignedTo) pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "assignment", from: oldAssignee, to: ticket.assignedTo });
+      if (oldAssignee !== ticket.assignedTo || oldAssigneeId !== ticket.assignedToId) pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "assignment", from: oldAssignee, to: ticket.assignedTo });
       if (oldStatus !== ticket.status) {
         recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, body.resolution || "");
         notifyRequester(db, ticket, "status", `${ticket.code}: trạng thái đã thay đổi`, `${oldStatus} → ${ticket.status}`);
       }
       if (["in_progress", "resolved", "closed"].includes(ticket.status)) markFirstResponse(ticket);
-      if (["resolved", "closed"].includes(ticket.status) && !ticket.resolvedAt) ticket.resolvedAt = nowIso();
+      syncSlaForStatus(ticket, oldStatus, at, { id: session.sub, name: session.name });
+      if (["resolved", "closed"].includes(ticket.status) && !ticket.resolvedAt) ticket.resolvedAt = at;
       if (!["resolved", "closed"].includes(ticket.status)) ticket.resolvedAt = null;
-      ticket.updatedAt = nowIso();
+      ticket.updatedAt = at;
       return ticket;
     });
     await audit(session.sub, "update", "ticket", params.ticketId, body);
@@ -863,7 +1011,7 @@ async function handleApi(req, res, url, headers) {
   }
 
   if (req.method === "POST" && pathname === "/api/staff/playbook/drafts") {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const procedure = await createPlaybookDraft(session, await readJson(req));
     await audit(session.sub, "draft_create", "playbook", procedure.id, { code: procedure.code });
     return json(res, 201, { procedure }, headers);
@@ -871,7 +1019,7 @@ async function handleApi(req, res, url, headers) {
 
   params = routeMatch(pathname, "/api/staff/playbook/drafts/from-ticket/:ticketId");
   if (req.method === "POST" && params) {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const bundle = await getTicketBundle(params.ticketId);
     const payload = draftPayloadFromTicket(bundle.ticket, bundle.messages);
     payload.code = `${payload.code}-${Date.now().toString(36).toUpperCase()}`;
@@ -882,7 +1030,7 @@ async function handleApi(req, res, url, headers) {
 
   params = routeMatch(pathname, "/api/staff/playbook/procedures/:procedureId/versions");
   if (req.method === "POST" && params) {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const procedure = await createPlaybookVersion(session, params.procedureId, await readJson(req));
     await audit(session.sub, "version_create", "playbook", params.procedureId, {});
     return json(res, 201, { procedure }, headers);
@@ -896,7 +1044,7 @@ async function handleApi(req, res, url, headers) {
 
   params = routeMatch(pathname, "/api/staff/playbook/versions/:versionId");
   if (req.method === "PATCH" && params) {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const procedure = await updatePlaybookDraft(session, params.versionId, await readJson(req));
     await audit(session.sub, "draft_update", "playbookVersion", params.versionId, {});
     return json(res, 200, { procedure }, headers);
@@ -904,7 +1052,7 @@ async function handleApi(req, res, url, headers) {
 
   params = routeMatch(pathname, "/api/staff/playbook/versions/:versionId/submit");
   if (req.method === "POST" && params) {
-    const session = await requireAuth(req, { staff: true });
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
     const procedure = await submitPlaybookVersion(session, params.versionId);
     await audit(session.sub, "submit", "playbookVersion", params.versionId, {});
     return json(res, 200, { procedure }, headers);

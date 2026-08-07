@@ -281,7 +281,7 @@ export function TicketDetailPage() {
           </div>
         </div>
         <div
-          className={`ticket-quick-sla ${ticket.sla.overdue ? "overdue" : ""}`}
+          className={`ticket-quick-sla ${ticket.sla.overdue ? "overdue" : ticket.sla.paused ? "paused" : ticket.sla.state === "at_risk" ? "at-risk" : ""}`}
         >
           <div>
             <span>
@@ -289,6 +289,8 @@ export function TicketDetailPage() {
               <strong>
                 {ticket.sla.firstRespondedAt
                   ? "Đã phản hồi"
+                  : ticket.sla.paused
+                    ? "Tạm dừng"
                   : timeLeft(ticket.sla.firstResponseDueAt)}
               </strong>
             </span>
@@ -299,6 +301,8 @@ export function TicketDetailPage() {
               <strong>
                 {finished
                   ? "Đã hoàn tất"
+                  : ticket.sla.paused
+                    ? "Chờ bạn"
                   : timeLeft(ticket.sla.resolutionDueAt)}
               </strong>
             </span>

@@ -1,4 +1,4 @@
-# Zalo IT HelpDesk v5.2 - Strict Enterprise Playbook Agent
+# Zalo IT HelpDesk v5.7 - Operations
 
 Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App, được thiết kế để **không phụ thuộc API AI trả phí hoặc cloud server thuê theo tháng**.
 
@@ -12,6 +12,9 @@
 - **JSON store** ghi nguyên tử tại `backend/data/db.json`.
 - **Thông báo trong Mini App** khi có phản hồi, đổi trạng thái, file mới hoặc quá SLA.
 - **SLA, file đính kèm, timeline, reopen và đánh giá hài lòng** được lưu cục bộ.
+- **Tài khoản nhân sự riêng và phân quyền** cho Admin, Technician, Viewer.
+- **SLA theo giờ làm việc** có pause/resume khi chờ người dùng.
+- **Hàng đợi thông minh, dashboard vận hành và xuất CSV** cho đội HelpDesk.
 
 ## Mô hình chi phí
 

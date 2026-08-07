@@ -1,6 +1,6 @@
 const state = {
   token: sessionStorage.getItem("hd_admin") || "",
-  user: null, tickets: [], stats: null, kb: [], agent: null, playbook: null, governance: null, procedures: [], activeTab: "tickets",
+  user: null, tickets: [], stats: null, kb: [], agent: null, playbook: null, governance: null, procedures: [], staff: [], directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
 };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -16,9 +16,11 @@ const escalationLabels = {
   agent_unavailable: "AI Agent chưa sẵn sàng",
   policy_blocked: "Bị chặn bởi chính sách an toàn",
 };
-const historyLabels = { created: "Tạo ticket", status: "Đổi trạng thái", priority: "Đổi ưu tiên", assignment: "Phân công", message: "Trao đổi", attachment: "Đính kèm", ai_handoff: "Bàn giao cho HelpDesk", sla_overdue: "Cảnh báo SLA", reopen: "Mở lại", rating: "Đánh giá" };
+const historyLabels = { created: "Tạo ticket", status: "Đổi trạng thái", priority: "Đổi ưu tiên", assignment: "Phân công", message: "Trao đổi", attachment: "Đính kèm", ai_handoff: "Bàn giao cho HelpDesk", sla_warning: "SLA sắp đến hạn", sla_overdue: "Cảnh báo SLA", reopen: "Mở lại", rating: "Đánh giá" };
 const tabMeta = {
   tickets: ["Tổng quan Ticket", "Theo dõi yêu cầu, SLA và quyết định xử lý theo thời gian thực."],
+  operations: ["Hiệu quả vận hành", "Theo dõi phản hồi, xử lý, SLA, mở lại và mức hài lòng."],
+  staff: ["Tài khoản HelpDesk", "Quản lý danh tính, vai trò và quyền truy cập của nhân sự."],
   knowledge: ["Knowledge Base", "Quản lý checklist ngắn hỗ trợ kỹ thuật viên và Playbook."],
   governance: ["Vòng đời Playbook", "Tạo, duyệt, phát hành và rollback procedure với lịch sử đầy đủ."],
   playbook: ["Enterprise Playbook", "Kiểm tra nguồn quy trình chính thức và semantic index."],
@@ -102,32 +104,66 @@ function setHealth(dotSelector, textSelector, ready, text) {
   dot.classList.remove("pending", "ready", "error"); dot.classList.add(ready ? "ready" : "error"); label.textContent = text;
 }
 function switchTab(name) {
+  if (name === "staff" && state.user?.role !== "admin") name = "tickets";
   state.activeTab = name;
   $$(".tab").forEach((item) => item.classList.toggle("active", item.dataset.tab === name));
-  ["tickets", "knowledge", "governance", "playbook", "agent"].forEach((tab) => $(`#${tab}Tab`).classList.toggle("hidden", tab !== name));
+  ["tickets", "operations", "staff", "knowledge", "governance", "playbook", "agent"].forEach((tab) => $(`#${tab}Tab`)?.classList.toggle("hidden", tab !== name));
   const [title, description] = tabMeta[name] || tabMeta.tickets;
   $("#activeSectionTitle").textContent = title; $("#activeSectionDescription").textContent = description;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function load() {
-  const [me, tickets, stats, kb, agent, playbook, governance, procedures] = await Promise.all([
-    api("/api/me"), api("/api/tickets"), api("/api/admin/stats"), api("/api/admin/knowledge-base"),
+  const me = await api("/api/me");
+  state.user = me.user || null;
+  const [tickets, stats, kb, agent, playbook, governance, procedures, report, directory, staff] = await Promise.all([
+    api(`/api/tickets?queue=${encodeURIComponent(state.activeQueue)}`), api("/api/admin/stats"), api("/api/admin/knowledge-base"),
     api("/api/admin/agent/status").catch((error) => ({ agent: { ready: false, error: error.message } })),
     api("/api/admin/playbook/status").catch((error) => ({ playbook: { ready: false, error: error.message } })),
     api("/api/staff/playbook/governance/status").catch((error) => ({ governance: { ready: false, error: error.message, counts: {} } })),
     api("/api/staff/playbook/procedures").catch(() => ({ procedures: [] })),
+    api(`/api/admin/operations?days=${encodeURIComponent($("#reportDays")?.value || 30)}`).catch(() => ({ report: null })),
+    api("/api/staff/directory").catch(() => ({ accounts: [] })),
+    state.user?.role === "admin" ? api("/api/admin/staff").catch(() => ({ accounts: [] })) : Promise.resolve({ accounts: [] }),
   ]);
-  state.user = me.user || null; state.tickets = tickets.tickets || []; state.stats = stats || {}; state.kb = kb.entries || [];
+  state.tickets = tickets.tickets || []; state.stats = { ...stats, queueCounts: tickets.queueCounts || stats.queueCounts || {} }; state.kb = kb.entries || [];
   state.agent = agent.agent || {}; state.playbook = playbook.playbook || {}; state.governance = governance.governance || {}; state.procedures = procedures.procedures || [];
-  applyRoleVisibility(); renderStats(); renderTickets(); renderKb(); renderAgent(); renderPlaybook(); renderGovernance();
+  state.report = report.report || null; state.directory = directory.accounts || []; state.staff = staff.accounts || []; state.legacyLoginEnabled = staff.legacyLoginEnabled !== false;
+  applyRoleVisibility(); renderStats(); renderSmartQueues(); renderTickets(); renderOperations(); renderStaff(); renderKb(); renderAgent(); renderPlaybook(); renderGovernance();
 }
 
 function applyRoleVisibility() {
   const admin = state.user?.role === "admin";
-  $$(".admin-only").forEach((element) => element.classList.toggle("hidden", !admin));
+  const writable = ["admin", "technician"].includes(state.user?.role);
+  $$(".admin-only").forEach((element) => {
+    if (element.id === "staffTab") element.classList.toggle("hidden", !admin || state.activeTab !== "staff");
+    else element.classList.toggle("hidden", !admin);
+  });
+  $$(".write-only").forEach((element) => element.classList.toggle("hidden", !writable));
   if ($("#newKbBtn")) $("#newKbBtn").classList.toggle("hidden", !admin);
-  if ($("#staffIdentity")) $("#staffIdentity").textContent = `${state.user?.name || "Staff"} · ${admin ? "ADMIN" : "TECHNICIAN"}`;
+  ["#newPlaybookDraftBtn", "#reindexPlaybookBtn", "#agentTestForm"].forEach((selector) => $(selector)?.classList.toggle("hidden", !writable));
+  if ($("#staffIdentity")) $("#staffIdentity").textContent = `${state.user?.name || "Staff"} · ${admin ? "ADMIN" : state.user?.role === "viewer" ? "VIEWER" : "TECHNICIAN"}`;
+}
+
+const queueMeta = [
+  ["all", "Tất cả"], ["mine", "Của tôi"], ["unassigned", "Chưa phân công"], ["sla_risk", "Sắp quá SLA"],
+  ["overdue", "Quá SLA"], ["client_replied", "Client vừa trả lời"], ["waiting_user", "Chờ Client"], ["reopened", "Mở lại"],
+];
+
+function renderSmartQueues() {
+  const counts = state.stats?.queueCounts || {};
+  $("#smartQueues").innerHTML = queueMeta.map(([key, label]) => `<button type="button" class="smart-queue ${state.activeQueue === key ? "active" : ""} ${key === "overdue" && counts[key] ? "danger" : ""}" data-queue="${key}"><span>${esc(label)}</span><b>${counts[key] || 0}</b></button>`).join("");
+  $$('[data-queue]').forEach((button) => { button.onclick = () => selectQueue(button.dataset.queue); });
+}
+
+async function selectQueue(queue) {
+  state.activeQueue = queue;
+  try {
+    const result = await api(`/api/tickets?queue=${encodeURIComponent(queue)}`);
+    state.tickets = result.tickets || [];
+    state.stats.queueCounts = result.queueCounts || state.stats.queueCounts;
+    renderSmartQueues(); renderTickets();
+  } catch (error) { toast(error.message); }
 }
 
 function renderStats() {
@@ -145,6 +181,60 @@ function renderStats() {
   $("#openTicketBadge").textContent = openCount > 99 ? "99+" : String(openCount);
 }
 
+function durationLabel(minutes) {
+  if (!Number.isFinite(minutes)) return "—";
+  if (minutes < 60) return `${Math.round(minutes)} phút`;
+  const hours = Math.floor(minutes / 60); const rest = Math.round(minutes % 60);
+  return rest ? `${hours}h ${rest}m` : `${hours}h`;
+}
+
+function renderBreakdown(target, values = {}) {
+  const entries = Object.entries(values).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(1, ...entries.map(([, value]) => value));
+  $(target).innerHTML = entries.length ? entries.map(([label, value]) => `<div class="breakdown-row"><div><strong>${esc(labels[label] || label)}</strong><span>${value}</span></div><i><b style="width:${Math.max(4, value * 100 / max)}%"></b></i></div>`).join("") : '<div class="empty-state compact-empty"><h3>Chưa có dữ liệu</h3><p>Dữ liệu sẽ xuất hiện khi có ticket trong kỳ.</p></div>';
+}
+
+function renderOperations() {
+  const report = state.report; if (!report) return;
+  const summary = report.summary || {};
+  const metrics = [
+    ["Phản hồi đầu", durationLabel(summary.averageFirstResponseMinutes), "Trong giờ làm việc"],
+    ["Thời gian xử lý", durationLabel(summary.averageResolutionMinutes), "Không tính lúc chờ Client"],
+    ["Đạt SLA", summary.slaComplianceRate == null ? "—" : `${summary.slaComplianceRate}%`, `${summary.total || 0} ticket trong kỳ`],
+    ["Mở lại", summary.reopenRate == null ? "—" : `${summary.reopenRate}%`, "Tỷ lệ ticket tái diễn"],
+    ["CSAT", summary.averageSatisfaction == null ? "—" : `${summary.averageSatisfaction}/5`, summary.satisfactionCoverage == null ? "Chưa có đánh giá" : `${summary.satisfactionCoverage}% ticket hoàn tất đã đánh giá`],
+  ];
+  $("#operationsMetrics").innerHTML = metrics.map(([label, value, note]) => `<article class="operation-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`).join("");
+  const trend = report.trend || []; const max = Math.max(1, ...trend.flatMap((item) => [item.created, item.resolved]));
+  $("#operationsTrend").innerHTML = trend.map((item) => `<div class="trend-day" title="${esc(item.date)} · ${item.created} tạo mới · ${item.resolved} hoàn tất"><div><i style="height:${Math.max(3, item.created * 100 / max)}%"></i><i style="height:${Math.max(3, item.resolved * 100 / max)}%"></i></div><span>${esc(item.date.slice(8))}</span></div>`).join("");
+  renderBreakdown("#categoryBreakdown", report.byCategory);
+  renderBreakdown("#departmentBreakdown", report.byDepartment);
+  $("#technicianReportRows").innerHTML = (report.byTechnician || []).map((item) => `<tr><td><strong>${esc(item.name)}</strong></td><td>${item.assigned}</td><td>${item.resolved}</td><td>${item.slaRate == null ? "—" : `${item.slaRate}%`}</td><td>${item.satisfaction == null ? "—" : `${item.satisfaction}/5`}</td></tr>`).join("") || '<tr><td colspan="5" class="muted">Chưa có dữ liệu phân công trong kỳ.</td></tr>';
+}
+
+function renderStaff() {
+  if (!$("#staffList") || state.user?.role !== "admin") return;
+  const counts = Object.fromEntries(["admin", "technician", "viewer"].map((role) => [role, state.staff.filter((item) => item.role === role && item.active).length]));
+  $("#staffSummary").innerHTML = `<span><b>${state.staff.filter((item) => item.active).length}</b> hoạt động</span><span><b>${counts.admin}</b> Admin</span><span><b>${counts.technician}</b> Kỹ thuật viên</span><span><b>${counts.viewer}</b> Viewer</span>`;
+  $("#legacyLoginNotice").classList.toggle("hidden", !state.legacyLoginEnabled);
+  $("#staffList").innerHTML = state.staff.map((account) => `<article class="staff-card ${account.active ? "" : "inactive"}"><div class="staff-avatar">${esc(initials(account.displayName))}</div><div class="staff-card-main"><div><strong>${esc(account.displayName)}</strong><span class="badge ${account.active ? "success" : ""}">${account.active ? "Hoạt động" : "Đã khóa"}</span></div><p>@${esc(account.username)}</p><small>${account.lastLoginAt ? `Đăng nhập ${formatDate(account.lastLoginAt)}` : "Chưa đăng nhập"}</small></div><div class="staff-card-side"><span class="role-chip ${account.role}">${account.role === "admin" ? "Admin" : account.role === "viewer" ? "Chỉ xem" : "Kỹ thuật viên"}</span><button type="button" class="button subtle-button compact" data-staff-edit="${account.id}">Chỉnh sửa</button></div></article>`).join("") || '<div class="empty-state"><h3>Chưa có tài khoản riêng</h3><p>Tạo tài khoản đầu tiên rồi đăng nhập thử trước khi tắt chế độ dùng chung.</p></div>';
+  $$('[data-staff-edit]').forEach((button) => { button.onclick = () => openStaffEditor(button.dataset.staffEdit); });
+}
+
+function openStaffEditor(staffId = "") {
+  const account = state.staff.find((item) => item.id === staffId);
+  $("#staffDialogTitle").textContent = account ? "Chỉnh sửa nhân sự" : "Thêm nhân sự";
+  $("#staffId").value = account?.id || "";
+  $("#staffAccountUsername").value = account?.username || "";
+  $("#staffDisplayName").value = account?.displayName || "";
+  $("#staffRole").value = account?.role || "technician";
+  $("#staffActive").checked = account?.active !== false;
+  $("#staffPassword").value = "";
+  $("#staffPassword").required = !account;
+  $("#staffPassword").placeholder = account ? "Để trống nếu không đổi mật khẩu" : "Tối thiểu 10 ký tự, có chữ và số";
+  $("#staffDialog").showModal();
+}
+
 function renderTickets() {
   const query = $("#search").value.trim().toLowerCase();
   const status = $("#statusFilter").value; const priority = $("#priorityFilter")?.value || ""; const category = $("#categoryFilter")?.value || "";
@@ -155,12 +245,13 @@ function renderTickets() {
   $("#ticketResultCount").textContent = `${tickets.length} / ${state.tickets.length} ticket`;
   $("#ticketRows").innerHTML = tickets.map((ticket) => {
     const analysis = ticket.aiAnalysis || {}; const guided = Boolean(analysis.canAutoHandle); const humanOnly = Boolean(ticket.humanHandoff?.locked);
+    const slaNote = ticket.sla?.paused ? '<div class="sla-paused">Tạm dừng · Chờ Client</div>' : ticket.sla?.overdue ? '<div class="sla-danger">Quá thời hạn SLA</div>' : ticket.sla?.state === "at_risk" ? '<div class="sla-risk">Sắp đến hạn SLA</div>' : "";
     const decisionTitle = humanOnly ? "Chỉ hội thoại con người" : guided ? "Hướng dẫn theo Playbook" : "Đã chuyển kỹ thuật viên";
     const decisionReason = humanOnly ? "AI đã rời ticket và không phản hồi thêm" : guided ? `${Math.round((analysis.confidence || 0) * 100)}% · ${(analysis.playbookIds || []).join(", ") || analysis.source || "Playbook"}` : escalationLabels[analysis.escalationCode] || analysis.reason || "Không đủ điều kiện tự hướng dẫn";
     return `<tr class="${ticket.sla?.overdue ? "overdue-row" : ""}">
       <td><div class="ticket-link" data-ticket="${ticket.id}">${esc(ticket.code)}</div><div class="ticket-title-cell">${esc(ticket.title)}</div><div class="ticket-subline"><span>${formatDate(ticket.createdAt)}</span>${ticket.attachmentCount ? `<span>▧ ${ticket.attachmentCount}</span>` : ""}</div></td>
       <td><span class="badge">${esc(labels[ticket.category] || ticket.category)}</span> <span class="badge ${ticket.priority}">${esc(labels[ticket.priority] || ticket.priority)}</span></td>
-      <td><span class="badge ${ticket.status}">${esc(labels[ticket.status] || ticket.status)}</span>${ticket.sla?.overdue ? '<div class="sla-danger">● Quá thời hạn SLA</div>' : ""}</td>
+      <td><span class="badge ${ticket.status}">${esc(labels[ticket.status] || ticket.status)}</span>${slaNote}</td>
       <td class="decision-cell"><span class="badge ${humanOnly ? "escalate" : guided ? "guide" : "escalate"}">${humanOnly ? "HUMAN ONLY" : guided ? "✓ PLAYBOOK" : "↗ ESCALATE"}</span><strong>${esc(decisionTitle)}</strong><small>${esc(decisionReason)}</small></td>
       <td><strong class="ticket-updated">${formatDate(ticket.updatedAt)}</strong><div class="muted">${esc(ticket.assignedTo || "Chưa phân công")}</div></td>
     </tr>`;
@@ -263,7 +354,8 @@ async function openPlaybookEditor(procedureId = "", versionId = "") {
   const content = version?.content || { audience: "technician", risk: "medium", priority: "normal", category: "other", autoEligible: false };
   setPlaybookFields(content, procedure, version);
   $("#pbCode").disabled = Boolean(procedure);
-  const editable = !procedure || (["draft", "rejected"].includes(version?.status) && (state.user?.role === "admin" || version?.createdBy === state.user?.id));
+  const writable = ["admin", "technician"].includes(state.user?.role);
+  const editable = writable && (!procedure || (["draft", "rejected"].includes(version?.status) && (state.user?.role === "admin" || version?.createdBy === state.user?.id)));
   setEditorReadonly(!editable);
   $("#playbookEditorTitle").textContent = procedure ? `${procedure.code} — ${procedure.title}` : "Tạo bản nháp Playbook";
   $("#playbookEditorMeta").textContent = version ? `v${version.versionNumber} · ${versionStatusLabels[version.status] || version.status} · ${version.createdByName}` : "Draft mới chưa được AI sử dụng";
@@ -297,6 +389,9 @@ async function openTicket(ticketId) {
   $("#dialogTicketCode").textContent = `${ticket.code} — ${ticket.title}`;
   const analysis = ticket.aiAnalysis || {}; const guided = Boolean(analysis.canAutoHandle); const escalatedByAi = Boolean(ticket.aiAnalysis && !guided);
   const sourceList = Array.isArray(analysis.playbookSources) ? analysis.playbookSources : [];
+  const writable = ["admin", "technician"].includes(state.user?.role);
+  const assigneeOptions = [...state.directory];
+  if (ticket.assignedTo && !assigneeOptions.some((item) => item.id === ticket.assignedToId)) assigneeOptions.push({ id: ticket.assignedToId || `legacy:${ticket.assignedTo}`, displayName: ticket.assignedTo, active: true });
   const attachmentHtml = attachments.length ? attachments.map((attachment) => `<div class="attachment-row"><button class="attachment-preview-admin" data-preview-attachment="${attachment.id}" ${isPreviewableAttachment(attachment) ? "" : "disabled"}><span>▧</span><span><strong>${esc(attachment.fileName)}</strong><small>${formatSize(attachment.size)} · ${esc(attachment.uploaderName)} · ${isPreviewableAttachment(attachment) ? "Xem trước" : "Chỉ tải xuống"}</small></span></button><button class="attachment-download-admin" data-download-attachment="${attachment.id}" title="Tải xuống">↓</button></div>`).join("") : '<div class="muted">Chưa có file đính kèm.</div>';
   const historyHtml = history.length ? history.map((item) => `<div class="history-row"><span></span><div><strong>${esc(historyLabels[item.type] || item.type)}</strong>${item.from !== null && item.from !== undefined && item.to !== null && item.to !== undefined ? `<p>${esc(item.from || "—")} → ${esc(item.to || "—")}</p>` : ""}${item.note ? `<p>${esc(item.note)}</p>` : ""}<small>${esc(item.actorName)} · ${formatDate(item.createdAt)}</small></div></div>`).join("") : '<div class="muted">Chưa có lịch sử.</div>';
   const satisfactionHtml = ticket.satisfaction ? `<div class="rating-admin"><strong>${"★".repeat(ticket.satisfaction.score)}${"☆".repeat(5 - ticket.satisfaction.score)}</strong><p>${esc(ticket.satisfaction.comment || "Không có nhận xét")}</p><small>${formatDate(ticket.satisfaction.ratedAt)}</small></div>` : '<div class="rating-empty"><span>☆</span><div><strong>Chưa có đánh giá</strong><small>Đánh giá sẽ xuất hiện sau khi ticket hoàn tất.</small></div></div>';
@@ -307,7 +402,7 @@ async function openTicket(ticketId) {
       <article class="detail-card admin-conversation-card">
         <div class="card-head conversation-admin-head"><div><span class="overline">TRAO ĐỔI TRỰC TIẾP</span><h3>Hội thoại với ${esc(requester?.name || "người dùng")}</h3><p>Phản hồi mới nhất luôn nằm ở cuối hội thoại.</p></div><span class="badge">${messages.length} tin nhắn</span></div>
         <div id="adminMessages" class="messages">${messageHtml}</div>
-        <div class="admin-reply-dock"><div id="adminReplyFileList" class="admin-reply-file-list"></div><div class="admin-reply-composer"><label class="admin-reply-attach" title="Thêm ảnh hoặc file" aria-label="Đính kèm ảnh hoặc file">${paperclipIcon}<input id="adminReplyFilesInput" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"/></label><textarea id="adminReply" rows="2" placeholder="Nhập phản hồi cho người dùng…"></textarea><button id="sendReply" class="button primary-button" type="button">Gửi phản hồi</button></div><small class="reply-security-note">Tối đa 4 file · 30 MB/file · tổng 120 MB</small></div>
+        ${writable ? `<div class="admin-reply-dock"><div id="adminReplyFileList" class="admin-reply-file-list"></div><div class="admin-reply-composer"><label class="admin-reply-attach" title="Thêm ảnh hoặc file" aria-label="Đính kèm ảnh hoặc file">${paperclipIcon}<input id="adminReplyFilesInput" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"/></label><textarea id="adminReply" rows="2" placeholder="Nhập phản hồi cho người dùng…"></textarea><button id="sendReply" class="button primary-button" type="button">Gửi phản hồi</button></div><small class="reply-security-note">Tối đa 4 file · 30 MB/file · tổng 120 MB</small></div>` : '<div class="viewer-notice">Chế độ chỉ xem · Bạn không thể phản hồi hoặc thay đổi ticket.</div>'}
       </article>
     </div>
     <aside class="workbench-side">
@@ -323,18 +418,18 @@ async function openTicket(ticketId) {
           <section id="ticketContextOverview" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="overview">
             <div class="side-description"><strong>Mô tả ban đầu</strong><div class="description">${esc(ticket.description)}</div></div>
             <div class="meta-grid"><div class="meta-box"><span>Danh mục</span><strong>${esc(labels[ticket.category] || ticket.category)}</strong></div><div class="meta-box"><span>Thiết bị</span><strong>${esc(ticket.device || "—")}</strong></div><div class="meta-box"><span>Vị trí</span><strong>${esc(ticket.location || "—")}</strong></div><div class="meta-box"><span>Tạo lúc</span><strong>${formatDate(ticket.createdAt)}</strong></div></div>
-            <div class="sla-panel"><div class="sla-box ${ticket.sla?.firstResponseOverdue ? "overdue" : ""}"><span>Phản hồi đầu tiên</span><strong>${ticket.sla?.firstRespondedAt ? "Đã phản hồi" : timeLeft(ticket.sla?.firstResponseDueAt)}</strong></div><div class="sla-box ${ticket.sla?.resolutionOverdue || ticket.sla?.overdue ? "overdue" : ""}"><span>Hạn hoàn tất</span><strong>${["resolved", "closed"].includes(ticket.status) ? "Đã hoàn tất" : timeLeft(ticket.sla?.resolutionDueAt)}</strong></div></div>
+            <div class="sla-panel"><div class="sla-box ${ticket.sla?.firstResponseOverdue ? "overdue" : ticket.sla?.paused ? "paused" : ""}"><span>Phản hồi đầu tiên</span><strong>${ticket.sla?.firstRespondedAt ? "Đã phản hồi" : ticket.sla?.paused ? "Tạm dừng" : timeLeft(ticket.sla?.firstResponseDueAt)}</strong></div><div class="sla-box ${ticket.sla?.resolutionOverdue || ticket.sla?.overdue ? "overdue" : ticket.sla?.paused ? "paused" : ""}"><span>Hạn hoàn tất</span><strong>${["resolved", "closed"].includes(ticket.status) ? "Đã hoàn tất" : ticket.sla?.paused ? "Chờ Client" : timeLeft(ticket.sla?.resolutionDueAt)}</strong></div></div>
             <div class="context-section"><div class="context-section-title">Đánh giá hài lòng</div>${satisfactionHtml}</div>
           </section>
           <section id="ticketContextAi" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="ai" hidden>
             <div class="decision-panel ${guided ? "" : "escalated"}"><div class="decision-head"><span class="decision-symbol">${guided ? "✓" : "↗"}</span><div><strong>${guided ? "Hướng dẫn theo Playbook" : "Đã chuyển kỹ thuật viên"}</strong><small>${guided ? "Đủ điều kiện an toàn" : esc(escalationLabels[analysis.escalationCode] || "Không đủ điều kiện tự động xử lý")}</small></div><span class="badge ${guided ? "guide" : "escalate"}">${guided ? "GUIDE" : "ESCALATE"}</span></div><div class="decision-copy"><strong>${esc(analysis.summary || "Chưa có đánh giá.")}</strong>\n\n${esc(analysis.reason || "")}</div><div class="decision-meta"><span class="badge">${esc(analysis.source || "—")}</span><span class="badge">${esc(analysis.model || "Rules")}</span><span class="badge">${Math.round((analysis.confidence || 0) * 100)}%</span></div>${sourceHtml}</div>
           </section>
-          <section id="ticketContextFiles" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="files" hidden><div class="attachment-admin-list">${attachmentHtml}</div><label class="admin-upload">＋ Tải thêm file<input id="adminFiles" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" /></label></section>
+          <section id="ticketContextFiles" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="files" hidden><div class="attachment-admin-list">${attachmentHtml}</div>${writable ? '<label class="admin-upload">＋ Tải thêm file<input id="adminFiles" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" /></label>' : ""}</section>
           <section id="ticketContextHistory" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="history" hidden><div class="history-admin">${historyHtml}</div></section>
         </div>
       </section>
 
-      <article class="detail-card dispatch-card"><div class="card-head"><div><span class="card-kicker">XỬ LÝ TICKET</span><h3>Điều phối</h3></div><span class="badge">${state.user?.role === "admin" ? "ADMIN" : "TECHNICIAN"}</span></div><div class="control-grid"><div class="two"><label>Trạng thái<select id="editStatus">${["open", "waiting_user", "in_progress", "resolved", "closed"].map((value) => `<option value="${value}" ${ticket.status === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label><label>Ưu tiên<select id="editPriority">${["low", "normal", "high", "urgent"].map((value) => `<option value="${value}" ${ticket.priority === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label></div><div class="dispatch-secondary"><label>Người phụ trách<input id="editAssignee" value="${esc(ticket.assignedTo || "")}" placeholder="Tên kỹ thuật viên" /></label><label>Ghi chú / giải pháp<textarea id="editResolution" rows="2" placeholder="Ghi nguyên nhân và cách xử lý…">${esc(ticket.resolution || "")}</textarea></label></div><div class="dispatch-actions"><button id="saveTicket" class="button primary-button save-button" type="button">Lưu cập nhật</button><button id="draftFromTicketBtn" class="button source-ticket-button" type="button">◫ Tạo Playbook</button></div></div></article>
+      ${writable ? `<article class="detail-card dispatch-card"><div class="card-head"><div><span class="card-kicker">XỬ LÝ TICKET</span><h3>Điều phối</h3></div><span class="badge">${state.user?.role === "admin" ? "ADMIN" : "TECHNICIAN"}</span></div><div class="control-grid"><div class="two"><label>Trạng thái<select id="editStatus">${["open", "waiting_user", "in_progress", "resolved", "closed"].map((value) => `<option value="${value}" ${ticket.status === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label><label>Ưu tiên<select id="editPriority">${["low", "normal", "high", "urgent"].map((value) => `<option value="${value}" ${ticket.priority === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label></div><div class="dispatch-secondary"><label>Người phụ trách<select id="editAssignee"><option value="">Chưa phân công</option>${assigneeOptions.map((account) => `<option value="${esc(account.id)}" ${ticket.assignedToId === account.id || (!ticket.assignedToId && account.displayName === ticket.assignedTo) ? "selected" : ""}>${esc(account.displayName)}</option>`).join("")}</select></label><label>Ghi chú / giải pháp<textarea id="editResolution" rows="2" placeholder="Ghi nguyên nhân và cách xử lý…">${esc(ticket.resolution || "")}</textarea></label></div><div class="dispatch-actions"><button id="saveTicket" class="button primary-button save-button" type="button">Lưu cập nhật</button><button id="draftFromTicketBtn" class="button source-ticket-button" type="button">Tạo Playbook</button></div></div></article>` : ""}
     </aside>
   </div>`;
 
@@ -354,7 +449,7 @@ async function openTicket(ticketId) {
 
   $$('[data-preview-attachment]').forEach((element) => { element.onclick = async () => { const attachment = attachments.find((item) => item.id === element.dataset.previewAttachment); if (attachment) try { await previewAttachment(attachment); } catch (error) { toast(error.message); } }; });
   $$('[data-download-attachment]').forEach((element) => { element.onclick = async () => { const attachment = attachments.find((item) => item.id === element.dataset.downloadAttachment); if (attachment) try { await downloadAttachment(attachment); } catch (error) { toast(error.message); } }; });
-  $("#adminFiles").onchange = async (event) => {
+  if ($("#adminFiles")) $("#adminFiles").onchange = async (event) => {
     const files = [...event.target.files]; event.target.value = ""; if (!files.length) return;
     const tooLarge = files.find((file) => file.size >= MAX_UPLOAD_BYTES);
     if (tooLarge) return toast(`${tooLarge.name} vượt quá giới hạn 30 MB`);
@@ -369,8 +464,8 @@ async function openTicket(ticketId) {
     } catch (error) { toast(error.message); }
   };
   let replyFiles = [];
-  const renderReplyFiles = () => { $("#adminReplyFileList").innerHTML = replyFiles.map((file, index) => `<div><span class="admin-reply-file-icon">${paperclipIcon}</span><span><strong>${esc(file.name)}</strong><small>${formatSize(file.size)}</small></span><button type="button" data-remove-reply-file="${index}" aria-label="Bỏ ${esc(file.name)}">×</button></div>`).join(""); $$('[data-remove-reply-file]').forEach((element) => { element.onclick = () => { replyFiles.splice(Number(element.dataset.removeReplyFile), 1); renderReplyFiles(); }; }); };
-  $("#adminReplyFilesInput").onchange = (event) => {
+  const renderReplyFiles = () => { if (!$("#adminReplyFileList")) return; $("#adminReplyFileList").innerHTML = replyFiles.map((file, index) => `<div><span class="admin-reply-file-icon">${paperclipIcon}</span><span><strong>${esc(file.name)}</strong><small>${formatSize(file.size)}</small></span><button type="button" data-remove-reply-file="${index}" aria-label="Bỏ ${esc(file.name)}">×</button></div>`).join(""); $$('[data-remove-reply-file]').forEach((element) => { element.onclick = () => { replyFiles.splice(Number(element.dataset.removeReplyFile), 1); renderReplyFiles(); }; }); };
+  if ($("#adminReplyFilesInput")) $("#adminReplyFilesInput").onchange = (event) => {
     const files = [...event.target.files]; event.target.value = "";
     const tooLarge = files.find((file) => file.size >= MAX_UPLOAD_BYTES);
     if (tooLarge) return toast(`${tooLarge.name} vượt quá giới hạn 30 MB`);
@@ -381,8 +476,8 @@ async function openTicket(ticketId) {
     if (total > MAX_REPLY_UPLOAD_BYTES) return toast("Tổng file mỗi phản hồi vượt quá 120 MB");
     replyFiles = limited; renderReplyFiles();
   };
-  $("#saveTicket").onclick = async () => { try { await api(`/api/admin/tickets/${ticket.id}`, { method: "PATCH", body: JSON.stringify({ status: $("#editStatus").value, priority: $("#editPriority").value, assignedTo: $("#editAssignee").value, resolution: $("#editResolution").value }) }); toast("Đã cập nhật ticket"); await load(); await openTicket(ticket.id); } catch (error) { toast(error.message); } };
-  $("#sendReply").onclick = async () => {
+  if ($("#saveTicket")) $("#saveTicket").onclick = async () => { try { const selected = $("#editAssignee").value; await api(`/api/admin/tickets/${ticket.id}`, { method: "PATCH", body: JSON.stringify({ status: $("#editStatus").value, priority: $("#editPriority").value, assignedToId: selected.startsWith("legacy:") ? undefined : selected, assignedTo: selected.startsWith("legacy:") ? ticket.assignedTo : undefined, resolution: $("#editResolution").value }) }); toast("Đã cập nhật ticket"); await load(); await openTicket(ticket.id); } catch (error) { toast(error.message); } };
+  if ($("#sendReply")) $("#sendReply").onclick = async () => {
     const message = $("#adminReply").value.trim(); if (!message && !replyFiles.length) return;
     const button = $("#sendReply"); const originalLabel = button.textContent; button.disabled = true; button.textContent = replyFiles.length ? "Đang tải file…" : "Đang gửi…";
     try {
@@ -396,7 +491,7 @@ async function openTicket(ticketId) {
       toast(error.message); button.disabled = false; button.textContent = originalLabel;
     }
   };
-  $("#draftFromTicketBtn").onclick = async () => { try { const result = await api(`/api/staff/playbook/drafts/from-ticket/${ticket.id}`, { method: "POST", body: JSON.stringify({}) }); $("#ticketDialog").close(); await refreshGovernance(); switchTab("governance"); toast("Đã tạo draft từ ticket. Hãy chuẩn hóa trước khi gửi duyệt."); await openPlaybookEditor(result.procedure.id); } catch (error) { toast(error.message); } };
+  if ($("#draftFromTicketBtn")) $("#draftFromTicketBtn").onclick = async () => { try { const result = await api(`/api/staff/playbook/drafts/from-ticket/${ticket.id}`, { method: "POST", body: JSON.stringify({}) }); $("#ticketDialog").close(); await refreshGovernance(); switchTab("governance"); toast("Đã tạo draft từ ticket. Hãy chuẩn hóa trước khi gửi duyệt."); await openPlaybookEditor(result.procedure.id); } catch (error) { toast(error.message); } };
   if (!$("#ticketDialog").open) $("#ticketDialog").showModal();
   window.requestAnimationFrame(() => {
     if (adminMessages) adminMessages.scrollTop = adminMessages.scrollHeight;
@@ -408,12 +503,31 @@ function editKb(id = "") {
   $("#kbDialogTitle").textContent = entry ? "Sửa hướng dẫn" : "Thêm hướng dẫn"; $("#kbId").value = entry?.id || ""; $("#kbTitle").value = entry?.title || ""; $("#kbCategory").value = entry?.category || "other"; $("#kbRisk").value = entry?.risk || "low"; $("#kbKeywords").value = (entry?.keywords || []).join(", "); $("#kbSummary").value = entry?.summary || ""; $("#kbSteps").value = (entry?.steps || []).join("\n"); $("#kbAuto").checked = Boolean(entry?.autoEligible); $("#kbActive").checked = entry?.active !== false; $("#kbDialog").showModal();
 }
 
-$("#loginForm").onsubmit = async (event) => { event.preventDefault(); $("#loginError").textContent = ""; try { const result = await api("/api/auth/staff", { method: "POST", body: JSON.stringify({ password: $("#password").value, name: $("#staffName").value }) }); state.token = result.token; sessionStorage.setItem("hd_admin", result.token); show(); await load(); } catch (error) { $("#loginError").textContent = error.message; } };
+$("#loginForm").onsubmit = async (event) => { event.preventDefault(); $("#loginError").textContent = ""; try { const result = await api("/api/auth/staff", { method: "POST", body: JSON.stringify({ username: $("#staffUsername").value, password: $("#password").value }) }); state.token = result.token; sessionStorage.setItem("hd_admin", result.token); show(); await load(); } catch (error) { $("#loginError").textContent = error.message; } };
 $("#logoutBtn").onclick = () => { state.token = ""; state.user = null; sessionStorage.removeItem("hd_admin"); show(); };
 $("#refreshBtn").onclick = async () => { try { await load(); toast("Dữ liệu đã được làm mới"); } catch (error) { toast(error.message); } };
 $("#search").oninput = renderTickets; $("#statusFilter").onchange = renderTickets; $("#priorityFilter").onchange = renderTickets; $("#categoryFilter").onchange = renderTickets;
 $("#resetFiltersBtn").onclick = () => { $("#search").value = ""; $("#statusFilter").value = ""; $("#priorityFilter").value = ""; $("#categoryFilter").value = ""; renderTickets(); };
 $$(".tab").forEach((tab) => { tab.onclick = () => switchTab(tab.dataset.tab); });
+$("#reportDays").onchange = async () => { try { const result = await api(`/api/admin/operations?days=${encodeURIComponent($("#reportDays").value)}`); state.report = result.report; renderOperations(); } catch (error) { toast(error.message); } };
+$("#exportReportBtn").onclick = async () => {
+  try {
+    const response = await fetch(`/api/admin/reports/tickets.csv?days=${encodeURIComponent($("#reportDays").value)}`, { headers: { Authorization: `Bearer ${state.token}`, "ngrok-skip-browser-warning": "1" } });
+    if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error || "Không thể xuất báo cáo"); }
+    const href = URL.createObjectURL(await response.blob()); const anchor = document.createElement("a"); anchor.href = href; anchor.download = `helpdesk-report-${new Date().toISOString().slice(0, 10)}.csv`; anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 30000);
+  } catch (error) { toast(error.message); }
+};
+$("#newStaffBtn").onclick = () => openStaffEditor();
+$$('[data-close-staff]').forEach((button) => { button.onclick = () => $("#staffDialog").close(); });
+$("#staffForm").onsubmit = async (event) => {
+  event.preventDefault(); const staffId = $("#staffId").value;
+  const payload = { username: $("#staffAccountUsername").value, displayName: $("#staffDisplayName").value, role: $("#staffRole").value, active: $("#staffActive").checked };
+  if ($("#staffPassword").value) payload.password = $("#staffPassword").value;
+  try {
+    await api(staffId ? `/api/admin/staff/${staffId}` : "/api/admin/staff", { method: staffId ? "PATCH" : "POST", body: JSON.stringify(payload) });
+    $("#staffDialog").close(); toast(staffId ? "Đã cập nhật tài khoản" : "Đã tạo tài khoản nhân sự"); await load();
+  } catch (error) { toast(error.message); }
+};
 $("#newKbBtn").onclick = () => editKb(); $$("[data-close-kb]").forEach((button) => { button.onclick = () => $("#kbDialog").close(); });
 $("#kbForm").onsubmit = async (event) => { event.preventDefault(); const entryId = $("#kbId").value; const payload = { title: $("#kbTitle").value, category: $("#kbCategory").value, risk: $("#kbRisk").value, keywords: $("#kbKeywords").value.split(",").map((item) => item.trim()).filter(Boolean), summary: $("#kbSummary").value, steps: $("#kbSteps").value.split("\n").map((item) => item.trim()).filter(Boolean), autoEligible: $("#kbAuto").checked, active: $("#kbActive").checked }; try { await api(entryId ? `/api/admin/knowledge-base/${entryId}` : "/api/admin/knowledge-base", { method: entryId ? "PATCH" : "POST", body: JSON.stringify(payload) }); $("#kbDialog").close(); toast("Đã lưu Knowledge Base"); await load(); } catch (error) { toast(error.message); } };
 

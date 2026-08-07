@@ -35,6 +35,7 @@ export interface AiAnalysis {
 }
 
 export interface SlaInfo {
+  version?: "business-hours-v1" | string;
   startedAt: string;
   priority: Priority;
   firstResponseMinutes: number;
@@ -44,6 +45,12 @@ export interface SlaInfo {
   firstRespondedAt?: string | null;
   firstResponseBreachedAt?: string | null;
   resolutionBreachedAt?: string | null;
+  paused?: boolean;
+  pausedAt?: string | null;
+  pauseReason?: string;
+  state?: "on_track" | "at_risk" | "overdue" | "paused" | "completed";
+  firstResponseState?: string;
+  resolutionState?: string;
   firstResponseOverdue: boolean;
   resolutionOverdue: boolean;
   overdue: boolean;
@@ -78,6 +85,7 @@ export interface Ticket {
   location?: string;
   device?: string;
   assignedTo?: string;
+  assignedToId?: string;
   aiAnalysis?: AiAnalysis;
   humanHandoff?: HumanHandoff;
   resolution?: string;
