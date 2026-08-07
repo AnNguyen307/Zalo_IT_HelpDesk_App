@@ -2,6 +2,7 @@ import { id, nowIso } from "./utils.mjs";
 
 export const EMPTY_DB = Object.freeze({
   users: [],
+  staffAccounts: [],
   tickets: [],
   messages: [],
   attachments: [],

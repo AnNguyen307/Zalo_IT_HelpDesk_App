@@ -33,6 +33,8 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.5.2.30/UPGRADE_V5_5_2_30MB_UPLOAD_LIMIT.md](./releases/v5.5.2.30/UPGRADE_V5_5_2_30MB_UPLOAD_LIMIT.md)
 - [releases/v5.6.0/CHANGES_V5_6_0_HUMAN_HANDOFF_LOCK.md](./releases/v5.6.0/CHANGES_V5_6_0_HUMAN_HANDOFF_LOCK.md)
 - [releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md](./releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md)
+- [releases/v5.7/CHANGES_V5_7_OPERATIONS.md](./releases/v5.7/CHANGES_V5_7_OPERATIONS.md)
+- [releases/v5.7/UPGRADE_V5_7_OPERATIONS.md](./releases/v5.7/UPGRADE_V5_7_OPERATIONS.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
 - [troubleshooting/README_SQL_SCHEMA_FIX.md](./troubleshooting/README_SQL_SCHEMA_FIX.md)

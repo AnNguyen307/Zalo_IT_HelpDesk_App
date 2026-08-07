@@ -42,6 +42,19 @@ function booleanEnv(name, fallback) {
   return fallback;
 }
 
+function timeMinuteEnv(name, fallback) {
+  const match = String(process.env[name] || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return fallback;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? hour * 60 + minute : fallback;
+}
+
+function numberListEnv(name, fallback) {
+  const values = String(process.env[name] || "").split(",").map((value) => value.trim()).filter(Boolean).map(Number).filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
+  return values.length ? [...new Set(values)] : fallback;
+}
+
 function slaPolicy(priority, firstResponse, resolution) {
   const key = priority.toUpperCase();
   return {
@@ -56,6 +69,7 @@ export const config = {
   appSecret: process.env.APP_SECRET || "dev-only-secret-change-me",
   adminPassword: process.env.ADMIN_PASSWORD || "ChangeMeNow!",
   technicianPassword: process.env.TECHNICIAN_PASSWORD || "",
+  legacyStaffLoginEnabled: booleanEnv("LEGACY_STAFF_LOGIN_ENABLED", true),
   allowedOrigins: (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://localhost:5173,https://h5.zdn.vn")
     .split(",")
     .map((value) => value.trim())
@@ -101,6 +115,13 @@ export const config = {
     normal: slaPolicy("normal", 240, 1440),
     high: slaPolicy("high", 120, 480),
     urgent: slaPolicy("urgent", 30, 240),
+  },
+  slaBusiness: {
+    timeZone: process.env.SLA_TIME_ZONE || "Asia/Ho_Chi_Minh",
+    workDays: numberListEnv("SLA_WORK_DAYS", [1, 2, 3, 4, 5]),
+    startMinute: timeMinuteEnv("SLA_WORK_START", 8 * 60),
+    endMinute: timeMinuteEnv("SLA_WORK_END", 17 * 60 + 30),
+    holidays: String(process.env.SLA_HOLIDAYS || "").split(",").map((value) => value.trim()).filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
   },
 
   // Zero-cost agent: rules is always available. Ollama is optional and runs locally.

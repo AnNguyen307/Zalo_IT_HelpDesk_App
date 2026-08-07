@@ -118,6 +118,22 @@ function mapUser(row) {
   };
 }
 
+function mapStaffAccount(row) {
+  return {
+    id: row.id,
+    username: row.username || "",
+    displayName: row.display_name || "",
+    role: row.role || "technician",
+    passwordHash: row.password_hash || "",
+    active: bool(row.active),
+    sessionVersion: Number(row.session_version || 1),
+    lastLoginAt: toIso(row.last_login_at),
+    createdBy: row.created_by || "",
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+  };
+}
+
 function mapTicket(row) {
   return {
     id: row.id,
@@ -132,6 +148,7 @@ function mapTicket(row) {
     location: row.location || "",
     device: row.device || "",
     assignedTo: row.assigned_to || "",
+    assignedToId: row.assigned_to_id || "",
     aiAnalysis: parseJson(row.ai_analysis_json, null),
     aiHandoffLocked: bool(row.ai_handoff_locked),
     aiHandoffAt: toIso(row.ai_handoff_at),
@@ -235,6 +252,7 @@ function mapAudit(row) {
 async function readDbFrom(executor) {
   // Keep requests sequential so this works both with a pool and with a single-connection transaction.
   const users = await queryAll(executor, "SELECT * FROM helpdesk.users ORDER BY created_at, id");
+  const staffAccounts = await queryAll(executor, "SELECT * FROM helpdesk.staff_accounts ORDER BY created_at, id");
   const tickets = await queryAll(executor, "SELECT * FROM helpdesk.tickets ORDER BY created_at, id");
   const messages = await queryAll(executor, "SELECT * FROM helpdesk.messages ORDER BY created_at, id");
   const attachments = await queryAll(executor, "SELECT * FROM helpdesk.attachments ORDER BY created_at, id");
@@ -245,6 +263,7 @@ async function readDbFrom(executor) {
 
   return normalizeDb({
     users: users.map(mapUser),
+    staffAccounts: staffAccounts.map(mapStaffAccount),
     tickets: tickets.map(mapTicket),
     messages: messages.map(mapMessage),
     attachments: attachments.map(mapAttachment),
@@ -300,6 +319,28 @@ async function upsertUser(executor, item) {
   `);
 }
 
+async function upsertStaffAccount(executor, item) {
+  const req = request(executor);
+  req.input("id", sql.NVarChar(64), item.id)
+    .input("username", sql.NVarChar(80), item.username || "")
+    .input("display_name", sql.NVarChar(120), item.displayName || "")
+    .input("role", sql.NVarChar(30), item.role || "technician")
+    .input("password_hash", sql.NVarChar(512), item.passwordHash || "")
+    .input("active", sql.Bit, item.active !== false)
+    .input("session_version", sql.Int, Number(item.sessionVersion || 1))
+    .input("last_login_at", sql.DateTime2(3), toDate(item.lastLoginAt))
+    .input("created_by", sql.NVarChar(64), item.createdBy || "")
+    .input("created_at", sql.DateTime2(3), toDate(item.createdAt) || new Date())
+    .input("updated_at", sql.DateTime2(3), toDate(item.updatedAt) || new Date());
+  await req.query(`
+    MERGE helpdesk.staff_accounts WITH (HOLDLOCK) AS target
+    USING (SELECT @id AS id) AS source ON target.id=source.id
+    WHEN MATCHED THEN UPDATE SET username=@username,display_name=@display_name,role=@role,password_hash=@password_hash,active=@active,session_version=@session_version,last_login_at=@last_login_at,created_by=@created_by,created_at=@created_at,updated_at=@updated_at
+    WHEN NOT MATCHED THEN INSERT (id,username,display_name,role,password_hash,active,session_version,last_login_at,created_by,created_at,updated_at)
+      VALUES (@id,@username,@display_name,@role,@password_hash,@active,@session_version,@last_login_at,@created_by,@created_at,@updated_at);
+  `);
+}
+
 async function upsertTicket(executor, item) {
   const req = request(executor);
   req.input("id", sql.NVarChar(64), item.id)
@@ -314,6 +355,7 @@ async function upsertTicket(executor, item) {
     .input("location", sql.NVarChar(160), item.location || "")
     .input("device", sql.NVarChar(160), item.device || "")
     .input("assigned_to", sql.NVarChar(120), item.assignedTo || "")
+    .input("assigned_to_id", sql.NVarChar(64), item.assignedToId || null)
     .input("ai_analysis_json", sql.NVarChar(sql.MAX), jsonString(item.aiAnalysis))
     .input("ai_handoff_locked", sql.Bit, bool(item.aiHandoffLocked))
     .input("ai_handoff_at", sql.DateTime2(3), toDate(item.aiHandoffAt))
@@ -334,17 +376,17 @@ async function upsertTicket(executor, item) {
     WHEN MATCHED THEN UPDATE SET
       code=@code,user_id=@user_id,title=@title,description=@description,category=@category,
       priority=@priority,risk=@risk,status=@status,location=@location,device=@device,
-      assigned_to=@assigned_to,ai_analysis_json=@ai_analysis_json,
+      assigned_to=@assigned_to,assigned_to_id=@assigned_to_id,ai_analysis_json=@ai_analysis_json,
       ai_handoff_locked=@ai_handoff_locked,ai_handoff_at=@ai_handoff_at,ai_handoff_reason=@ai_handoff_reason,
       ai_handoff_by=@ai_handoff_by,ai_handoff_by_name=@ai_handoff_by_name,resolution=@resolution,
       satisfaction_json=@satisfaction_json,reopen_count=@reopen_count,last_reopened_at=@last_reopened_at,
       sla_json=@sla_json,created_at=@created_at,updated_at=@updated_at,resolved_at=@resolved_at
     WHEN NOT MATCHED THEN INSERT
-      (id,code,user_id,title,description,category,priority,risk,status,location,device,assigned_to,
+      (id,code,user_id,title,description,category,priority,risk,status,location,device,assigned_to,assigned_to_id,
        ai_analysis_json,ai_handoff_locked,ai_handoff_at,ai_handoff_reason,ai_handoff_by,ai_handoff_by_name,
        resolution,satisfaction_json,reopen_count,last_reopened_at,sla_json,created_at,updated_at,resolved_at)
       VALUES
-      (@id,@code,@user_id,@title,@description,@category,@priority,@risk,@status,@location,@device,@assigned_to,
+      (@id,@code,@user_id,@title,@description,@category,@priority,@risk,@status,@location,@device,@assigned_to,@assigned_to_id,
        @ai_analysis_json,@ai_handoff_locked,@ai_handoff_at,@ai_handoff_reason,@ai_handoff_by,@ai_handoff_by_name,
        @resolution,@satisfaction_json,@reopen_count,@last_reopened_at,@sla_json,@created_at,@updated_at,@resolved_at);
   `);
@@ -471,6 +513,7 @@ async function upsertAudit(executor, item) {
 
 const COLLECTIONS = [
   ["users", "users", upsertUser],
+  ["staffAccounts", "staff_accounts", upsertStaffAccount],
   ["tickets", "tickets", upsertTicket],
   ["messages", "messages", upsertMessage],
   ["attachments", "attachments", upsertAttachment],
@@ -567,6 +610,7 @@ export async function getStoreStatus() {
     const result = await pool.request().query(`
       SELECT
         (SELECT COUNT_BIG(*) FROM helpdesk.users) AS users,
+        (SELECT COUNT_BIG(*) FROM helpdesk.staff_accounts) AS staffAccounts,
         (SELECT COUNT_BIG(*) FROM helpdesk.tickets) AS tickets,
         (SELECT COUNT_BIG(*) FROM helpdesk.messages) AS messages,
         (SELECT COUNT_BIG(*) FROM helpdesk.attachments) AS attachments,
