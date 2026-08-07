@@ -24,7 +24,7 @@ const tabMeta = {
   operations: ["Hiệu quả vận hành", "Theo dõi phản hồi, xử lý, SLA, mở lại và mức hài lòng."],
   staff: ["Tài khoản HelpDesk", "Quản lý danh tính, vai trò và quyền truy cập của nhân sự."],
   knowledge: ["Knowledge Base", "Quản lý checklist ngắn hỗ trợ kỹ thuật viên và Playbook."],
-  governance: ["Vòng đời Playbook", "Tạo, duyệt, phát hành và rollback procedure với lịch sử đầy đủ."],
+  governance: ["Quy trình Playbook", "Tạo, duyệt, phát hành và rollback procedure với lịch sử đầy đủ."],
   playbook: ["Enterprise Playbook", "Kiểm tra nguồn quy trình chính thức và semantic index."],
   agent: ["AI HelpDesk Agent", "Giám sát Ollama, chính sách Strict Mode và thử nghiệm quyết định."],
 };
@@ -188,7 +188,16 @@ function renderStats() {
   ];
   $("#stats").innerHTML = items.map(([label, value, style], index) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${statIcons[index]}</b></div><strong>${esc(value)}</strong><small>${index === 3 && Number(value) ? "Cần xử lý" : ""}</small></article>`).join("");
   const openCount = (byStatus.open || 0) + (byStatus.in_progress || 0) + (byStatus.waiting_user || 0);
-  $("#openTicketBadge").textContent = openCount > 99 ? "99+" : String(openCount);
+  setNavCountBadge("#openTicketBadge", openCount);
+}
+
+function setNavCountBadge(selector, value) {
+  const badge = $(selector);
+  if (!badge) return;
+  const count = Math.max(0, Number(value) || 0);
+  badge.textContent = count ? (count > 99 ? "99+" : String(count)) : "";
+  badge.classList.toggle("hidden", count === 0);
+  badge.setAttribute("aria-hidden", count === 0 ? "true" : "false");
 }
 
 function durationLabel(minutes) {
@@ -329,7 +338,7 @@ function renderGovernance() {
     ["Chờ duyệt", counts.submitted || 0, Number(counts.submitted) ? "danger" : ""], ["Bản nháp", counts.drafts || 0, ""], ["Bị từ chối", counts.rejected || 0, ""],
   ];
   $("#governanceStats").innerHTML = items.map(([label, value, style], indexValue) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${["▤","✓","!","◇","×"][indexValue]}</b></div><strong>${esc(value)}</strong><small>${indexValue === 2 && Number(value) ? "Cần duyệt" : ""}</small></article>`).join("");
-  $("#reviewBadge").textContent = Number(counts.submitted || 0) > 99 ? "99+" : String(counts.submitted || 0);
+  setNavCountBadge("#reviewBadge", counts.submitted);
   const indexClass = index.status === "ready" ? "index-ready" : index.status === "failed" ? "index-failed" : "index-building";
   $("#indexStateChip").className = `badge ${indexClass}`;
   $("#indexStateChip").textContent = `INDEX: ${(index.status || "not installed").toUpperCase()}`;
