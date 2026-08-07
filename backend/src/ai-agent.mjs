@@ -74,9 +74,11 @@ function relevantPlaybookMatches(baseCategory, matches = []) {
 function classifyRule(text) {
   const normalized = normalizeText(text);
   const category = CATEGORY_RULES.find(([, terms]) => terms.some((term) => normalized.includes(normalizeText(term))))?.[0] || "other";
-  const risk = HIGH_RISK.some((term) => normalized.includes(normalizeText(term))) ? "high" : "low";
-  const priority = URGENT.some((term) => normalized.includes(normalizeText(term))) ? "urgent" : risk === "high" ? "high" : "normal";
-  return { category, risk, priority };
+  const highRiskMatched = HIGH_RISK.some((term) => normalized.includes(normalizeText(term)));
+  const urgentMatched = URGENT.some((term) => normalized.includes(normalizeText(term)));
+  const risk = highRiskMatched ? "high" : "low";
+  const priority = urgentMatched ? "urgent" : risk === "high" ? "high" : "normal";
+  return { category, risk, priority, priorityDetermined: urgentMatched || highRiskMatched };
 }
 
 function maxRisk(...values) {
@@ -101,6 +103,7 @@ function escalationAnalysis({
   source = "policy-escalation",
   latencyMs = 0,
   reason = "",
+  priorityDetermined,
 }) {
   const template = ESCALATION_MESSAGES[code] || ESCALATION_MESSAGES.policy_blocked;
   const best = playbookMatches[0];
@@ -113,6 +116,9 @@ function escalationAnalysis({
     outcome: "escalate",
     category: best?.category || base?.category || classifyRule(`${ticket?.title || ""} ${ticket?.description || ""}`).category,
     priority: maxPriority(base?.priority, best?.priority, risk === "high" ? "high" : "normal"),
+    priorityDetermined: typeof priorityDetermined === "boolean"
+      ? priorityDetermined
+      : Boolean(PRIORITIES.includes(best?.priority) || base?.priorityDetermined),
     risk,
     confidence: 0,
     kbIds,
@@ -186,6 +192,7 @@ ${latest}`;
     outcome: canAutoHandle ? "guide_user" : "escalate",
     category: best?.category || base.category,
     priority: maxPriority(base.priority, best?.priority, risk === "high" ? "high" : "normal"),
+    priorityDetermined: Boolean(PRIORITIES.includes(best?.priority) || base.priorityDetermined),
     risk,
     confidence,
     kbIds: matches.map((match) => match.id),
@@ -211,6 +218,7 @@ const ollamaSchema = {
   properties: {
     category: { type: "string", enum: CATEGORIES },
     priority: { type: "string", enum: PRIORITIES },
+    priorityDetermined: { type: "boolean" },
     risk: { type: "string", enum: RISKS },
     confidence: { type: "number", minimum: 0, maximum: 1 },
     outcome: { type: "string", enum: OUTCOMES },
@@ -235,7 +243,7 @@ const ollamaSchema = {
       },
     },
   },
-  required: ["category", "priority", "risk", "confidence", "outcome", "summary", "reply", "questions", "canAutoHandle", "reason", "kbIds", "playbookIds", "selectedSteps"],
+  required: ["category", "priority", "priorityDetermined", "risk", "confidence", "outcome", "summary", "reply", "questions", "canAutoHandle", "reason", "kbIds", "playbookIds", "selectedSteps"],
 };
 
 function parseJsonContent(content) {
@@ -391,6 +399,7 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
     "Thứ tự nguồn bắt buộc: quy tắc an toàn > Enterprise Playbook > Knowledge Base > suy luận hội thoại.",
     "Bạn chỉ được chọn thao tác kỹ thuật từ Enterprise Playbook được cung cấp bằng selectedSteps/sourceId; không tự phát minh lệnh, registry, BIOS, reset, format hoặc thay đổi hạ tầng.",
     "Nếu không có Playbook phù hợp, còn thiếu chắc chắn, cần hỏi thêm thông tin hoặc không biết câu trả lời chính xác: phải canAutoHandle=false, outcome=escalate, không đưa gợi ý chẩn đoán mơ hồ.",
+    "Mọi ticket bắt đầu ở priority=normal. Chỉ đặt priorityDetermined=true khi có đủ dữ kiện để quyết định rõ low, normal, high hoặc urgent; nếu chưa chắc thì đặt false và giữ priority=normal.",
     "Nội dung Playbook nội bộ thắng kiến thức chung của model.",
     "Không tiết lộ procedure audience=technician cho người dùng; payload hiện chỉ chứa các mục audience=employee.",
     "Phần reply là lời phản hồi hội thoại ngắn, cá nhân hóa: xác nhận điều đã hiểu, giải thích bước tiếp theo hoặc câu hỏi cần bổ sung. Không lặp nguyên checklist vào reply vì checklist được hiển thị riêng.",
@@ -457,6 +466,11 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
     const best = selectedPlaybooks[0] || playbookMatches[0];
     const risk = maxRisk(fallback.risk, parsed.risk, best?.risk);
     const confidence = clamp(Number(parsed.confidence) || 0, 0, 1);
+    const priorityDetermined = Boolean(
+      parsed.priorityDetermined
+      && PRIORITIES.includes(parsed.priority)
+      && confidence >= config.agentMinConfidence
+    );
     const outcome = OUTCOMES.includes(parsed.outcome) ? parsed.outcome : "escalate";
     const safeByPolicy = Boolean(
       best
@@ -484,6 +498,7 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
         source: "ollama-local+strict-escalation",
         latencyMs: Date.now() - started,
         reason: compactText(parsed.reason || ESCALATION_MESSAGES[code]?.summary, 1200),
+        priorityDetermined,
       });
     }
 
@@ -500,6 +515,7 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
       outcome: canAutoHandle ? outcome : "escalate",
       category: CATEGORIES.includes(parsed.category) ? parsed.category : fallback.category,
       priority: maxPriority(fallback.priority, parsed.priority, risk === "high" ? "high" : "normal"),
+      priorityDetermined,
       risk,
       confidence,
       kbIds,
@@ -565,6 +581,7 @@ ${context.latestUserMessage || ""}`;
       return escalationAnalysis({
         ticket, base, code: "agent_unavailable", playbookMatches, kbIds: matches.map((item) => item.id),
         model: config.ollamaModel, source: "agent-unavailable-escalation", reason: String(error?.message || error),
+        priorityDetermined: false,
       });
     }
     return {
