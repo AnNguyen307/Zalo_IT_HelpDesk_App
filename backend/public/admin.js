@@ -140,7 +140,7 @@ function renderStats() {
     ["Đã xử lý", (byStatus.resolved || 0) + (byStatus.closed || 0), "success"],
     ["Hài lòng TB", state.stats?.averageSatisfaction ? `${state.stats.averageSatisfaction}/5` : "—", "success"],
   ];
-  $("#stats").innerHTML = items.map(([label, value, style], index) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${statIcons[index]}</b></div><strong>${esc(value)}</strong><small>${index === 3 && Number(value) ? "Cần ưu tiên xử lý" : "Dữ liệu hiện tại"}</small></article>`).join("");
+  $("#stats").innerHTML = items.map(([label, value, style], index) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${statIcons[index]}</b></div><strong>${esc(value)}</strong><small>${index === 3 && Number(value) ? "Cần xử lý" : ""}</small></article>`).join("");
   const openCount = (byStatus.open || 0) + (byStatus.in_progress || 0) + (byStatus.waiting_user || 0);
   $("#openTicketBadge").textContent = openCount > 99 ? "99+" : String(openCount);
 }
@@ -201,7 +201,7 @@ function renderGovernance() {
     ["Procedure", counts.procedures || 0, ""], ["Published", counts.published || 0, "success"],
     ["Chờ duyệt", counts.submitted || 0, Number(counts.submitted) ? "danger" : ""], ["Bản nháp", counts.drafts || 0, ""], ["Bị từ chối", counts.rejected || 0, ""],
   ];
-  $("#governanceStats").innerHTML = items.map(([label, value, style], indexValue) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${["▤","✓","!","◇","×"][indexValue]}</b></div><strong>${esc(value)}</strong><small>${indexValue === 2 && Number(value) ? "Cần quản trị viên review" : "Vòng đời có kiểm soát"}</small></article>`).join("");
+  $("#governanceStats").innerHTML = items.map(([label, value, style], indexValue) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${["▤","✓","!","◇","×"][indexValue]}</b></div><strong>${esc(value)}</strong><small>${indexValue === 2 && Number(value) ? "Cần duyệt" : ""}</small></article>`).join("");
   $("#reviewBadge").textContent = Number(counts.submitted || 0) > 99 ? "99+" : String(counts.submitted || 0);
   const indexClass = index.status === "ready" ? "index-ready" : index.status === "failed" ? "index-failed" : "index-building";
   $("#indexStateChip").className = `badge ${indexClass}`;
@@ -339,7 +339,6 @@ async function openTicket(ticketId) {
   </div>`;
 
   const adminMessages = $("#adminMessages");
-  if (adminMessages) adminMessages.scrollTop = adminMessages.scrollHeight;
 
   const contextTabs = $$('[data-ticket-context-tab]');
   const contextPanels = $$('[data-ticket-context-panel]');
@@ -398,7 +397,10 @@ async function openTicket(ticketId) {
     }
   };
   $("#draftFromTicketBtn").onclick = async () => { try { const result = await api(`/api/staff/playbook/drafts/from-ticket/${ticket.id}`, { method: "POST", body: JSON.stringify({}) }); $("#ticketDialog").close(); await refreshGovernance(); switchTab("governance"); toast("Đã tạo draft từ ticket. Hãy chuẩn hóa trước khi gửi duyệt."); await openPlaybookEditor(result.procedure.id); } catch (error) { toast(error.message); } };
-  $("#ticketDialog").showModal();
+  if (!$("#ticketDialog").open) $("#ticketDialog").showModal();
+  window.requestAnimationFrame(() => {
+    if (adminMessages) adminMessages.scrollTop = adminMessages.scrollHeight;
+  });
 }
 
 function editKb(id = "") {

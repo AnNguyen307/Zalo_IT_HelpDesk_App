@@ -1,2 +1,84 @@
-import{useState,type FormEvent,type ChangeEvent}from"react";import{Icon}from"../components/Icon";import{useApp}from"../context";
-export function ProfilePage(){const{user,updateProfile,logout,tickets}=useApp();const[department,setDepartment]=useState(user?.department||""),[phone,setPhone]=useState(user?.phone||""),[saving,setSaving]=useState(false);async function submit(e:FormEvent){e.preventDefault();setSaving(true);try{await updateProfile(department,phone)}finally{setSaving(false)}}return <><section className="profile-hero"><span className="profile-avatar">{user?.avatar?<img src={user.avatar} alt=""/>:user?.name?.[0]||"U"}</span><div><span className="eyebrow">HỒ SƠ NGƯỜI DÙNG</span><h1>{user?.name}</h1><p>{user?.department||"Chưa cập nhật phòng ban"} · {tickets.length} ticket</p></div></section><form className="profile-form detail-card" onSubmit={submit}><div className="card-title-row"><span className="card-title-icon"><Icon name="user"/></span><div><h3>Thông tin liên hệ</h3><small>Giúp IT tìm đúng vị trí và liên hệ nhanh</small></div></div><label>Phòng ban<input value={department} onChange={(e:ChangeEvent<HTMLInputElement>)=>setDepartment(e.target.value)} placeholder="Kế toán, Laboratory…"/></label><label>Số điện thoại nội bộ<input value={phone} onChange={(e:ChangeEvent<HTMLInputElement>)=>setPhone(e.target.value)} placeholder="Máy lẻ hoặc số liên hệ"/></label><button className="primary" disabled={saving}>{saving?"Đang lưu…":"Lưu thông tin"}</button></form><button className="logout-button" onClick={logout}><Icon name="logout"/> Đăng nhập lại tài khoản Zalo</button></>}
+import { useState, type FormEvent, type ChangeEvent } from "react";
+import { Icon } from "../components/Icon";
+import { useApp } from "../context";
+export function ProfilePage() {
+  const { user, updateProfile, logout, tickets } = useApp();
+  const [department, setDepartment] = useState(user?.department || ""),
+    [phone, setPhone] = useState(user?.phone || ""),
+    [saving, setSaving] = useState(false);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateProfile(department, phone);
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <>
+      <section className="profile-hero">
+        <img
+          className="profile-cover"
+          src="/assets/helpdesk-support-640.webp"
+          alt=""
+          width="640"
+          height="420"
+          loading="lazy"
+        />
+        <span className="profile-avatar">
+          {user?.avatar ? (
+            <img src={user.avatar} alt="" />
+          ) : (
+            user?.name?.[0] || "U"
+          )}
+        </span>
+        <div>
+          <span className="eyebrow">HỒ SƠ NGƯỜI DÙNG</span>
+          <h1>{user?.name}</h1>
+          <p>
+            {user?.department || "Chưa cập nhật phòng ban"} · {tickets.length}{" "}
+            ticket
+          </p>
+        </div>
+      </section>
+      <form className="profile-form detail-card" onSubmit={submit}>
+        <div className="card-title-row">
+          <span className="card-title-icon">
+            <Icon name="user" />
+          </span>
+          <div>
+            <h3>Thông tin liên hệ</h3>
+            <small>Giúp IT tìm đúng vị trí và liên hệ nhanh</small>
+          </div>
+        </div>
+        <label>
+          Phòng ban
+          <input
+            value={department}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setDepartment(e.target.value)
+            }
+            placeholder="Kế toán, Laboratory…"
+          />
+        </label>
+        <label>
+          Số điện thoại nội bộ
+          <input
+            value={phone}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setPhone(e.target.value)
+            }
+            placeholder="Máy lẻ hoặc số liên hệ"
+          />
+        </label>
+        <button className="primary" disabled={saving}>
+          {saving ? "Đang lưu…" : "Lưu thông tin"}
+        </button>
+      </form>
+      <button className="logout-button" onClick={logout}>
+        <Icon name="logout" /> Đăng nhập lại tài khoản Zalo
+      </button>
+    </>
+  );
+}
