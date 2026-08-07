@@ -35,6 +35,8 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md](./releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md)
 - [releases/v5.7/CHANGES_V5_7_OPERATIONS.md](./releases/v5.7/CHANGES_V5_7_OPERATIONS.md)
 - [releases/v5.7/UPGRADE_V5_7_OPERATIONS.md](./releases/v5.7/UPGRADE_V5_7_OPERATIONS.md)
+- [releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md](./releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md)
+- [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
 - [troubleshooting/README_SQL_SCHEMA_FIX.md](./troubleshooting/README_SQL_SCHEMA_FIX.md)

@@ -7,6 +7,7 @@ import { loginAdmin, loginStaff, loginWithZalo, requireAuth, sessionUser } from 
 import { canPreviewAttachment, publicAttachment, readAttachmentFile, removeAttachmentFile, saveAttachment } from "./attachments.mjs";
 import { isMultipartRequest, readMultipartAttachments } from "./multipart.mjs";
 import { corsHeaders, notFound, routeMatch, serveStatic } from "./http.mjs";
+import { appError, publicHttpError } from "./errors.mjs";
 import { analysisRequiresHumanHandoff, isHumanHandoffLocked, lockHumanHandoff, publicHumanHandoff, statusAfterHumanReply } from "./handoff.mjs";
 import { KB_SEED } from "./kb.mjs";
 import { buildOperationsReport, matchesSmartQueue, smartQueueCounts, ticketsCsv } from "./operations.mjs";
@@ -28,7 +29,7 @@ import {
   updatePlaybookDraft,
 } from "./playbook-governance.mjs";
 import { createSla, ensureSla, markFirstResponse, pauseSla, publicSla, recalculateSla, syncSlaForStatus } from "./sla.mjs";
-import { activeAdminCount, createStaffAccountRecord, hashStaffPassword, normalizeUsername, publicStaffAccount, STAFF_ROLES } from "./staff-accounts.mjs";
+import { createStaffAccountRecord, ensureUniqueStaffUsername, hashStaffPassword, normalizeStaffActive, normalizeUsername, publicStaffAccount, STAFF_ROLES, validateStaffAccountTransition } from "./staff-accounts.mjs";
 import { audit, closeStore, getStoreStatus, initializeStore, pushHistory, readDb, seedKnowledgeBase, updateDb } from "./store.mjs";
 import { plainSystemText } from "./system-text.mjs";
 import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
@@ -438,7 +439,7 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.7.0",
+      version: "5.7.1",
       time: nowIso(),
       features: ["staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
       agent: { ...agent, paidApiRequired: false },
@@ -859,7 +860,7 @@ async function handleApi(req, res, url, headers) {
     const body = await readJson(req);
     const account = await createStaffAccountRecord(body, session.sub);
     await updateDb((db) => {
-      if (db.staffAccounts.some((item) => item.username === account.username)) throw Object.assign(new Error("Tên đăng nhập đã tồn tại"), { status: 409 });
+      ensureUniqueStaffUsername(db.staffAccounts, account.username);
       db.staffAccounts.push(account);
     });
     await audit(session.sub, "create", "staffAccount", account.id, { username: account.username, role: account.role });
@@ -873,23 +874,20 @@ async function handleApi(req, res, url, headers) {
     const passwordHash = body.password ? await hashStaffPassword(body.password) : null;
     const updated = await updateDb((db) => {
       const account = db.staffAccounts.find((item) => item.id === params.staffId);
-      if (!account) throw Object.assign(new Error("Không tìm thấy tài khoản nhân sự"), { status: 404 });
+      if (!account) throw appError("Không tìm thấy tài khoản nhân sự", { status: 404, code: "STAFF_ACCOUNT_NOT_FOUND" });
       const nextRole = body.role === undefined ? account.role : body.role;
-      const nextActive = body.active === undefined ? account.active !== false : Boolean(body.active);
-      if (!STAFF_ROLES.includes(nextRole)) throw Object.assign(new Error("Vai trò nhân sự không hợp lệ"), { status: 400 });
-      if (account.id === session.sub && (!nextActive || nextRole !== "admin")) throw Object.assign(new Error("Không thể tự khóa hoặc hạ quyền tài khoản đang đăng nhập"), { status: 409 });
-      if (account.role === "admin" && account.active !== false && (!nextActive || nextRole !== "admin") && activeAdminCount(db.staffAccounts) <= 1) {
-        throw Object.assign(new Error("Hệ thống phải còn ít nhất một tài khoản Admin hoạt động"), { status: 409 });
-      }
+      const nextActive = normalizeStaffActive(body.active, account.active !== false);
+      if (!STAFF_ROLES.includes(nextRole)) throw appError("Vai trò nhân sự không hợp lệ", { code: "STAFF_ROLE_INVALID", field: "role" });
+      validateStaffAccountTransition(db.staffAccounts, account, { actorId: session.sub, nextRole, nextActive });
       if (body.username !== undefined) {
         const username = normalizeUsername(body.username);
-        if (username.length < 3) throw Object.assign(new Error("Tên đăng nhập phải có ít nhất 3 ký tự"), { status: 400 });
-        if (db.staffAccounts.some((item) => item.id !== account.id && item.username === username)) throw Object.assign(new Error("Tên đăng nhập đã tồn tại"), { status: 409 });
+        if (username.length < 3) throw appError("Tên đăng nhập phải có ít nhất 3 ký tự", { code: "STAFF_USERNAME_LENGTH", field: "username" });
+        ensureUniqueStaffUsername(db.staffAccounts, username, account.id);
         account.username = username;
       }
       if (body.displayName !== undefined) {
         const displayName = String(body.displayName || "").trim().slice(0, 120);
-        if (displayName.length < 2) throw Object.assign(new Error("Tên hiển thị phải có ít nhất 2 ký tự"), { status: 400 });
+        if (displayName.length < 2) throw appError("Tên hiển thị phải có ít nhất 2 ký tự", { code: "STAFF_DISPLAY_NAME_LENGTH", field: "displayName" });
         account.displayName = displayName;
       }
       const sessionChanged = account.role !== nextRole || (account.active !== false) !== nextActive || Boolean(passwordHash);
@@ -1169,8 +1167,8 @@ const server = http.createServer(async (req, res) => {
     return notFound(res, headers);
   } catch (error) {
     console.error(error);
-    const status = Number(error.status) || 500;
-    return json(res, status, { error: status >= 500 ? "Internal server error" : error.message }, headers);
+    const { status, payload } = publicHttpError(error, { pathname: String(req.url || "/").split("?", 1)[0] });
+    return json(res, status, payload, headers);
   }
 });
 

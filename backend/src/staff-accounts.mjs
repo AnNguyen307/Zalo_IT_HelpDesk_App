@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { promisify } from "node:util";
+import { appError } from "./errors.mjs";
 import { id, nowIso, safeEqual } from "./utils.mjs";
 
 const scryptAsync = promisify(crypto.scrypt);
@@ -12,12 +13,28 @@ export function normalizeUsername(value = "") {
 export function validateStaffPassword(password) {
   const value = String(password || "");
   if (value.length < 10 || value.length > 200) {
-    throw Object.assign(new Error("Mật khẩu phải có 10–200 ký tự"), { status: 400 });
+    throw appError("Mật khẩu phải có 10–200 ký tự", { code: "STAFF_PASSWORD_LENGTH", field: "password" });
   }
   if (!/[a-zA-Z]/.test(value) || !/\d/.test(value)) {
-    throw Object.assign(new Error("Mật khẩu phải có cả chữ và số"), { status: 400 });
+    throw appError("Mật khẩu phải có cả chữ và số", { code: "STAFF_PASSWORD_COMPLEXITY", field: "password" });
   }
   return value;
+}
+
+export function normalizeStaffActive(value, defaultValue = true) {
+  if (value === undefined) return defaultValue;
+  if (typeof value !== "boolean") {
+    throw appError("Trạng thái tài khoản không hợp lệ", { code: "STAFF_ACTIVE_INVALID", field: "active" });
+  }
+  return value;
+}
+
+export function ensureUniqueStaffUsername(accounts = [], value = "", excludeId = "") {
+  const username = normalizeUsername(value);
+  if (accounts.some((item) => item.id !== excludeId && normalizeUsername(item.username) === username)) {
+    throw appError("Tên đăng nhập đã tồn tại", { status: 409, code: "STAFF_USERNAME_EXISTS", field: "username" });
+  }
+  return username;
 }
 
 export async function hashStaffPassword(password, salt = crypto.randomBytes(16)) {
@@ -56,9 +73,10 @@ export function publicStaffAccount(account) {
 export async function createStaffAccountRecord(input, actorId = "admin") {
   const username = normalizeUsername(input.username);
   const displayName = String(input.displayName || "").trim().slice(0, 120);
-  const role = STAFF_ROLES.includes(input.role) ? input.role : "technician";
-  if (username.length < 3) throw Object.assign(new Error("Tên đăng nhập phải có ít nhất 3 ký tự"), { status: 400 });
-  if (displayName.length < 2) throw Object.assign(new Error("Tên hiển thị phải có ít nhất 2 ký tự"), { status: 400 });
+  const role = input.role === undefined ? "technician" : input.role;
+  if (username.length < 3) throw appError("Tên đăng nhập phải có ít nhất 3 ký tự", { code: "STAFF_USERNAME_LENGTH", field: "username" });
+  if (displayName.length < 2) throw appError("Tên hiển thị phải có ít nhất 2 ký tự", { code: "STAFF_DISPLAY_NAME_LENGTH", field: "displayName" });
+  if (!STAFF_ROLES.includes(role)) throw appError("Vai trò nhân sự không hợp lệ", { code: "STAFF_ROLE_INVALID", field: "role" });
   const at = nowIso();
   return {
     id: id("stf"),
@@ -66,7 +84,7 @@ export async function createStaffAccountRecord(input, actorId = "admin") {
     displayName,
     role,
     passwordHash: await hashStaffPassword(input.password),
-    active: input.active !== false,
+    active: normalizeStaffActive(input.active),
     sessionVersion: 1,
     lastLoginAt: null,
     createdBy: actorId,
@@ -77,4 +95,13 @@ export async function createStaffAccountRecord(input, actorId = "admin") {
 
 export function activeAdminCount(accounts = []) {
   return accounts.filter((item) => item.active !== false && item.role === "admin").length;
+}
+
+export function validateStaffAccountTransition(accounts, account, { actorId, nextRole, nextActive }) {
+  if (account.id === actorId && (!nextActive || nextRole !== "admin")) {
+    throw appError("Không thể tự khóa hoặc hạ quyền tài khoản đang đăng nhập", { status: 409, code: "STAFF_SELF_LOCK_FORBIDDEN", field: !nextActive ? "active" : "role" });
+  }
+  if (account.role === "admin" && account.active !== false && (!nextActive || nextRole !== "admin") && activeAdminCount(accounts) <= 1) {
+    throw appError("Hệ thống phải còn ít nhất một tài khoản Admin hoạt động", { status: 409, code: "STAFF_LAST_ACTIVE_ADMIN", field: !nextActive ? "active" : "role" });
+  }
 }

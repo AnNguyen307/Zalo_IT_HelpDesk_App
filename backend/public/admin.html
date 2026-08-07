@@ -61,7 +61,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.7</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.7.1</span></div>
     </aside>
 
     <div class="admin-main">
@@ -198,10 +198,12 @@
         <label>Tên hiển thị<input id="staffDisplayName" maxlength="120" required placeholder="VD: Nguyễn Văn An" /></label>
         <label>Vai trò<select id="staffRole"><option value="technician">Kỹ thuật viên</option><option value="viewer">Chỉ xem</option><option value="admin">Quản trị viên</option></select></label>
         <label class="staff-password-field">Mật khẩu<input id="staffPassword" type="password" autocomplete="new-password" minlength="10" placeholder="Tối thiểu 10 ký tự, có chữ và số" /></label>
-        <label class="toggle-label wide"><input id="staffActive" type="checkbox" checked /><span></span> Tài khoản đang hoạt động</label>
+        <label class="toggle-label wide staff-active-toggle"><input id="staffActive" type="checkbox" role="switch" aria-describedby="staffActiveHelp" checked /><span aria-hidden="true"></span><b id="staffActiveText">Đang hoạt động</b></label>
+        <small id="staffActiveHelp" class="staff-active-help wide">Tài khoản có thể đăng nhập ngay sau khi lưu.</small>
       </div>
       <div class="staff-form-note">Khi đổi mật khẩu, vai trò hoặc trạng thái, mọi phiên đăng nhập cũ của tài khoản sẽ hết hiệu lực.</div>
-      <div class="dialog-actions"><button type="button" class="button subtle-button" data-close-staff>Hủy</button><button type="submit" class="button primary-button">Lưu tài khoản</button></div>
+      <div id="staffFormError" class="form-error staff-form-error hidden" role="alert" aria-live="assertive"></div>
+      <div class="dialog-actions"><button type="button" class="button subtle-button" data-close-staff>Hủy</button><button id="staffSaveBtn" type="submit" class="button primary-button">Lưu tài khoản</button></div>
     </form>
   </dialog>
 

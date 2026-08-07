@@ -1,3 +1,5 @@
+import { buildStaffAccountPayload, staffActivePresentation, staffErrorFieldId } from "./admin-staff.js";
+
 const state = {
   token: sessionStorage.getItem("hd_admin") || "",
   user: null, tickets: [], stats: null, kb: [], agent: null, playbook: null, governance: null, procedures: [], staff: [], directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
@@ -47,7 +49,11 @@ async function api(path, options = {}) {
   if (state.token) headers.set("Authorization", `Bearer ${state.token}`);
   const response = await fetch(path, { ...options, headers });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(body.error || `HTTP ${response.status}`);
+    error.status = response.status; error.code = body.code || ""; error.field = body.field || "";
+    throw error;
+  }
   return body;
 }
 
@@ -96,7 +102,11 @@ async function previewAttachment(attachment) {
   $("#previewDownload").onclick = () => downloadAttachment(attachment).catch((error) => toast(error.message));
   dialog.onclick = (event) => { if (event.target === dialog) close(); };
 }
-function toast(message) { const element = $("#toast"); element.textContent = message; element.classList.remove("hidden"); clearTimeout(toast.timer); toast.timer = setTimeout(() => element.classList.add("hidden"), 2800); }
+function toast(message) {
+  const element = $("#toast"); const openDialog = $$('dialog[open]').at(-1); const host = openDialog || document.body;
+  if (element.parentElement !== host) host.appendChild(element);
+  element.textContent = message; element.classList.remove("hidden"); clearTimeout(toast.timer); toast.timer = setTimeout(() => element.classList.add("hidden"), 2800);
+}
 function show() { $("#loginView").classList.toggle("hidden", Boolean(state.token)); $("#appView").classList.toggle("hidden", !state.token); }
 
 function setHealth(dotSelector, textSelector, ready, text) {
@@ -223,6 +233,7 @@ function renderStaff() {
 
 function openStaffEditor(staffId = "") {
   const account = state.staff.find((item) => item.id === staffId);
+  clearStaffFormError();
   $("#staffDialogTitle").textContent = account ? "Chỉnh sửa nhân sự" : "Thêm nhân sự";
   $("#staffId").value = account?.id || "";
   $("#staffAccountUsername").value = account?.username || "";
@@ -232,7 +243,32 @@ function openStaffEditor(staffId = "") {
   $("#staffPassword").value = "";
   $("#staffPassword").required = !account;
   $("#staffPassword").placeholder = account ? "Để trống nếu không đổi mật khẩu" : "Tối thiểu 10 ký tự, có chữ và số";
+  updateStaffActivePresentation();
   $("#staffDialog").showModal();
+}
+
+function clearStaffFormError() {
+  const error = $("#staffFormError");
+  if (error) { error.textContent = ""; error.classList.add("hidden"); }
+  ["#staffAccountUsername", "#staffDisplayName", "#staffRole", "#staffPassword", "#staffActive"].forEach((selector) => $(selector)?.removeAttribute("aria-invalid"));
+}
+
+function showStaffFormError(error) {
+  const target = $("#staffFormError");
+  target.textContent = error.message || "Không thể lưu tài khoản. Vui lòng kiểm tra lại.";
+  target.classList.remove("hidden");
+  const field = document.getElementById(staffErrorFieldId(error.field));
+  if (field) {
+    field.setAttribute("aria-invalid", "true");
+    field.focus();
+    if (typeof field.select === "function" && field.tagName === "INPUT" && field.type !== "checkbox") field.select();
+  }
+}
+
+function updateStaffActivePresentation() {
+  const presentation = staffActivePresentation($("#staffActive").checked);
+  $("#staffActiveText").textContent = presentation.label;
+  $("#staffActiveHelp").textContent = presentation.help;
 }
 
 function renderTickets() {
@@ -519,14 +555,21 @@ $("#exportReportBtn").onclick = async () => {
 };
 $("#newStaffBtn").onclick = () => openStaffEditor();
 $$('[data-close-staff]').forEach((button) => { button.onclick = () => $("#staffDialog").close(); });
+$("#staffDialog").oncancel = (event) => { if ($("#staffSaveBtn").disabled) event.preventDefault(); };
+$("#staffActive").onchange = () => { clearStaffFormError(); updateStaffActivePresentation(); };
+["#staffAccountUsername", "#staffDisplayName", "#staffPassword"].forEach((selector) => { $(selector).oninput = clearStaffFormError; });
+$("#staffRole").onchange = clearStaffFormError;
 $("#staffForm").onsubmit = async (event) => {
-  event.preventDefault(); const staffId = $("#staffId").value;
-  const payload = { username: $("#staffAccountUsername").value, displayName: $("#staffDisplayName").value, role: $("#staffRole").value, active: $("#staffActive").checked };
-  if ($("#staffPassword").value) payload.password = $("#staffPassword").value;
+  event.preventDefault(); clearStaffFormError();
+  const staffId = $("#staffId").value; const button = $("#staffSaveBtn"); const originalLabel = button.textContent;
+  const payload = buildStaffAccountPayload({ username: $("#staffAccountUsername").value, displayName: $("#staffDisplayName").value, role: $("#staffRole").value, active: $("#staffActive").checked, password: $("#staffPassword").value });
+  $$('[data-close-staff]').forEach((control) => { control.disabled = true; }); button.disabled = true; button.textContent = "Đang lưu…";
   try {
     await api(staffId ? `/api/admin/staff/${staffId}` : "/api/admin/staff", { method: staffId ? "PATCH" : "POST", body: JSON.stringify(payload) });
-    $("#staffDialog").close(); toast(staffId ? "Đã cập nhật tài khoản" : "Đã tạo tài khoản nhân sự"); await load();
-  } catch (error) { toast(error.message); }
+    $("#staffDialog").close(); toast(staffId ? "Đã cập nhật tài khoản" : "Đã tạo tài khoản nhân sự");
+    try { await load(); } catch (refreshError) { toast(`Đã lưu nhưng chưa thể làm mới danh sách: ${refreshError.message}`); }
+  } catch (error) { showStaffFormError(error); }
+  finally { $$('[data-close-staff]').forEach((control) => { control.disabled = false; }); button.disabled = false; button.textContent = originalLabel; }
 };
 $("#newKbBtn").onclick = () => editKb(); $$("[data-close-kb]").forEach((button) => { button.onclick = () => $("#kbDialog").close(); });
 $("#kbForm").onsubmit = async (event) => { event.preventDefault(); const entryId = $("#kbId").value; const payload = { title: $("#kbTitle").value, category: $("#kbCategory").value, risk: $("#kbRisk").value, keywords: $("#kbKeywords").value.split(",").map((item) => item.trim()).filter(Boolean), summary: $("#kbSummary").value, steps: $("#kbSteps").value.split("\n").map((item) => item.trim()).filter(Boolean), autoEligible: $("#kbAuto").checked, active: $("#kbActive").checked }; try { await api(entryId ? `/api/admin/knowledge-base/${entryId}` : "/api/admin/knowledge-base", { method: entryId ? "PATCH" : "POST", body: JSON.stringify(payload) }); $("#kbDialog").close(); toast("Đã lưu Knowledge Base"); await load(); } catch (error) { toast(error.message); } };
