@@ -628,3 +628,14 @@ tbody tr:last-child td{border-bottom:0}
 @media(min-width:1320px) and (max-width:1499px){
   #ticketsTab .stats-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+/* v5.7.1: accessible staff state switch and errors that remain visible inside dialogs. */
+.toggle-label{position:relative;cursor:pointer}
+.toggle-label input{display:block;position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.toggle-label span{flex:0 0 auto}
+.toggle-label input:focus-visible+span{outline:3px solid #cfe1ff;outline-offset:2px}
+.staff-active-toggle b{font-size:10px}
+.staff-active-help{display:block;margin:-8px 21px 15px;color:#6e7b91;font-size:9px;line-height:1.5}
+.staff-form-note{margin-bottom:12px}
+.staff-form-error{margin:0 21px 15px;min-height:0;padding:11px 13px;border:1px solid #f0c1c6;border-radius:12px;background:#fff2f3;color:#a8323e;font-size:10px}
+.staff-dialog [aria-invalid="true"]{border-color:#d94e5b;box-shadow:0 0 0 3px #ffe8ea}
