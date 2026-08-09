@@ -1,7 +1,6 @@
 # Project Handoff — Zalo IT HelpDesk
 
-> Tài liệu bàn giao sống (single source of continuity) cho người và AI agent tiếp tục phát triển dự án.
-> Phải cập nhật file này khi bắt đầu/kết thúc một phiên bản lớn, trước khi bàn giao giữa chừng, và trước khi merge release.
+> Tài liệu bàn giao sống (single source of continuity). Cập nhật file này khi bắt đầu/kết thúc phiên bản lớn, trước khi dừng giữa chừng và trước khi merge release.
 
 ## 1. Trạng thái hiện tại
 
@@ -9,211 +8,202 @@
 |---|---|
 | Repository | `AnNguyen307/Zalo_IT_HelpDesk_App` |
 | Nhánh chuẩn | `main` |
-| Phiên bản | `5.8.0` |
-| Trạng thái | Đã hoàn tất mã nguồn và kiểm thử; phát hành cùng PR v5.8.0 |
-| Nhánh phát triển | `agent/ai-quality-cloud-ready-v5.8.0` |
-| Baseline đã phát hành | v5.7.4, PR #10, commit `691105b2` |
-| Database migration | Không cần cho v5.8.0 |
-| Backend validation | `npm run check` đạt; `65/65` test đạt |
-| Mini App validation | Production build đạt |
+| Phiên bản đang làm | `5.9.0` |
+| Trạng thái | Đã hoàn tất mã nguồn và validation; chưa commit/push/merge/deploy |
+| Nhánh phát triển | `agent/ai-router-v5.9.0` |
+| Baseline | v5.8.0, PR #11, commit `d12a14d` |
+| Database migration | Không cần cho v5.9.0 |
+| Backend validation | `npm run check` đạt; `71/71` test đạt |
+| Retrieval benchmark | 10 mock cases: Hit@1 `0.90`, Hit@5 `1.00`, MRR `0.95` |
+| Mini App validation | Production build đạt; asset hash không thay đổi |
 | Cập nhật lần cuối | 2026-08-09 (Asia/Ho_Chi_Minh) |
 
-Endpoint pilot hiện tại: `https://7ae2-14-164-186-7.ngrok-free.app`.
+Runtime đã phát hành trước khi bắt đầu v5.9:
 
-Lưu ý: ngrok là endpoint tạm theo môi trường. Không ghi cứng URL này vào mã nghiệp vụ. Mini App nhận `VITE_API_BASE_URL` ở build time; phải build/deploy lại khi endpoint thay đổi. Tại lần kiểm tra trước phát hành v5.8.0, endpoint vẫn phục vụ backend v5.7.4.
+- Backend local và ngrok đã xác nhận `ok=True`, `version=5.8.0`.
+- Endpoint pilot: `https://7ae2-14-164-186-7.ngrok-free.app`.
+- Zalo Development: `zdev-b9eb7815`.
+- Git `main` phía người dùng sạch và đồng bộ sau phát hành v5.8.0.
 
-## 2. Mục tiêu và kiến trúc
+Ngrok là endpoint tạm theo môi trường. Không ghi cứng URL này vào mã nghiệp vụ. Mini App nhận `VITE_API_BASE_URL` ở build time; chỉ cần build/deploy lại khi endpoint hoặc bundle Mini App thay đổi.
 
-Zalo IT HelpDesk là hệ thống ticket nội bộ gồm:
+## 2. Mục tiêu v5.9.0
 
-- Zalo Mini App để nhân viên tạo ticket, phản hồi, đính kèm file và theo dõi trạng thái.
-- Backend Node.js 20 phục vụ API, Admin Dashboard và nghiệp vụ HelpDesk.
-- JSON hoặc SQL Server store; attachment hiện vẫn nằm trên filesystem của backend.
-- Enterprise Playbook RAG, rule engine, Ollama local và Gemini staging qua AI Router.
-- SLA, queue, notification, staff account/RBAC, audit, reporting và Playbook Governance.
+1. Ollama là LLM cuối cùng, không còn là lựa chọn đầu hoặc dependency production bắt buộc.
+2. Router thử nhiều provider có free tier theo khả năng suy luận rồi quota còn lại.
+3. `429`, timeout, `5xx`, JSON/schema sai hoặc confidence thấp phải chuyển provider tiếp theo.
+4. Mọi attempt phải có telemetry để Admin biết provider nào đã được thử và vì sao bị bỏ qua/lỗi.
+5. Enterprise Playbook retrieval phải chạy khi Ollama tắt hoàn toàn.
+6. Mọi provider lỗi vẫn phải tạo ticket, giữ priority mặc định `normal` và handoff HelpDesk.
 
-Luồng AI v5.8.0:
+## 3. Kiến trúc v5.9.0
 
 ```text
-Ticket/message
-  → Rules + Retrieval Top-K nội bộ
-  → AI Router (rules | ollama | gemini staging)
-  → Redaction trước provider cloud
-  → Guardrail backend
-  → Decision record + Audit Log
-  → Hướng dẫn từ Playbook hoặc handoff kỹ thuật viên
-  → Admin đánh giá Đúng/Cần sửa
+Ticket / message
+  → Rule classification
+  → BM25 Enterprise Playbook Top-K
+  → optional hybrid embedding (Gemini hoặc Ollama)
+  → AI Router V2
+      Gemini → Groq → OpenRouter → SambaNova → Ollama
+  → backend schema + confidence + Playbook guardrail
+  → decision record + attempt telemetry + Audit Log
+  → Playbook guidance hoặc Rules/HelpDesk handoff
+  → Admin Đúng/Cần sửa + quality dashboard
 ```
 
-Các module v5.8.0 quan trọng:
+Module quan trọng:
 
-- `backend/src/ai-router.mjs`: provider contract, status và request Rules/Ollama/Gemini.
-- `backend/src/ai-redaction.mjs`: che credential, token, email, số điện thoại và IP trước cloud.
-- `backend/src/ai-quality.mjs`: decision record, review validation và quality report.
-- `backend/src/ai-agent.mjs`: retrieval, guardrail và orchestration.
-- `backend/src/server.mjs`: API ticket, audit, quality dashboard và Admin review.
-- `backend/public/admin.*`: AI Control Plane và giao diện review.
-- `docs/releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md`: release note chi tiết.
+- `backend/src/ai-router.mjs`: provider registry, ordering, quota budget, retry, timeout, circuit breaker và attempt telemetry.
+- `backend/src/embeddings.mjs`: abstraction `none|gemini|ollama` cho Playbook embedding.
+- `backend/src/playbook.mjs`: BM25 lexical, hybrid scoring, index schema v2 và lexical fallback.
+- `backend/src/ai-agent.mjs`: schema/confidence acceptance và Playbook guardrail.
+- `backend/src/ai-quality.mjs`: lưu router/attempt telemetry trong decision record.
+- `backend/scripts/benchmark-playbook.mjs`: release gate Hit@1/Hit@5/MRR trên mock queries.
+- `docs/releases/v5.9.0/CHANGES_V5_9_0_AI_ROUTER_V2.md`: release note và upgrade summary.
 
-## 3. Guardrail bắt buộc
+## 4. Provider order và cấu hình
 
-Không được thay đổi các nguyên tắc sau nếu chưa có quyết định rõ ràng của chủ dự án:
-
-1. Ticket phải luôn tạo được khi Rules, Ollama hoặc cloud AI lỗi.
-2. Priority mặc định là `normal` (**Bình thường**).
-3. AI chỉ đổi priority khi `priorityDetermined=true` và giá trị hợp lệ.
-4. AI chỉ đề xuất; backend/Playbook áp guardrail và con người giữ quyền quyết định cuối.
-5. Không có Playbook phù hợp, confidence thấp, provider lỗi hoặc rủi ro cao phải handoff kỹ thuật viên.
-6. AI không tự đóng ticket, không thực thi lệnh trên máy người dùng và không sinh checklist ngoài Enterprise Playbook đã duyệt.
-7. Không gửi toàn bộ Playbook hoặc ticket nguyên bản ra cloud; retrieval chạy trước, sau đó chỉ gửi payload tối thiểu đã redaction.
-8. API key/secret chỉ ở backend environment hoặc secret store; không đưa vào Mini App, Admin JavaScript, Git hay tài liệu có giá trị thật.
-9. Provider mới phải có feature flag, failure tests và đường rollback.
-10. Không gộp migration AI, database, object storage và backend hosting thành một lần chuyển đổi.
-
-## 4. Cấu hình AI v5.8.0
-
-Mặc định production/local:
+Chuỗi mặc định:
 
 ```env
-AI_PROVIDER=ollama
+AI_ROUTER_ENABLED=true
+AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova,ollama
+AI_ROUTING_POLICY=capability_then_free_quota
 AI_CLOUD_ENABLED=false
-AI_REDACTION_ENABLED=true
-AI_QUALITY_RETENTION_DAYS=180
+AI_REDACTION_ENABLED=false
+AI_PROVIDER_RETRIES=1
+AI_CIRCUIT_FAILURE_THRESHOLD=2
+AI_CIRCUIT_COOLDOWN_MS=60000
 ```
 
-`AGENT_MODE=rules|ollama` vẫn là alias tương thích ngược. Cloud staging chỉ bật khi có phê duyệt dữ liệu:
+Provider cloud chỉ chạy khi đồng thời:
+
+- `AI_CLOUD_ENABLED=true`.
+- Feature flag provider (`GEMINI_ENABLED`, `GROQ_ENABLED`, `OPENROUTER_ENABLED`, `SAMBANOVA_ENABLED`) là `true`.
+- API key và model của provider có giá trị.
+
+Model/ngân sách app mặc định tại thời điểm v5.9.0:
+
+| Provider | Model | Request/ngày | Token/ngày |
+|---|---|---:|---:|
+| Gemini | `gemini-3.6-flash` | Provider-managed (`0`) | Provider-managed (`0`) |
+| Groq | `openai/gpt-oss-120b` | 1.000 | 200.000 |
+| OpenRouter | `openai/gpt-oss-120b:free` | 50 | Provider-managed (`0`) |
+| SambaNova | `DeepSeek-V3.2` | 20 | 200.000 |
+| Ollama | `qwen3.5:9b` | Local | Local |
+
+Các con số là guardrail cấu hình có thể sửa, không phải cam kết vĩnh viễn của provider. Trước thay model/quota phải kiểm tra lại tài liệu chính thức.
+
+Mock data hiện được phép đặt `AI_REDACTION_ENABLED=false`. Trước dữ liệu thật phải đánh giá lại và thường bật redaction. API key luôn ở `backend/.env` hoặc secret store, không commit và không gửi xuống Mini App/Admin frontend.
+
+## 5. Ollama-independent RAG
+
+Cấu hình mặc định:
 
 ```env
-AI_PROVIDER=gemini
-AI_CLOUD_ENABLED=true
-AI_REDACTION_ENABLED=true
-GEMINI_API_KEY=server-side-only
-GEMINI_MODEL=gemini-3.6-flash
+PLAYBOOK_RETRIEVAL_MODE=lexical
+PLAYBOOK_EMBED_PROVIDER=none
+PLAYBOOK_SEMANTIC=false
+PLAYBOOK_AUTO_INDEX=false
+PLAYBOOK_TOP_K=5
+PLAYBOOK_MIN_SCORE=0.20
+PLAYBOOK_AUTO_MIN_SCORE=0.72
 ```
+
+BM25 chạy trực tiếp trên Playbook nên không cần vector index, Ollama hoặc cloud. Hybrid là tùy chọn:
+
+```env
+PLAYBOOK_RETRIEVAL_MODE=hybrid
+PLAYBOOK_EMBED_PROVIDER=gemini
+PLAYBOOK_EMBED_MODEL=gemini-embedding-001
+PLAYBOOK_AUTO_INDEX=true
+```
+
+Nếu embedding/index lỗi, search tự quay về BM25. Index schema v2 khóa theo `provider:model` để không dùng nhầm vector từ model cũ.
+
+## 6. Guardrail bắt buộc
+
+1. Ticket phải luôn tạo được khi mọi model/provider lỗi.
+2. Priority mặc định là `normal` (**Bình thường**).
+3. AI chỉ đổi priority khi `priorityDetermined=true`, confidence đạt ngưỡng và giá trị hợp lệ.
+4. AI chỉ đề xuất; backend/Playbook áp guardrail, con người quyết định cuối.
+5. Không Playbook phù hợp, confidence thấp, provider lỗi hoặc rủi ro cao phải handoff kỹ thuật viên.
+6. AI không tự đóng ticket, không thực thi lệnh và không sinh checklist ngoài Enterprise Playbook đã duyệt.
+7. API key/secret chỉ ở backend environment/secret store.
+8. Provider mới phải có feature flag, failure test và rollback.
+9. Không gộp AI router với database/object-storage/backend-hosting migration.
+10. Admin review không được tự gỡ human handoff.
+
+## 7. API và dữ liệu
+
+- `GET /health`: trả `version: 5.9.0`, agent order/provider/quota/circuit và Playbook retrieval/embedding status.
+- `GET /api/admin/agent/status`: cùng control-plane status cho Admin.
+- `GET /api/admin/playbook/status`: thêm `retrievalMode`, `embeddingProvider`, `embeddingConfigured`.
+- Decision record giữ schema tương thích v5.8, bổ sung `router`, `routingPolicy`, `attempts`.
+- Không có database schema migration; JSON và SQL Server tiếp tục lưu `aiAnalysis` dạng JSON.
+
+## 8. Validation bắt buộc
+
+```bash
+git status -sb
+git diff --check
+
+cd backend
+npm run check
+npm test
+npm run playbook:benchmark
+
+cd ../miniapp
+npm run build
+```
+
+Release gate:
+
+- Full backend suite đạt.
+- Benchmark Hit@5 ≥ `0.90`, MRR ≥ `0.65`.
+- Test end-to-end xác nhận all-provider failure vẫn trả HTTP `201`, priority `normal`, `agent_unavailable` và attempt telemetry.
+- Mini App production build đạt.
+- Không có `.env`, API key, database local, upload/cache rác trong diff.
+
+## 9. Deploy và rollback v5.9.0
+
+1. Merge/pull `main` sau khi release được duyệt.
+2. Cập nhật thủ công `backend/.env` từ `.env.example`; không ghi đè secret đang dùng.
+3. Để kiểm thử Router V2 cloud, bật `AI_CLOUD_ENABLED=true`, bật provider mong muốn và thêm server-side API key.
+4. Dùng `PLAYBOOK_RETRIEVAL_MODE=lexical`, `PLAYBOOK_EMBED_PROVIDER=none` cho baseline không phụ thuộc Ollama.
+5. Restart backend; kiểm tra local và ngrok `/health` đều `5.9.0`.
+6. Nghiệm thu success provider, quota/failure fallback, all-provider failure, Admin review và benchmark.
+7. Mini App bundle hiện giữ nguyên asset hash v5.8; chỉ deploy lại nếu cần đồng bộ release Development hoặc endpoint thay đổi.
 
 Rollback nhanh:
 
 ```env
+AI_ROUTER_ENABLED=false
 AI_PROVIDER=ollama
 AI_CLOUD_ENABLED=false
+PLAYBOOK_RETRIEVAL_MODE=lexical
+PLAYBOOK_EMBED_PROVIDER=none
 ```
 
-Nếu Gemini bị tắt, thiếu key, timeout hoặc lỗi response, hệ thống phải tạo ticket với priority `normal`, không đưa checklist suy đoán và handoff kỹ thuật viên.
+Sau rollback phải restart backend và kiểm tra `/health`/ticket creation.
 
-## 5. Chức năng đã có đến v5.8.0
+## 10. Hướng phát triển tiếp theo
 
-- Ticket/message/attachment, timeline, reopen, satisfaction và notification.
-- Staff account, role-based access và xử lý lỗi tài khoản trùng.
-- SLA theo giờ làm việc, pause/resume, overdue reminder và smart queues.
-- Operations dashboard, workload/reporting và CSV export.
-- Playbook lifecycle: Draft → Review → Published → Rollback, reindex và đề xuất từ kỹ thuật viên.
-- Enterprise Playbook RAG, lexical/semantic retrieval và strict escalation.
-- AI Router cho `rules`, `ollama`, `gemini` staging.
-- Decision telemetry: `decisionId`, provider, model, confidence, latency, outcome, escalation, redaction count và usage khi có.
-- Admin quality review: Đúng/Cần sửa, correction category/priority/risk và audit/history.
-- AI quality dashboard: review coverage, reviewed accuracy, escalation rate, provider unavailable, latency và nhóm lỗi.
-
-## 6. API và dữ liệu v5.8.0
-
-Endpoint mới chính:
-
-- `GET /api/admin/ai-quality?days=30`: báo cáo chất lượng AI cho staff.
-- `POST /api/admin/tickets/:ticketId/ai-review`: Admin review decision hiện tại; chống stale `decisionId`.
-- `GET /api/admin/agent/status`: trạng thái provider/control plane.
-- `GET /health`: phải trả `version: 5.8.0` sau restart.
-
-Không có schema migration cho v5.8.0:
-
-- Decision mới nhất nằm trong `ticket.aiAnalysis.quality`.
-- Lịch sử decision/review dùng Audit Log hiện có.
-- JSON và SQL Server tiếp tục lưu `aiAnalysis` dạng JSON.
-
-## 7. Cách kiểm tra trước khi tiếp tục hoặc phát hành
-
-Luôn bắt đầu bằng:
-
-```bash
-git status -sb
-git log -1 --oneline
-git diff --check
-```
-
-Backend:
-
-```bash
-cd backend
-npm run check
-npm test
-```
-
-Mini App:
-
-```bash
-cd miniapp
-npm run build
-```
-
-Không commit `.env`, API key, token, database local, upload hoặc cache/build rác. Kiểm tra URL build từ `miniapp/.env`; `miniapp/app-config.json` chỉ nên thay đổi theo output build hợp lệ.
-
-Sau deploy backend:
-
-```powershell
-$health = Invoke-RestMethod "https://7ae2-14-164-186-7.ngrok-free.app/health"
-$health | Select-Object ok, version
-```
-
-Kết quả v5.8.0 cần là `ok=True`, `version=5.8.0`. Sau đó nghiệm thu một ticket bình thường, một failure/fallback AI, Admin review và quality dashboard.
-
-## 8. Trình tự deploy v5.8.0
-
-1. Pull `main` sau khi PR v5.8.0 được merge.
-2. Giữ `AI_CLOUD_ENABLED=false`; dùng Rules/Ollama cho production hiện tại.
-3. Restart backend và kiểm tra `/health` là v5.8.0.
-4. Xác nhận SQL Server/JSON store, Playbook và Ollama theo cấu hình đều healthy.
-5. Build/deploy lại Zalo Mini App vì API base URL được đóng gói ở build time.
-6. Mở Admin → AI Agent, kiểm tra provider status và quality dashboard.
-7. Chỉ bật Gemini ở staging sau khi phê duyệt policy/retention; rollback bằng cấu hình ở mục 4.
-
-## 9. Hướng phát triển tiếp theo
-
-Ưu tiên đã thống nhất:
-
-- v5.9: chuẩn hóa lexical retrieval, embedding abstraction, benchmark Top-K và loại Ollama khỏi dependency production bắt buộc.
-- v6.0: repository refactor theo nghiệp vụ, PostgreSQL, private Object Storage, migration đối soát, backup/restore test.
-- v6.1: Docker/always-on backend, stable HTTPS domain, job locking/worker, `ZALO_AUTH_MODE=remote`, cloud API cho Mini App.
+- v6.0: repository refactor theo nghiệp vụ, PostgreSQL, private Object Storage, migration đối soát và backup/restore test.
+- v6.1: Docker/always-on backend, stable HTTPS domain, job locking/worker và `ZALO_AUTH_MODE=remote`.
 - v6.2: CI/CD backend, monitoring/alerting, secret rotation, rollback và audit retention.
-- v6.3+: multi-instance, load balancing, queue/realtime khi số liệu tải thực tế yêu cầu.
+- v6.3+: multi-instance, load balancing, queue/realtime theo số liệu tải thực tế.
 
-Nợ kiến trúc cần nhớ:
+Nợ kiến trúc:
 
-- SQL Server store hiện chưa phù hợp nhiều backend instance nếu vẫn đồng bộ snapshot lớn.
+- Quota/circuit state v5.9 nằm trong process memory; multi-instance cần shared state.
+- SQL Server store chưa phù hợp nhiều backend instance nếu còn đồng bộ snapshot lớn.
 - Attachment/index vẫn phụ thuộc filesystem local.
-- SLA timer, reindex queue và cache vẫn nằm trong process; multi-instance cần DB lease/advisory lock hoặc worker riêng.
-- Không dùng free tier sleeping/ephemeral filesystem cho production uptime.
+- SLA timer, reindex queue và cache vẫn trong process.
 
-## 10. Quy tắc cập nhật file bàn giao
+## 11. Việc đang làm dở
 
-Agent tiếp theo phải cập nhật chính file `PROJECT_HANDOFF.md`, không tạo thêm file handoff cạnh tranh.
-
-Khi bắt đầu phiên bản lớn:
-
-- Ghi version, branch, baseline, mục tiêu và trạng thái `Đang phát triển`.
-- Ghi rõ phạm vi được phép, guardrail và migration dự kiến.
-- Cập nhật mục “Việc đang làm dở” bên dưới sau mỗi checkpoint có ý nghĩa.
-
-Trước khi dừng giữa chừng:
-
-- Ghi file đã đổi, test đã chạy/kết quả, lỗi/blocker, quyết định còn mở và bước tiếp theo chính xác.
-- Không ghi secret hoặc token.
-
-Trước khi merge release:
-
-- Đổi trạng thái thành `Đã hoàn tất mã nguồn và kiểm thử` hoặc `Đã phát hành`.
-- Cập nhật test count, migration, deploy/rollback, endpoint hiện hành và release note.
-- Xóa thông tin “đang làm dở” đã hoàn tất; giữ lại nợ kỹ thuật và rủi ro còn thật.
-
-### Việc đang làm dở
-
-- Không còn thay đổi mã v5.8.0 đang dở tại thời điểm lập tài liệu này.
-- Sau merge cần pull `main`, restart backend, kiểm tra `/health`, rồi deploy lại Mini App với endpoint pilot hiện tại.
-- Gemini vẫn là staging-only và tắt mặc định; chưa được bật production.
+- Chưa commit/push/merge/deploy v5.9.0.
+- Validation đã đạt: syntax check, `71/71` test, retrieval benchmark và Mini App production build.
+- Chưa thử API thật vì workspace không có provider API key; provider contract được kiểm thử bằng mock HTTP response.
+- Bước tiếp theo: rà diff cuối → commit/push/draft PR hoặc hướng dẫn người dùng cập nhật local theo phạm vi được phê duyệt.

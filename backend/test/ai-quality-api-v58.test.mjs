@@ -51,6 +51,7 @@ test("Admin can review a v5.8 AI decision and apply corrections to the ticket", 
       APP_SECRET: "ai-quality-v58-test-secret-at-least-32-characters",
       ADMIN_PASSWORD: "AdminTest2026",
       LEGACY_STAFF_LOGIN_ENABLED: "true",
+      AI_ROUTER_ENABLED: "false",
       AI_PROVIDER: "rules",
       AGENT_MODE: "rules",
       PLAYBOOK_SEMANTIC: "false",
@@ -69,7 +70,7 @@ test("Admin can review a v5.8 AI decision and apply corrections to the ticket", 
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.8.0");
+  assert.equal(health.version, "5.9.0");
   assert.equal(health.agent.provider, "rules-local");
 
   const adminLogin = await request(baseUrl, "/api/auth/staff", { method: "POST", body: { username: "admin", password: "AdminTest2026" } });
@@ -130,8 +131,10 @@ test("ticket is still created with Normal priority when Gemini staging is disabl
       UPLOADS_DIR: path.join(tempRoot, "uploads"),
       APP_SECRET: "ai-quality-v58-gemini-off-secret-32-chars",
       LEGACY_STAFF_LOGIN_ENABLED: "true",
+      AI_ROUTER_ENABLED: "false",
       AI_PROVIDER: "gemini",
       AI_CLOUD_ENABLED: "false",
+      AI_REDACTION_ENABLED: "true",
       GEMINI_API_KEY: "",
       AGENT_MODE: "rules",
       PLAYBOOK_SEMANTIC: "false",
@@ -176,4 +179,67 @@ test("ticket is still created with Normal priority when Gemini staging is disabl
   assert.equal(created.body.ticket.aiAnalysis.quality.provider, "gemini-cloud");
   assert.equal(created.body.ticket.aiAnalysis.quality.dataBoundary, "external");
   assert.equal(created.body.ticket.aiAnalysis.quality.redaction.applied, true);
+});
+
+test("ticket survives total Router V2 provider failure with attempt telemetry", { timeout: 20_000 }, async (context) => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "helpdesk-v59-router-fail-"));
+  const port = await availablePort();
+  const unusedOllamaPort = await availablePort();
+  let logs = "";
+  const child = spawn(process.execPath, ["src/server.mjs"], {
+    cwd: backendRoot,
+    env: {
+      ...process.env,
+      PORT: String(port),
+      DB_PROVIDER: "json",
+      DATA_FILE: path.join(tempRoot, "db.json"),
+      UPLOADS_DIR: path.join(tempRoot, "uploads"),
+      APP_SECRET: "ai-router-v59-failure-secret-at-least-32-chars",
+      AI_ROUTER_ENABLED: "true",
+      AI_PROVIDER_ORDER: "gemini,groq,openrouter,sambanova,ollama",
+      AI_CLOUD_ENABLED: "true",
+      GEMINI_ENABLED: "false",
+      GROQ_ENABLED: "false",
+      OPENROUTER_ENABLED: "false",
+      SAMBANOVA_ENABLED: "false",
+      OLLAMA_BASE_URL: `http://127.0.0.1:${unusedOllamaPort}`,
+      OLLAMA_TIMEOUT_MS: "200",
+      AI_PROVIDER_RETRIES: "0",
+      PLAYBOOK_RETRIEVAL_MODE: "lexical",
+      PLAYBOOK_EMBED_PROVIDER: "none",
+      PLAYBOOK_GOVERNANCE_ENABLED: "false",
+      OVERDUE_CHECK_SECONDS: "3600",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout.on("data", (chunk) => { logs += chunk; });
+  child.stderr.on("data", (chunk) => { logs += chunk; });
+  context.after(async () => {
+    if (child.exitCode === null) child.kill("SIGTERM");
+    await Promise.race([new Promise((resolve) => child.once("exit", resolve)), new Promise((resolve) => setTimeout(resolve, 2_000))]);
+    await rm(tempRoot, { recursive: true, force: true });
+  });
+
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const health = await waitForHealth(baseUrl, () => logs);
+  assert.equal(health.version, "5.9.0");
+  assert.equal(health.agent.provider, "ai-router-v2");
+
+  const login = await request(baseUrl, "/api/auth/zalo", {
+    method: "POST",
+    body: { userId: "zalo-v59-router-failure", name: "Mock Router Failure" },
+  });
+  const created = await request(baseUrl, "/api/tickets", {
+    token: login.body.token,
+    method: "POST",
+    body: { title: "Máy in Ricoh Offline không in được", description: "Ricoh tầng 2 báo Offline." },
+  });
+
+  assert.equal(created.status, 201, logs);
+  assert.equal(created.body.ticket.priority, "normal");
+  assert.equal(created.body.ticket.aiAnalysis.escalationCode, "agent_unavailable");
+  assert.equal(created.body.ticket.aiAnalysis.quality.provider, "ai-router-v2");
+  assert.deepEqual(created.body.ticket.aiAnalysis.quality.attempts.map((item) => item.providerKey), [
+    "gemini", "groq", "openrouter", "sambanova", "ollama",
+  ]);
 });

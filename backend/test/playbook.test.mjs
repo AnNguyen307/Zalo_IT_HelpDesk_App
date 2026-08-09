@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getPlaybookStatus, loadPlaybook, searchPlaybook } from "../src/playbook.mjs";
+import { getPlaybookStatus, loadPlaybook, rankPlaybookLexical, searchPlaybook } from "../src/playbook.mjs";
 
 test("enterprise playbook loads sanitized entries", async () => {
   const playbook = await loadPlaybook({ force: true });
@@ -38,4 +38,16 @@ test("playbook status reports audience counts", async () => {
   assert.equal(status.ready, true);
   assert.ok(status.byAudience.employee >= 20);
   assert.ok(status.byAudience.technician >= 100);
+  assert.ok(["lexical", "hybrid"].includes(status.retrievalMode));
+  assert.ok(["none", "gemini", "ollama"].includes(status.embeddingProvider));
+});
+
+test("BM25 lexical ranking rewards coverage instead of a single incidental token", async () => {
+  const entries = [
+    { id: "target", title: "Ricoh Scan to Folder không hoạt động", category: "printer", keywords: ["scan to folder", "ricoh scan"], summary: "Không gửi file scan", steps: [] },
+    { id: "noise", title: "Cài phần mềm scan", category: "software", keywords: ["scan"], summary: "Cài ứng dụng", steps: [] },
+  ];
+  const scores = rankPlaybookLexical("Ricoh scan to folder không gửi file", entries);
+  assert.ok(scores.get("target") > scores.get("noise"));
+  assert.ok(scores.get("target") >= 0.72);
 });

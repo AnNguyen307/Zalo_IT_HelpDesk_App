@@ -466,10 +466,10 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.8.0",
+      version: "5.9.0",
       time: nowIso(),
-      features: ["ai-router", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-staging-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
-      agent: { ...agent, paidApiRequired: agent.dataBoundary === "external" },
+      features: ["ai-router-v2", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "embedding-provider-abstraction", "ollama-independent-rag", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      agent: { ...agent, paidApiRequired: agent.dataBoundary === "external" || agent.providers?.some((item) => item.dataBoundary === "external" && item.configured) },
       playbook,
       playbookGovernance,
       database,
@@ -974,7 +974,7 @@ async function handleApi(req, res, url, headers) {
       const ticket = db.tickets.find((item) => item.id === params.ticketId);
       if (!ticket) throw Object.assign(new Error("Không tìm thấy ticket"), { status: 404 });
       const quality = ticket.aiAnalysis?.quality;
-      if (!quality?.decisionId) throw Object.assign(new Error("Ticket chưa có decision record v5.8 để đánh giá"), { status: 409 });
+      if (!quality?.decisionId) throw Object.assign(new Error("Ticket chưa có decision record v5.8+ để đánh giá"), { status: 409 });
       if (quality.decisionId !== review.decisionId) throw Object.assign(new Error("Quyết định AI đã thay đổi; hãy tải lại ticket trước khi đánh giá"), { status: 409 });
       const oldCategory = ticket.category;
       const oldPriority = ticket.priority;

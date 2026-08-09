@@ -42,6 +42,7 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md](./releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md)
 - [releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md](./releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md)
 - [releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md](./releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md)
+- [releases/v5.9.0/CHANGES_V5_9_0_AI_ROUTER_V2.md](./releases/v5.9.0/CHANGES_V5_9_0_AI_ROUTER_V2.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
