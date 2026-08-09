@@ -2,7 +2,7 @@ import { buildStaffAccountPayload, staffActivePresentation, staffErrorFieldId } 
 
 const state = {
   token: sessionStorage.getItem("hd_admin") || "",
-  user: null, tickets: [], stats: null, kb: [], agent: null, playbook: null, governance: null, procedures: [], staff: [], directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
+  user: null, tickets: [], stats: null, kb: [], agent: null, aiQuality: null, playbook: null, governance: null, procedures: [], staff: [], directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
 };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -18,7 +18,7 @@ const escalationLabels = {
   agent_unavailable: "AI Agent chưa sẵn sàng",
   policy_blocked: "Bị chặn bởi chính sách an toàn",
 };
-const historyLabels = { created: "Tạo ticket", status: "Đổi trạng thái", priority: "Đổi ưu tiên", assignment: "Phân công", message: "Trao đổi", attachment: "Đính kèm", ai_handoff: "Bàn giao cho HelpDesk", sla_warning: "SLA sắp đến hạn", sla_overdue: "Cảnh báo SLA", reopen: "Mở lại", rating: "Đánh giá" };
+const historyLabels = { created: "Tạo ticket", status: "Đổi trạng thái", category: "Đổi danh mục", priority: "Đổi ưu tiên", risk: "Đổi rủi ro", assignment: "Phân công", message: "Trao đổi", attachment: "Đính kèm", ai_handoff: "Bàn giao cho HelpDesk", ai_review: "Đánh giá quyết định AI", sla_warning: "SLA sắp đến hạn", sla_overdue: "Cảnh báo SLA", reopen: "Mở lại", rating: "Đánh giá" };
 const tabMeta = {
   tickets: ["Tổng quan Ticket", "Theo dõi yêu cầu, SLA và quyết định xử lý theo thời gian thực."],
   operations: ["Hiệu quả vận hành", "Theo dõi phản hồi, xử lý, SLA, mở lại và mức hài lòng."],
@@ -26,7 +26,7 @@ const tabMeta = {
   knowledge: ["Knowledge Base", "Quản lý checklist ngắn hỗ trợ kỹ thuật viên và Playbook."],
   governance: ["Quy trình Playbook", "Tạo, duyệt, phát hành và rollback procedure với lịch sử đầy đủ."],
   playbook: ["Enterprise Playbook", "Kiểm tra nguồn quy trình chính thức và semantic index."],
-  agent: ["AI HelpDesk Agent", "Giám sát Ollama, chính sách Strict Mode và thử nghiệm quyết định."],
+  agent: ["AI HelpDesk Agent", "Đo chất lượng quyết định, giám sát provider và kiểm soát Cloud staging."],
 };
 const statIcons = ["▦", "◉", "↻", "!", "✓", "★"];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
@@ -126,9 +126,10 @@ function switchTab(name) {
 async function load() {
   const me = await api("/api/me");
   state.user = me.user || null;
-  const [tickets, stats, kb, agent, playbook, governance, procedures, report, directory, staff] = await Promise.all([
+  const [tickets, stats, kb, agent, aiQuality, playbook, governance, procedures, report, directory, staff] = await Promise.all([
     api(`/api/tickets?queue=${encodeURIComponent(state.activeQueue)}`), api("/api/admin/stats"), api("/api/admin/knowledge-base"),
     api("/api/admin/agent/status").catch((error) => ({ agent: { ready: false, error: error.message } })),
+    api(`/api/admin/ai-quality?days=${encodeURIComponent($("#aiQualityDays")?.value || 30)}`).catch((error) => ({ report: { error: error.message, summary: {}, recent: [] } })),
     api("/api/admin/playbook/status").catch((error) => ({ playbook: { ready: false, error: error.message } })),
     api("/api/staff/playbook/governance/status").catch((error) => ({ governance: { ready: false, error: error.message, counts: {} } })),
     api("/api/staff/playbook/procedures").catch(() => ({ procedures: [] })),
@@ -137,9 +138,9 @@ async function load() {
     state.user?.role === "admin" ? api("/api/admin/staff").catch(() => ({ accounts: [] })) : Promise.resolve({ accounts: [] }),
   ]);
   state.tickets = tickets.tickets || []; state.stats = { ...stats, queueCounts: tickets.queueCounts || stats.queueCounts || {} }; state.kb = kb.entries || [];
-  state.agent = agent.agent || {}; state.playbook = playbook.playbook || {}; state.governance = governance.governance || {}; state.procedures = procedures.procedures || [];
+  state.agent = agent.agent || {}; state.aiQuality = aiQuality.report || {}; state.playbook = playbook.playbook || {}; state.governance = governance.governance || {}; state.procedures = procedures.procedures || [];
   state.report = report.report || null; state.directory = directory.accounts || []; state.staff = staff.accounts || []; state.legacyLoginEnabled = staff.legacyLoginEnabled !== false;
-  applyRoleVisibility(); renderStats(); renderSmartQueues(); renderTickets(); renderOperations(); renderStaff(); renderKb(); renderAgent(); renderPlaybook(); renderGovernance();
+  applyRoleVisibility(); renderStats(); renderSmartQueues(); renderTickets(); renderOperations(); renderStaff(); renderKb(); renderAgent(); renderAiQuality(); renderPlaybook(); renderGovernance();
 }
 
 function applyRoleVisibility() {
@@ -419,14 +420,42 @@ async function openPlaybookEditor(procedureId = "", versionId = "") {
 
 function renderAgent() {
   const agent = state.agent || {}; const policy = agent.policy || {};
+  const connection = agent.reachable == null ? (agent.configured ? "Theo cấu hình" : "Chưa cấu hình") : agent.reachable ? "Đã kết nối" : "Không kết nối";
+  const modelState = agent.modelInstalled == null ? (agent.configured ? "Đã cấu hình" : "Chưa") : agent.modelInstalled ? "Sẵn sàng" : "Chưa tải";
   const items = [
     ["Trạng thái", agent.ready ? "Sẵn sàng" : "Chưa sẵn sàng", agent.ready ? "ready" : "not-ready"], ["Chế độ", agent.mode || "—", ""],
-    ["Provider", agent.provider || "—", ""], ["Model", agent.model || "—", ""], ["Ollama", agent.reachable ? "Đã kết nối" : "Không kết nối", agent.reachable ? "ready" : "not-ready"],
-    ["Model đã tải", agent.modelInstalled ? "Có" : "Chưa", agent.modelInstalled ? "ready" : "not-ready"], ["Strict escalation", policy.strictEscalation ? "Đang bật" : "Đang tắt", policy.strictEscalation ? "ready" : "not-ready"],
+    ["Provider", agent.provider || "—", ""], ["Model", agent.model || "Rules", ""], ["Kết nối", connection, agent.ready ? "ready" : "not-ready"],
+    ["Trạng thái model", modelState, agent.ready ? "ready" : "not-ready"], ["Ranh giới dữ liệu", agent.dataBoundary === "external" ? "Cloud bên ngoài" : "Nội bộ", agent.dataBoundary === "external" ? "" : "ready"],
+    ["Redaction cloud", agent.dataBoundary === "external" ? (agent.redactionEnabled ? "Đang bật" : "Đang tắt") : "Không áp dụng", agent.dataBoundary !== "external" || agent.redactionEnabled ? "ready" : "not-ready"],
+    ["Strict escalation", policy.strictEscalation ? "Đang bật" : "Đang tắt", policy.strictEscalation ? "ready" : "not-ready"],
     ["Ngưỡng tin cậy", policy.minimumConfidence != null ? `${Math.round(policy.minimumConfidence * 100)}%` : "—", ""],
   ];
   $("#agentStatus").innerHTML = items.map(([label, value, style]) => healthCard(label, value, style)).join("") + (agent.error ? `<div class="agent-error">${esc(agent.error)}</div>` : "");
-  setHealth("#topAgentState", "#topAgentText", Boolean(agent.ready), agent.ready ? `${agent.model || "AI"} đang hoạt động` : "Đang dùng handoff an toàn");
+  setHealth("#topAgentState", "#topAgentText", Boolean(agent.ready), agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Đang dùng handoff an toàn");
+}
+
+function renderAiQuality() {
+  const report = state.aiQuality || {}; const summary = report.summary || {};
+  const metrics = [
+    ["Quyết định", summary.total || 0, `${report.days || 30} ngày`],
+    ["Đã đánh giá", summary.reviewCoverageRate == null ? "—" : `${summary.reviewCoverageRate}%`, `${summary.reviewed || 0} quyết định`],
+    ["Độ chính xác", summary.accuracyRate == null ? "—" : `${summary.accuracyRate}%`, "Trên quyết định đã review"],
+    ["Escalate", summary.escalationRate == null ? "—" : `${summary.escalationRate}%`, `${(summary.escalated || 0) + (summary.unavailable || 0)} quyết định`],
+    ["Provider lỗi", summary.unavailableRate == null ? "—" : `${summary.unavailableRate}%`, `${summary.unavailable || 0} lần`],
+    ["Độ trễ TB", summary.averageLatencyMs == null ? "—" : `${Math.round(summary.averageLatencyMs)} ms`, "Tất cả provider"],
+  ];
+  $("#aiQualityMetrics").innerHTML = metrics.map(([label, value, note]) => `<article class="operation-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`).join("");
+  const providerEntries = Object.entries(report.byProvider || {});
+  $("#aiProviderQuality").innerHTML = providerEntries.length ? providerEntries.map(([provider, item]) => `<div class="ai-provider-row"><div><strong>${esc(provider)}</strong><small>${item.total} quyết định · ${item.incorrect} cần sửa · ${item.unavailable} lỗi</small></div><span>${item.averageLatencyMs == null ? "—" : `${Math.round(item.averageLatencyMs)} ms`}</span></div>`).join("") : '<div class="empty-state compact-empty"><h3>Chưa có decision record</h3><p>Ticket mới của v5.8 sẽ bắt đầu tạo dữ liệu.</p></div>';
+  renderBreakdown("#aiCategoryIssues", report.categoryIssues || {});
+  $("#aiReviewCoverage").textContent = `${summary.reviewCoverageRate || 0}% đã đánh giá`;
+  const recent = report.recent || [];
+  $("#aiReviewRows").innerHTML = recent.length ? recent.map((item) => {
+    const proposal = item.proposal || {}; const review = item.review;
+    const result = review?.result === "correct" ? '<span class="badge guide">ĐÚNG</span>' : review?.result === "incorrect" ? '<span class="badge escalate">CẦN SỬA</span>' : '<span class="badge">CHƯA REVIEW</span>';
+    return `<tr><td><button type="button" class="ai-ticket-link" data-ai-ticket="${esc(item.ticketId)}"><strong>${esc(item.ticketCode || item.ticketId)}</strong><small>${esc(item.ticketTitle || "")}</small></button></td><td><strong>${esc(item.provider || "—")}</strong></td><td>${esc(labels[proposal.category] || proposal.category || "—")} · ${esc(labels[proposal.priority] || proposal.priority || "—")}</td><td>${result}</td><td>${formatDate(item.generatedAt)}</td></tr>`;
+  }).join("") : '<tr><td colspan="5" class="muted">Chưa có quyết định AI v5.8 trong khoảng đã chọn.</td></tr>';
+  $$('[data-ai-ticket]').forEach((button) => { button.onclick = () => openTicket(button.dataset.aiTicket).catch((error) => toast(error.message)); });
 }
 
 async function openTicket(ticketId) {
@@ -441,6 +470,10 @@ async function openTicket(ticketId) {
   const historyHtml = history.length ? history.map((item) => `<div class="history-row"><span></span><div><strong>${esc(historyLabels[item.type] || item.type)}</strong>${item.from !== null && item.from !== undefined && item.to !== null && item.to !== undefined ? `<p>${esc(item.from || "—")} → ${esc(item.to || "—")}</p>` : ""}${item.note ? `<p>${esc(item.note)}</p>` : ""}<small>${esc(item.actorName)} · ${formatDate(item.createdAt)}</small></div></div>`).join("") : '<div class="muted">Chưa có lịch sử.</div>';
   const satisfactionHtml = ticket.satisfaction ? `<div class="rating-admin"><strong>${"★".repeat(ticket.satisfaction.score)}${"☆".repeat(5 - ticket.satisfaction.score)}</strong><p>${esc(ticket.satisfaction.comment || "Không có nhận xét")}</p><small>${formatDate(ticket.satisfaction.ratedAt)}</small></div>` : '<div class="rating-empty"><span>☆</span><div><strong>Chưa có đánh giá</strong><small>Đánh giá sẽ xuất hiện sau khi ticket hoàn tất.</small></div></div>';
   const sourceHtml = sourceList.length ? `<div class="playbook-source"><strong>Nguồn Playbook đã đối chiếu</strong><ul>${sourceList.map((item) => `<li><b>${esc(item.id)}</b> — ${esc(item.title || "")}${item.version ? ` · v${esc(item.version)}` : ""}${item.score != null ? ` · ${Math.round(item.score * 100)}%` : ""}</li>`).join("")}</ul></div>` : "";
+  const quality = analysis.quality || {}; const proposal = quality.proposal || {}; const review = quality.review || null;
+  const reviewSummary = review ? `<div class="ai-review-summary ${review.result}"><div><strong>${review.result === "correct" ? "✓ Admin xác nhận đúng" : "! Admin đánh dấu cần sửa"}</strong><small>${esc(review.reviewedByName || "Admin")} · ${formatDate(review.reviewedAt)}</small></div>${review.note ? `<p>${esc(review.note)}</p>` : ""}${Object.keys(review.corrections || {}).length ? `<p>Hiệu chỉnh: ${Object.entries(review.corrections).map(([key, value]) => `${esc(key)}=${esc(labels[value] || value)}`).join(" · ")}</p>` : ""}</div>` : '<div class="ai-review-pending">Chưa được Admin đánh giá.</div>';
+  const reviewControls = state.user?.role === "admin" && quality.decisionId ? `<div class="ai-review-actions"><button id="aiReviewCorrectBtn" type="button" class="button ai-correct-button">✓ Đúng</button><button id="aiReviewIncorrectBtn" type="button" class="button subtle-button">Cần sửa</button></div><form id="aiReviewForm" class="ai-review-form hidden"><div class="two"><label>Danh mục<select id="aiReviewCategory">${["network", "printer", "windows", "office", "account", "software", "hardware", "other"].map((value) => `<option value="${value}" ${ticket.category === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label><label>Ưu tiên<select id="aiReviewPriority">${["low", "normal", "high", "urgent"].map((value) => `<option value="${value}" ${ticket.priority === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label><label>Rủi ro<select id="aiReviewRisk">${["low", "medium", "high"].map((value) => `<option value="${value}" ${ticket.risk === value ? "selected" : ""}>${value}</option>`).join("")}</select></label><label>Quyết định<select id="aiReviewOutcome">${[["guide_user", "Hướng dẫn"], ["escalate", "Chuyển kỹ thuật viên"], ["need_info", "Cần thêm thông tin"], ["likely_resolved", "Có thể đã xử lý"]].map(([value, label]) => `<option value="${value}" ${(proposal.outcome || analysis.outcome) === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><label>Ghi chú<textarea id="aiReviewNote" rows="2" placeholder="AI sai ở đâu hoặc thiếu tín hiệu nào?"></textarea></label><small>Danh mục, ưu tiên và rủi ro hiệu chỉnh sẽ được áp dụng vào ticket; trạng thái/handoff không tự thay đổi.</small><button type="submit" class="button primary-button">Lưu đánh giá</button></form>` : quality.decisionId ? "" : '<div class="ai-review-legacy">Ticket cũ chưa có decision record v5.8.</div>';
+  const reviewHtml = `<div class="ai-quality-ticket"><div class="ai-quality-head"><strong>Quality review</strong><span>${esc(quality.provider || analysis.source || "—")}</span></div>${reviewSummary}${reviewControls}</div>`;
   const messageHtml = messages.length ? messages.map((message) => { const linked = attachments.filter((attachment) => attachment.messageId === message.id); const linkedHtml = linked.length ? `<div class="message-attachments">${linked.map((attachment) => `<button data-preview-attachment="${attachment.id}" ${isPreviewableAttachment(attachment) ? "" : "disabled"}>▧ <span>${esc(attachment.fileName)}</span></button><button class="message-download" data-download-attachment="${attachment.id}">↓</button>`).join("")}</div>` : ""; const body = escalatedByAi && message.role === "assistant" ? "Đã chuyển yêu cầu cho kỹ thuật viên." : message.body; return `<article class="message ${message.role}"><div class="message-meta"><strong>${esc(message.authorName)}</strong><time>${formatDate(message.createdAt)}</time></div><div class="message-body">${esc(body)}</div>${linkedHtml}</article>`; }).join("") : '<div class="conversation-admin-empty">Chưa có trao đổi trong ticket này.</div>';
   $("#ticketDetail").innerHTML = `<div class="ticket-workbench">
     <div class="workbench-main">
@@ -467,7 +500,7 @@ async function openTicket(ticketId) {
             <div class="context-section"><div class="context-section-title">Đánh giá hài lòng</div>${satisfactionHtml}</div>
           </section>
           <section id="ticketContextAi" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="ai" hidden>
-            <div class="decision-panel ${guided ? "" : "escalated"}"><div class="decision-head"><span class="decision-symbol">${guided ? "✓" : "↗"}</span><div><strong>${guided ? "Hướng dẫn theo Playbook" : "Đã chuyển kỹ thuật viên"}</strong><small>${guided ? "Đủ điều kiện an toàn" : esc(escalationLabels[analysis.escalationCode] || "Không đủ điều kiện tự động xử lý")}</small></div><span class="badge ${guided ? "guide" : "escalate"}">${guided ? "GUIDE" : "ESCALATE"}</span></div><div class="decision-copy"><strong>${esc(analysis.summary || "Chưa có đánh giá.")}</strong>\n\n${esc(analysis.reason || "")}</div><div class="decision-meta"><span class="badge">${esc(analysis.source || "—")}</span><span class="badge">${esc(analysis.model || "Rules")}</span><span class="badge">${Math.round((analysis.confidence || 0) * 100)}%</span></div>${sourceHtml}</div>
+            <div class="decision-panel ${guided ? "" : "escalated"}"><div class="decision-head"><span class="decision-symbol">${guided ? "✓" : "↗"}</span><div><strong>${guided ? "Hướng dẫn theo Playbook" : "Đã chuyển kỹ thuật viên"}</strong><small>${guided ? "Đủ điều kiện an toàn" : esc(escalationLabels[analysis.escalationCode] || "Không đủ điều kiện tự động xử lý")}</small></div><span class="badge ${guided ? "guide" : "escalate"}">${guided ? "GUIDE" : "ESCALATE"}</span></div><div class="decision-copy"><strong>${esc(analysis.summary || "Chưa có đánh giá.")}</strong>\n\n${esc(analysis.reason || "")}</div><div class="decision-meta"><span class="badge">${esc(analysis.source || "—")}</span><span class="badge">${esc(analysis.model || "Rules")}</span><span class="badge">${Math.round((analysis.confidence || 0) * 100)}%</span></div>${sourceHtml}</div>${reviewHtml}
           </section>
           <section id="ticketContextFiles" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="files" hidden><div class="attachment-admin-list">${attachmentHtml}</div>${writable ? '<label class="admin-upload">＋ Tải thêm file<input id="adminFiles" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" /></label>' : ""}</section>
           <section id="ticketContextHistory" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="history" hidden><div class="history-admin">${historyHtml}</div></section>
@@ -491,6 +524,36 @@ async function openTicket(ticketId) {
     tab.onkeydown = (event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const direction = event.key === "ArrowRight" ? 1 : -1; const next = contextTabs[(index + direction + contextTabs.length) % contextTabs.length]; activateContextTab(next.dataset.ticketContextTab); next.focus(); };
   });
   activateContextTab("overview");
+
+  const saveAiReview = async (payload) => {
+    await api(`/api/admin/tickets/${ticket.id}/ai-review`, { method: "POST", body: JSON.stringify({ decisionId: quality.decisionId, ...payload }) });
+    toast(payload.result === "correct" ? "Đã xác nhận quyết định AI đúng" : "Đã lưu hiệu chỉnh AI");
+    await load(); await openTicket(ticket.id);
+  };
+  if ($("#aiReviewCorrectBtn")) $("#aiReviewCorrectBtn").onclick = async () => {
+    try { await saveAiReview({ result: "correct", applyToTicket: false }); } catch (error) { toast(error.message); }
+  };
+  if ($("#aiReviewIncorrectBtn")) $("#aiReviewIncorrectBtn").onclick = () => {
+    $("#aiReviewForm").classList.toggle("hidden");
+    if (!$("#aiReviewForm").classList.contains("hidden")) $("#aiReviewNote").focus();
+  };
+  if ($("#aiReviewForm")) $("#aiReviewForm").onsubmit = async (event) => {
+    event.preventDefault();
+    const button = $("#aiReviewForm button[type='submit']"); button.disabled = true;
+    try {
+      await saveAiReview({
+        result: "incorrect",
+        applyToTicket: true,
+        note: $("#aiReviewNote").value,
+        corrections: {
+          category: $("#aiReviewCategory").value,
+          priority: $("#aiReviewPriority").value,
+          risk: $("#aiReviewRisk").value,
+          outcome: $("#aiReviewOutcome").value,
+        },
+      });
+    } catch (error) { toast(error.message); button.disabled = false; }
+  };
 
   $$('[data-preview-attachment]').forEach((element) => { element.onclick = async () => { const attachment = attachments.find((item) => item.id === element.dataset.previewAttachment); if (attachment) try { await previewAttachment(attachment); } catch (error) { toast(error.message); } }; });
   $$('[data-download-attachment]').forEach((element) => { element.onclick = async () => { const attachment = attachments.find((item) => item.id === element.dataset.downloadAttachment); if (attachment) try { await downloadAttachment(attachment); } catch (error) { toast(error.message); } }; });
@@ -600,7 +663,17 @@ $("#pbRejectBtn").onclick = async () => { const versionId = $("#pbVersionId").va
 function enforcePlaybookSafetyUi() { const blocked = $("#pbRisk").value === "high" || $("#pbAudience").value === "technician"; if (blocked) $("#pbAutoEligible").checked = false; $("#pbAutoEligible").disabled = blocked || $("#pbSummary").disabled; }
 $("#pbRisk").onchange = enforcePlaybookSafetyUi; $("#pbAudience").onchange = enforcePlaybookSafetyUi;
 
-$("#refreshAgentBtn").onclick = async () => { try { const result = await api("/api/admin/agent/status?force=1"); state.agent = result.agent; renderAgent(); toast(state.agent.ready ? "AI Agent đã sẵn sàng" : "AI Agent chưa sẵn sàng"); } catch (error) { toast(error.message); } };
+async function refreshAiControlPlane({ force = false } = {}) {
+  const days = encodeURIComponent($("#aiQualityDays").value || 30);
+  const [status, quality] = await Promise.all([
+    api(`/api/admin/agent/status${force ? "?force=1" : ""}`),
+    api(`/api/admin/ai-quality?days=${days}`),
+  ]);
+  state.agent = status.agent || {}; state.aiQuality = quality.report || {};
+  renderAgent(); renderAiQuality();
+}
+$("#refreshAgentBtn").onclick = async () => { try { await refreshAiControlPlane({ force: true }); toast(state.agent.ready ? "AI Control Plane đã sẵn sàng" : "AI provider chưa sẵn sàng; handoff an toàn vẫn hoạt động"); } catch (error) { toast(error.message); } };
+$("#aiQualityDays").onchange = async () => { try { await refreshAiControlPlane(); } catch (error) { toast(error.message); } };
 $("#agentTestForm").onsubmit = async (event) => { event.preventDefault(); const prompt = $("#agentTestPrompt").value.trim(); if (!prompt) return; const button = $("#agentTestForm button"); button.disabled = true; button.textContent = "AI đang phân tích…"; $("#agentTestResult").textContent = "Đang đối chiếu Enterprise Playbook và chính sách an toàn…"; try { const result = await api("/api/admin/agent/test", { method: "POST", body: JSON.stringify({ prompt }) }); const a = result.analysis || {}; $("#agentTestResult").textContent = `${a.canAutoHandle ? "✓ HƯỚNG DẪN THEO PLAYBOOK" : "↗ ESCALATE NGAY"}\n\n${result.reply}\n\n────────────────────────────────\nsource: ${a.source || "—"}\nmodel: ${a.model || "rules"}\nconfidence: ${Math.round((a.confidence || 0) * 100)}%\nlatency: ${a.latencyMs || 0} ms\nescalation: ${a.escalationCode || "none"}\nplaybook: ${(a.playbookIds || []).join(", ") || "none"}`; } catch (error) { $("#agentTestResult").textContent = `Lỗi: ${error.message}`; } finally { button.disabled = false; button.textContent = "✦ Phân tích bằng AI Agent"; } };
 
 show(); switchTab("tickets");

@@ -2,6 +2,8 @@
 
 Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`.
 
+- [PROJECT_HANDOFF.md](../PROJECT_HANDOFF.md) — trạng thái hiện tại, guardrail, deploy và hướng tiếp tục dự án.
+
 - [components/README_AI_AGENT.md](./components/README_AI_AGENT.md)
 - [components/README_ENTERPRISE_PLAYBOOK.md](./components/README_ENTERPRISE_PLAYBOOK.md)
 - [components/README_PLAYBOOK_LIFECYCLE.md](./components/README_PLAYBOOK_LIFECYCLE.md)
@@ -39,6 +41,7 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md](./releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md)
 - [releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md](./releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md)
 - [releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md](./releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md)
+- [releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md](./releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
