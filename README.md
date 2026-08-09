@@ -1,11 +1,15 @@
-# Zalo IT HelpDesk v5.7.4 - Admin Sidebar Clarity
+# Zalo IT HelpDesk v5.8.0 - AI Quality Control
 
-Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App, được thiết kế để **không phụ thuộc API AI trả phí hoặc cloud server thuê theo tháng**.
+Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App theo kiến trúc local-first. Rules/Ollama vẫn là mặc định; Cloud AI chỉ hoạt động trong staging khi được bật rõ bằng feature flag và có đường rollback.
+
+Để tiếp tục phát triển hoặc bàn giao giữa các agent, đọc và cập nhật [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) trước tiên.
 
 ## Thành phần
 
 - **Zalo Mini App** cho nhân viên tạo, xem và phản hồi ticket.
 - **Backend Node.js 20** không có dependency npm bên ngoài.
+- **AI Router** dùng một contract thống nhất cho Rules, Ollama và Gemini staging.
+- **AI Quality Control** lưu decision record, telemetry và phản hồi Đúng/Cần sửa của Admin.
 - **Local HelpDesk Agent** dùng Enterprise Playbook RAG + Knowledge Base + Ollama ngay trên máy backend.
 - **Ollama tùy chọn** để hỗ trợ phân loại bằng local LLM; không cần API key.
 - **Dashboard kỹ thuật viên** tại `/admin`.
@@ -22,6 +26,7 @@
 |---|---|---:|
 | Agent | Rule engine + Knowledge Base | 0 |
 | Local LLM | Ollama tùy chọn | 0 |
+| Cloud AI staging | Gemini tùy chọn, tắt mặc định | Theo tài khoản/quota provider |
 | Backend | PC/NAS/máy chủ sẵn có | 0 phí thuê mới |
 | Database | JSON local | 0 |
 | Dashboard | Static HTML/CSS/JS | 0 |
@@ -58,11 +63,12 @@ Zalo Mini App
 Node.js API chạy tại doanh nghiệp
    ├── Ticket / Message / Attachment / Notification JSON store
    ├── Rule Engine + Knowledge Base
-   ├── Ollama local (optional)
+   ├── AI Router → Rules / Ollama local / Gemini staging
+   ├── Decision telemetry + Admin quality review
    └── Admin dashboard
 ```
 
-Không có OpenAI API, embedding API trả phí, vector database managed, managed database hoặc Zalo OA adapter. Embedding được tạo cục bộ bằng Ollama và lưu trong file JSON local.
+Không bắt buộc OpenAI API, embedding API trả phí, vector database managed, managed database hoặc Zalo OA adapter. Embedding vẫn được tạo cục bộ bằng Ollama và lưu trong file JSON local. Gemini chỉ nhận payload tối thiểu đã redaction sau bước Retrieval Top-K khi `AI_PROVIDER=gemini` và `AI_CLOUD_ENABLED=true`.
 
 ## Cấu trúc thư mục
 
@@ -81,6 +87,7 @@ zalo-helpdesk-ai/
 │   └── linux/
 ├── FREE_DEPLOYMENT.md
 ├── DEPLOYMENT_CHECKLIST.md
+├── PROJECT_HANDOFF.md             # Trạng thái và hướng dẫn tiếp tục dự án
 └── README.md
 ```
 
@@ -105,7 +112,8 @@ Sửa tối thiểu:
 APP_SECRET=chuoi-ngau-nhien-dai-it-nhat-32-ky-tu
 ADMIN_PASSWORD=mat-khau-quan-tri-manh
 ZALO_AUTH_MODE=development
-AGENT_MODE=rules
+AI_PROVIDER=rules
+# AGENT_MODE=rules vẫn được hỗ trợ để tương thích cấu hình cũ.
 ```
 
 Chạy:
@@ -143,10 +151,10 @@ Trên điện thoại, `localhost` là điện thoại. Mini App cần URL backe
 
 ## 3. Chế độ Agent
 
-### Rules — mặc định và nhẹ nhất
+### Rules — nhẹ nhất và luôn sẵn sàng
 
 ```env
-AGENT_MODE=rules
+AI_PROVIDER=rules
 AUTO_RESOLVE_THRESHOLD=0.78
 ```
 
@@ -161,7 +169,7 @@ Luồng:
 ### Ollama — local LLM tùy chọn
 
 ```env
-AGENT_MODE=ollama
+AI_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen3.5:9b
 OLLAMA_TIMEOUT_MS=30000
@@ -182,6 +190,25 @@ Guardrail:
 - Khi Ollama lỗi hoặc chưa cài, backend tự chuyển sang `rules-local-fallback`.
 
 Vì vậy app không bị phụ thuộc local LLM.
+
+### Gemini — chỉ dành cho Cloud staging
+
+```env
+AI_PROVIDER=gemini
+AI_CLOUD_ENABLED=true
+AI_REDACTION_ENABLED=true
+GEMINI_API_KEY=your-server-side-key
+GEMINI_MODEL=gemini-3.6-flash
+```
+
+API key chỉ nằm ở `backend/.env`, không đưa vào Mini App hoặc Admin JavaScript. Backend tìm Retrieval Top-K trước, chỉ gửi payload tối thiểu đã che email, số điện thoại, credential và IP. Nếu provider không sẵn sàng, Strict Mode tạo ticket với ưu tiên mặc định **Bình thường** và chuyển kỹ thuật viên.
+
+Để rollback ngay:
+
+```env
+AI_PROVIDER=ollama
+AI_CLOUD_ENABLED=false
+```
 
 ## 4. HTTPS miễn phí bằng ngrok
 
@@ -233,6 +260,8 @@ Dashboard tại `/admin` hỗ trợ:
 - Tổng quan ticket, quá SLA và điểm hài lòng.
 - Tìm/lọc ticket.
 - Xem SLA, file đính kèm, timeline, đánh giá tự động và hội thoại.
+- Xem dashboard chất lượng AI theo provider, độ trễ, escalation và lỗi provider.
+- Admin đánh dấu quyết định AI **Đúng/Cần sửa** và áp dụng hiệu chỉnh category/priority/risk vào ticket.
 - Phân công kỹ thuật viên.
 - Đổi status/priority và ghi resolution.
 - Phản hồi người dùng.

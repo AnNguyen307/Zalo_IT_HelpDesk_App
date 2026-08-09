@@ -3,6 +3,7 @@ import path from "node:path";
 import { URL } from "node:url";
 import { config } from "./config.mjs";
 import { analyzeTicket, formatAgentReply, getAgentStatus } from "./ai-agent.mjs";
+import { aiDecisionAuditDetail, buildAiQualityReport, validateAiReview } from "./ai-quality.mjs";
 import { loginAdmin, loginStaff, loginWithZalo, requireAuth, sessionUser } from "./auth.mjs";
 import { canPreviewAttachment, publicAttachment, readAttachmentFile, removeAttachmentFile, saveAttachment } from "./attachments.mjs";
 import { isMultipartRequest, readMultipartAttachments } from "./multipart.mjs";
@@ -167,6 +168,7 @@ ${input.description}`, createdAt,
     latestUserMessage: input.description,
     messages: [userMessage],
     attachments: [],
+    trigger: "ticket_created",
   });
   const priority = priorityFromAgentAnalysis(analysis);
   const status = analysis.canAutoHandle ? "waiting_user" : "open";
@@ -234,6 +236,8 @@ ${input.description}`, createdAt,
     }
   });
   await audit(session.sub, "create", "ticket", ticket.id, { code: ticket.code, source: analysis.source, model: analysis.model || null });
+  const decisionDetail = aiDecisionAuditDetail(analysis);
+  if (decisionDetail) await audit("ai-agent", "ai_decision", "ticket", ticket.id, decisionDetail);
   return { ticket, messages: [userMessage, agentMessage] };
 }
 
@@ -324,6 +328,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
     latestUserMessage,
     messages: [...bundle.messages, message],
     attachments: [...bundle.attachments, ...attachments.map(publicAttachment)],
+    trigger: "user_reply",
   });
   const agentMessage = {
     id: id("msg"), ticketId, authorId: "ai-agent",
@@ -401,6 +406,8 @@ async function appendMessage(session, ticketId, body, options = {}) {
   if (!persisted.agentAccepted) {
     return { messages: [message], attachments: attachments.map(publicAttachment), analysis: null, humanHandoff: publicHumanHandoff(persisted.ticket) };
   }
+  const decisionDetail = aiDecisionAuditDetail(analysis);
+  if (decisionDetail) await audit("ai-agent", "ai_decision", "ticket", ticketId, decisionDetail);
   return { messages: [message, agentMessage], attachments: attachments.map(publicAttachment), analysis, humanHandoff: publicHumanHandoff(persisted.ticket) };
 }
 
@@ -459,10 +466,10 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.7.4",
+      version: "5.8.0",
       time: nowIso(),
-      features: ["staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
-      agent: { ...agent, paidApiRequired: false },
+      features: ["ai-router", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-staging-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      agent: { ...agent, paidApiRequired: agent.dataBoundary === "external" },
       playbook,
       playbookGovernance,
       database,
@@ -785,6 +792,13 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, { agent: await getAgentStatus({ force: searchParams.get("force") === "1" }) }, headers);
   }
 
+  if (req.method === "GET" && pathname === "/api/admin/ai-quality") {
+    await requireAuth(req, { staff: true });
+    const db = await readDb();
+    const days = Math.min(config.aiQualityRetentionDays, Math.max(1, Number(searchParams.get("days") || 30)));
+    return json(res, 200, { report: buildAiQualityReport(db, { days }) }, headers);
+  }
+
   if (req.method === "GET" && pathname === "/api/admin/playbook/status") {
     await requireAuth(req, { staff: true });
     return json(res, 200, { playbook: await getPlaybookStatus({ force: searchParams.get("force") === "1" }) }, headers);
@@ -850,6 +864,7 @@ async function handleApi(req, res, url, headers) {
       latestUserMessage: prompt,
       messages: [{ role: "user", authorName: session.name, body: prompt }],
       attachments: [],
+      trigger: "admin_sandbox",
     });
     await audit(session.sub, "test", "aiAgent", config.ollamaModel, { source: analysis.source, latencyMs: analysis.latencyMs });
     return json(res, 200, { analysis, reply: formatAgentReply(analysis) }, headers);
@@ -949,6 +964,51 @@ async function handleApi(req, res, url, headers) {
     const scores = db.tickets.map((ticket) => ticket.satisfaction?.score).filter(Number.isFinite);
     const averageSatisfaction = scores.length ? Number((scores.reduce((sum, value) => sum + value, 0) / scores.length).toFixed(2)) : null;
     return json(res, 200, { total: db.tickets.length, byStatus, byCategory, autoHandled, overdue, averageSatisfaction, ratedTickets: scores.length, users: db.users.length, queueCounts: smartQueueCounts(db.tickets, session, db.messages), operations: buildOperationsReport(db, { days: 30 }).summary }, headers);
+  }
+
+  params = routeMatch(pathname, "/api/admin/tickets/:ticketId/ai-review");
+  if (req.method === "POST" && params) {
+    const session = await requireAuth(req, { admin: true });
+    const review = validateAiReview(await readJson(req), session);
+    const updated = await updateDb((db) => {
+      const ticket = db.tickets.find((item) => item.id === params.ticketId);
+      if (!ticket) throw Object.assign(new Error("Không tìm thấy ticket"), { status: 404 });
+      const quality = ticket.aiAnalysis?.quality;
+      if (!quality?.decisionId) throw Object.assign(new Error("Ticket chưa có decision record v5.8 để đánh giá"), { status: 409 });
+      if (quality.decisionId !== review.decisionId) throw Object.assign(new Error("Quyết định AI đã thay đổi; hãy tải lại ticket trước khi đánh giá"), { status: 409 });
+      const oldCategory = ticket.category;
+      const oldPriority = ticket.priority;
+      const oldRisk = ticket.risk;
+      quality.review = review;
+      if (review.applyToTicket) {
+        if (review.corrections.category) ticket.category = review.corrections.category;
+        if (review.corrections.priority) ticket.priority = review.corrections.priority;
+        if (review.corrections.risk) ticket.risk = review.corrections.risk;
+      }
+      const at = review.reviewedAt;
+      if (oldCategory !== ticket.category) pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "category", from: oldCategory, to: ticket.category, note: "Hiệu chỉnh sau đánh giá AI" });
+      if (oldPriority !== ticket.priority) {
+        recalculateSla(ticket, ticket.priority, at);
+        pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "priority", from: oldPriority, to: ticket.priority, note: "Hiệu chỉnh sau đánh giá AI" });
+      }
+      if (oldRisk !== ticket.risk) pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "risk", from: oldRisk, to: ticket.risk, note: "Hiệu chỉnh sau đánh giá AI" });
+      pushHistory(db, {
+        ticketId: ticket.id,
+        actorId: session.sub,
+        actorName: session.name,
+        type: "ai_review",
+        from: quality.proposal?.status || quality.status,
+        to: review.result,
+        note: review.note || (review.result === "correct" ? "Xác nhận quyết định AI đúng" : "Đã ghi nhận hiệu chỉnh quyết định AI"),
+      });
+      ticket.updatedAt = at;
+      return ticket;
+    });
+    await audit(session.sub, "ai_review", "ticket", params.ticketId, {
+      review,
+      proposal: updated.aiAnalysis?.quality?.proposal || null,
+    });
+    return json(res, 200, { ticket: publicTicket(updated), review: updated.aiAnalysis.quality.review }, headers);
   }
 
   params = routeMatch(pathname, "/api/admin/tickets/:ticketId");

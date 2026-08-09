@@ -639,3 +639,28 @@ tbody tr:last-child td{border-bottom:0}
 .staff-form-note{margin-bottom:12px}
 .staff-form-error{margin:0 21px 15px;min-height:0;padding:11px 13px;border:1px solid #f0c1c6;border-radius:12px;background:#fff2f3;color:#a8323e;font-size:10px}
 .staff-dialog [aria-invalid="true"]{border-color:#d94e5b;box-shadow:0 0 0 3px #ffe8ea}
+
+/* v5.8: AI quality control, provider telemetry and human review. */
+.ai-quality-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.ai-quality-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.72fr);gap:14px;margin-bottom:14px;align-items:start}
+.ai-review-wide{grid-column:1/-1}
+.ai-provider-quality{display:grid;gap:9px}
+.ai-provider-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border:1px solid #e3e9f1;border-radius:12px;background:#f9fbfd}
+.ai-provider-row strong,.ai-provider-row small{display:block}
+.ai-provider-row strong{font-size:11px}.ai-provider-row small{margin-top:3px;color:var(--muted);font-size:9px}
+.ai-provider-row>span{font-size:10px;font-weight:800;color:#1769e8;white-space:nowrap}
+.ai-review-table{min-width:760px}
+.ai-ticket-link{border:0;background:none;color:inherit;text-align:left;cursor:pointer;padding:0}
+.ai-ticket-link strong,.ai-ticket-link small{display:block}.ai-ticket-link strong{font-size:10px;color:#1769e8}.ai-ticket-link small{max-width:280px;margin-top:3px;color:var(--muted);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-quality-ticket{display:grid;gap:9px;padding:11px;border:1px solid #dfe7f2;border-radius:13px;background:#f8fbff}
+.ai-quality-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.ai-quality-head strong{font-size:10px;text-transform:uppercase;letter-spacing:.06em}.ai-quality-head span{font-size:8px;color:var(--muted)}
+.ai-review-summary,.ai-review-pending,.ai-review-legacy{padding:9px 10px;border-radius:10px;font-size:9px;line-height:1.45}
+.ai-review-summary{border:1px solid #d9e7df;background:#f1faf5}.ai-review-summary.incorrect{border-color:#f0d3d6;background:#fff5f5}
+.ai-review-summary strong,.ai-review-summary small{display:block}.ai-review-summary small{margin-top:2px;color:var(--muted)}.ai-review-summary p{margin:6px 0 0}
+.ai-review-pending,.ai-review-legacy{border:1px dashed #cad5e4;background:#fff;color:#6d7b90}
+.ai-review-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.ai-review-actions .button{min-height:36px;font-size:9px}.ai-correct-button{border:1px solid #a9dbc1;background:#eaf8f0;color:#157347}
+.ai-review-form{display:grid;gap:9px;padding-top:3px}.ai-review-form .two{display:grid;grid-template-columns:1fr 1fr;gap:7px}.ai-review-form label{display:grid;gap:4px;font-size:8px;font-weight:750;color:#5f6d82}.ai-review-form select,.ai-review-form textarea{width:100%;min-width:0;border:1px solid #d6e0ec;border-radius:9px;background:#fff;padding:8px;color:var(--ink);font:inherit}.ai-review-form textarea{resize:vertical}.ai-review-form>small{font-size:8px;line-height:1.45;color:var(--muted)}.ai-review-form .primary-button{min-height:37px;font-size:9px}
+
+@media(max-width:1260px){.ai-quality-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.ai-quality-grid{grid-template-columns:1fr}.ai-review-wide{grid-column:auto}}
+@media(max-width:680px){.ai-quality-metrics{grid-template-columns:1fr 1fr;gap:7px}.ai-review-form .two{grid-template-columns:1fr}.ai-quality-grid{gap:9px}}

@@ -14,7 +14,7 @@
 - [ ] Copy `backend/.env.example` thành `backend/.env`.
 - [ ] Đổi `APP_SECRET` thành chuỗi ngẫu nhiên dài.
 - [ ] Đổi `ADMIN_PASSWORD`.
-- [ ] Đặt `AGENT_MODE=rules` cho cấu hình nhẹ nhất.
+- [ ] Đặt `AI_PROVIDER=rules` cho cấu hình nhẹ nhất (`AGENT_MODE=rules` vẫn là alias tương thích).
 - [ ] Chạy `npm run check` và `npm test`.
 - [ ] Chạy backend dưới user không có quyền admin hệ điều hành nếu có thể.
 - [ ] Tắt Sleep trên máy backend trong thời gian phục vụ.
@@ -69,6 +69,15 @@
 - [ ] Ollama chỉ listen localhost hoặc mạng tin cậy.
 - [ ] Tắt Ollama để kiểm thử fallback rules.
 - [ ] Không xem Ollama là dependency bắt buộc.
+
+## Cloud AI staging v5.8
+
+- [ ] Production hiện tại giữ `AI_CLOUD_ENABLED=false` cho tới khi staging được phê duyệt.
+- [ ] Gemini API key chỉ nằm trong `backend/.env`/secret store phía server.
+- [ ] Bật `AI_REDACTION_ENABLED=true` và kiểm thử payload không chứa email, số điện thoại, credential hoặc IP nguyên bản.
+- [ ] Xác nhận ticket vẫn được tạo và giữ ưu tiên Bình thường khi cloud provider timeout/lỗi.
+- [ ] Xem Admin → AI Agent để kiểm tra provider unavailable, latency và review coverage.
+- [ ] Có rollback sẵn: `AI_PROVIDER=ollama` và `AI_CLOUD_ENABLED=false`.
 
 ## Dữ liệu và backup
 

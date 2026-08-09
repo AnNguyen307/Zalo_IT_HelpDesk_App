@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b1830" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.7.4" />
+  <link rel="stylesheet" href="/admin.css?v=5.8.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -61,7 +61,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.7.4</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.8.0</span></div>
     </aside>
 
     <div class="admin-main">
@@ -150,8 +150,14 @@
         </section>
 
         <section id="agentTab" class="workspace-section hidden">
-          <div class="section-toolbar"><div><span class="overline">LOCAL AI RUNTIME</span><h2>AI HelpDesk Agent</h2><p>Ollama cục bộ, Playbook-first và tự động handoff khi không chắc chắn.</p></div><button id="refreshAgentBtn" class="button subtle-button">↻ Kiểm tra lại</button></div>
-          <article class="strict-agent-banner"><div class="strict-orb">✦</div><div><strong>Không trả lời mông lung</strong><p>Không có Playbook phù hợp, procedure không auto-eligible, confidence thấp hoặc Ollama không sẵn sàng đều dẫn đến escalation ngay.</p></div><span>ZERO GUESSING</span></article>
+          <div class="section-toolbar"><div><span class="overline">AI CONTROL PLANE</span><h2>AI HelpDesk Agent</h2><p>Router thống nhất cho Rules, Ollama và Cloud staging; mọi quyết định đều có telemetry và đường handoff an toàn.</p></div><div class="header-actions"><select id="aiQualityDays" aria-label="Khoảng đánh giá AI"><option value="7">7 ngày</option><option value="30" selected>30 ngày</option><option value="90">90 ngày</option><option value="180">180 ngày</option></select><button id="refreshAgentBtn" class="button subtle-button">↻ Kiểm tra lại</button></div></div>
+          <div id="aiQualityMetrics" class="ai-quality-metrics"></div>
+          <div class="ai-quality-grid">
+            <article class="report-card"><div class="report-card-head"><div><span class="card-kicker">PROVIDER ROUTING</span><h3>Chất lượng theo provider</h3></div></div><div id="aiProviderQuality" class="ai-provider-quality"></div></article>
+            <article class="report-card"><div class="report-card-head"><div><span class="card-kicker">REVIEW SIGNALS</span><h3>Nhóm AI thường cần sửa</h3></div></div><div id="aiCategoryIssues" class="breakdown-list"></div></article>
+            <article class="report-card ai-review-wide"><div class="report-card-head"><div><span class="card-kicker">ADMIN FEEDBACK</span><h3>Quyết định gần đây</h3></div><span id="aiReviewCoverage" class="badge">0% đã đánh giá</span></div><div class="table-scroll"><table class="report-table ai-review-table"><thead><tr><th>Ticket</th><th>Provider</th><th>Đề xuất</th><th>Kết quả</th><th>Thời gian</th></tr></thead><tbody id="aiReviewRows"></tbody></table></div></article>
+          </div>
+          <article class="strict-agent-banner"><div class="strict-orb">✦</div><div><strong>Không trả lời mông lung</strong><p>Không có Playbook phù hợp, procedure không auto-eligible, confidence thấp hoặc AI provider không sẵn sàng đều dẫn đến escalation ngay.</p></div><span>ZERO GUESSING</span></article>
           <div id="agentStatus" class="health-grid"></div>
           <div class="split-workspace">
             <form id="agentTestForm" class="workspace-card query-card">
@@ -235,6 +241,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.7.4"></script>
+  <script type="module" src="/admin.js?v=5.8.0"></script>
 </body>
 </html>

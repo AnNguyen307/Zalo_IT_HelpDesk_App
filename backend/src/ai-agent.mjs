@@ -1,4 +1,6 @@
 import { config } from "./config.mjs";
+import { createAiDecisionRecord } from "./ai-quality.mjs";
+import { getAiProviderStatus, getAiRoute, requestAiProviderDecision } from "./ai-router.mjs";
 import { searchKnowledgeBase } from "./kb.mjs";
 import { searchPlaybook } from "./playbook.mjs";
 import { clamp, normalizeText, nowIso } from "./utils.mjs";
@@ -35,9 +37,6 @@ const SECRET_REQUEST_PATTERNS = [
   /format\s+(ổ|disk|máy)/iu,
 ];
 
-let statusCache = null;
-let statusCacheAt = 0;
-
 const ESCALATION_MESSAGES = {
   no_playbook_match: {
     summary: "Không tìm thấy quy trình đủ phù hợp trong Playbook doanh nghiệp.",
@@ -52,8 +51,8 @@ const ESCALATION_MESSAGES = {
     reply: "Agent chưa đủ chắc chắn để đưa ra hướng dẫn chính xác theo Playbook. Ticket đã được chuyển ngay đến kỹ thuật viên thay vì cung cấp các gợi ý suy đoán.",
   },
   agent_unavailable: {
-    summary: "AI Agent cục bộ hiện không sẵn sàng.",
-    reply: "AI Agent cục bộ hiện không sẵn sàng nên hệ thống không đưa ra hướng dẫn thay thế thiếu căn cứ. Ticket đã được chuyển ngay đến kỹ thuật viên.",
+    summary: "AI provider hiện không sẵn sàng.",
+    reply: "AI provider hiện không sẵn sàng nên hệ thống không đưa ra hướng dẫn thay thế thiếu căn cứ. Ticket đã được chuyển ngay đến kỹ thuật viên.",
   },
   policy_blocked: {
     summary: "Chính sách an toàn yêu cầu kỹ thuật viên tiếp nhận.",
@@ -104,6 +103,7 @@ function escalationAnalysis({
   latencyMs = 0,
   reason = "",
   priorityDetermined,
+  providerTelemetry = null,
 }) {
   const template = ESCALATION_MESSAGES[code] || ESCALATION_MESSAGES.policy_blocked;
   const best = playbookMatches[0];
@@ -134,6 +134,7 @@ function escalationAnalysis({
     escalated: true,
     escalationCode: code,
     reason: reason || template.summary,
+    providerTelemetry,
   };
 }
 
@@ -251,30 +252,10 @@ function parseJsonContent(content) {
   return JSON.parse(text);
 }
 
-function modelNameMatches(installed, requested) {
-  const left = String(installed || "").toLowerCase();
-  const right = String(requested || "").toLowerCase();
-  if (!left || !right) return false;
-  if (left === right) return true;
-  if (!right.includes(":")) return left === `${right}:latest` || left.startsWith(`${right}:`);
-  return false;
-}
-
 export async function getAgentStatus({ force = false } = {}) {
-  const now = Date.now();
-  if (!force && statusCache && now - statusCacheAt < config.agentStatusCacheMs) return statusCache;
-
-  const base = {
-    configured: config.agentMode === "ollama",
-    mode: config.agentMode,
-    provider: config.agentMode === "ollama" ? "ollama-local" : "rules-local",
-    model: config.agentMode === "ollama" ? config.ollamaModel : null,
-    baseUrl: config.agentMode === "ollama" ? config.ollamaBaseUrl : null,
-    reachable: false,
-    modelInstalled: false,
-    ready: config.agentMode !== "ollama",
-    error: null,
-    checkedAt: nowIso(),
+  const provider = await getAiProviderStatus({ force });
+  return {
+    ...provider,
     policy: {
       strictEscalation: config.agentStrictEscalation,
       requirePlaybook: config.agentRequirePlaybook,
@@ -282,41 +263,6 @@ export async function getAgentStatus({ force = false } = {}) {
       playbookMinimumScore: config.playbookAutoMinScore,
     },
   };
-
-  if (config.agentMode !== "ollama") {
-    statusCache = base;
-    statusCacheAt = now;
-    return base;
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.min(config.ollamaTimeoutMs, 8000));
-  try {
-    const response = await fetch(`${config.ollamaBaseUrl}/api/tags`, { signal: controller.signal });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body?.error || `Ollama HTTP ${response.status}`);
-    const installed = Array.isArray(body.models) ? body.models.map((item) => item.name || item.model).filter(Boolean) : [];
-    const modelInstalled = installed.some((name) => modelNameMatches(name, config.ollamaModel));
-    statusCache = {
-      ...base,
-      reachable: true,
-      modelInstalled,
-      ready: modelInstalled,
-      installedModels: installed,
-      error: modelInstalled ? null : `Chưa tải model ${config.ollamaModel}`,
-      checkedAt: nowIso(),
-    };
-  } catch (error) {
-    statusCache = {
-      ...base,
-      error: error?.name === "AbortError" ? "Ollama không phản hồi kịp thời" : String(error?.message || error),
-      checkedAt: nowIso(),
-    };
-  } finally {
-    clearTimeout(timer);
-    statusCacheAt = Date.now();
-  }
-  return statusCache;
 }
 
 function compactConversation(messages = []) {
@@ -379,10 +325,7 @@ function selectedSafeSteps(parsed, allowed, fallback) {
   return result.length ? result : fallback.steps;
 }
 
-async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, context) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.ollamaTimeoutMs);
-  const started = Date.now();
+async function analyzeWithModelProvider(ticket, matches, playbookMatches, fallback, context) {
   const allowed = new Map([...playbookMatches, ...matches].map((match) => [match.id, match]));
   const playbook = compactPlaybook(playbookMatches);
   const knowledgeBase = compactKnowledge(matches);
@@ -433,30 +376,9 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
     },
   };
 
-  try {
-    const response = await fetch(`${config.ollamaBaseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: config.ollamaModel,
-        stream: false,
-        think: false,
-        keep_alive: config.ollamaKeepAlive,
-        format: ollamaSchema,
-        options: {
-          temperature: config.ollamaTemperature,
-          num_ctx: config.ollamaNumCtx,
-        },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: JSON.stringify(payload) },
-        ],
-      }),
-      signal: controller.signal,
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body?.error || `Ollama HTTP ${response.status}`);
-    const parsed = parseJsonContent(body?.message?.content);
+  const providerResult = await requestAiProviderDecision({ system, payload, schema: ollamaSchema });
+  const telemetry = providerResult.telemetry;
+  const parsed = parseJsonContent(providerResult.content);
 
     const kbIdSet = new Set(matches.map((item) => item.id));
     const playbookIdSet = new Set(playbookMatches.map((item) => item.id));
@@ -494,11 +416,12 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
         code,
         playbookMatches: playbookIds.length ? selectedPlaybooks : playbookMatches,
         kbIds,
-        model: config.ollamaModel,
-        source: "ollama-local+strict-escalation",
-        latencyMs: Date.now() - started,
+        model: telemetry.model,
+        source: `${telemetry.provider}+strict-escalation`,
+        latencyMs: telemetry.latencyMs,
         reason: compactText(parsed.reason || ESCALATION_MESSAGES[code]?.summary, 1200),
         priorityDetermined,
+        providerTelemetry: telemetry,
       });
     }
 
@@ -508,10 +431,10 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
 
     return {
       ...fallback,
-      source: "ollama-local+playbook-rag",
-      model: config.ollamaModel,
+      source: `${telemetry.provider}+playbook-rag`,
+      model: telemetry.model,
       generatedAt: nowIso(),
-      latencyMs: Date.now() - started,
+      latencyMs: telemetry.latencyMs,
       outcome: canAutoHandle ? outcome : "escalate",
       category: CATEGORIES.includes(parsed.category) ? parsed.category : fallback.category,
       priority: maxPriority(fallback.priority, parsed.priority, risk === "high" ? "high" : "normal"),
@@ -534,13 +457,11 @@ async function analyzeWithOllama(ticket, matches, playbookMatches, fallback, con
       reason: canAutoHandle
         ? "AI sử dụng ngữ cảnh hội thoại; mọi bước kỹ thuật đều lấy từ Enterprise Playbook đã duyệt."
         : compactText(parsed.reason || fallback.reason, 1200),
+      providerTelemetry: telemetry,
     };
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
-export async function analyzeTicket(ticket, entries, context = {}) {
+async function analyzeTicketRaw(ticket, entries, context = {}) {
   const searchText = `${ticket.title}
 ${ticket.description}
 ${context.latestUserMessage || ""}`;
@@ -571,30 +492,37 @@ ${context.latestUserMessage || ""}`;
   }
 
   const fallback = analyzeWithRules(ticket, entries, context, playbookMatches);
-  if (config.agentMode !== "ollama") return fallback;
+  if (config.aiProvider === "rules") return fallback;
 
   try {
-    return await analyzeWithOllama(ticket, matches, playbookMatches, fallback, context);
+    return await analyzeWithModelProvider(ticket, matches, playbookMatches, fallback, context);
   } catch (error) {
-    console.error("Local Ollama fallback:", error.message);
+    const route = getAiRoute();
+    const telemetry = error?.providerTelemetry || null;
+    console.error(`${route.provider} fallback:`, error.message);
     if (config.agentStrictEscalation) {
       return escalationAnalysis({
         ticket, base, code: "agent_unavailable", playbookMatches, kbIds: matches.map((item) => item.id),
-        model: config.ollamaModel, source: "agent-unavailable-escalation", reason: String(error?.message || error),
-        priorityDetermined: false,
+        model: telemetry?.model || route.model, source: `${route.provider}-unavailable-escalation`, reason: String(error?.message || error),
+        latencyMs: telemetry?.latencyMs || 0, priorityDetermined: false, providerTelemetry: telemetry,
       });
     }
     return {
       ...fallback,
       source: playbookMatches.length ? "playbook-rules-fallback" : "rules-local-fallback",
-      model: config.ollamaModel,
+      model: route.model,
       generatedAt: nowIso(),
-      reason: `${fallback.reason} Ollama không khả dụng nên hệ thống tạm dùng playbook/rule engine.`,
+      reason: `${fallback.reason} ${route.provider} không khả dụng nên hệ thống tạm dùng playbook/rule engine.`,
       reply: `${fallback.reply}
 
-Hiện AI local chưa kết nối được; ticket vẫn được lưu và chuyển HelpDesk an toàn.`,
+Hiện AI provider chưa kết nối được; ticket vẫn được lưu và chuyển HelpDesk an toàn.`,
     };
   }
+}
+
+export async function analyzeTicket(ticket, entries, context = {}) {
+  const analysis = await analyzeTicketRaw(ticket, entries, context);
+  return createAiDecisionRecord(analysis, { trigger: context.trigger || "unknown" });
 }
 
 export function formatAgentReply(analysis) {

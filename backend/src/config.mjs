@@ -63,6 +63,9 @@ function slaPolicy(priority, firstResponse, resolution) {
   };
 }
 
+const legacyAgentMode = enumEnv("AGENT_MODE", ["rules", "ollama"], "rules");
+const aiProvider = enumEnv("AI_PROVIDER", ["rules", "ollama", "gemini"], legacyAgentMode);
+
 export const config = {
   port: numberEnv("PORT", 8080),
   nodeEnv: process.env.NODE_ENV || "development",
@@ -124,8 +127,13 @@ export const config = {
     holidays: String(process.env.SLA_HOLIDAYS || "").split(",").map((value) => value.trim()).filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
   },
 
-  // Zero-cost agent: rules is always available. Ollama is optional and runs locally.
-  agentMode: enumEnv("AGENT_MODE", ["rules", "ollama"], "rules"),
+  // AI Router: AGENT_MODE remains a backward-compatible alias for rules/ollama.
+  // Gemini is staging-only until both the provider and cloud feature flag are enabled.
+  agentMode: legacyAgentMode,
+  aiProvider,
+  aiCloudEnabled: booleanEnv("AI_CLOUD_ENABLED", false),
+  aiRedactionEnabled: booleanEnv("AI_REDACTION_ENABLED", true),
+  aiQualityRetentionDays: numberEnv("AI_QUALITY_RETENTION_DAYS", 180),
   autoResolveThreshold: numberEnv("AUTO_RESOLVE_THRESHOLD", 0.78),
   agentStrictEscalation: enumEnv("AGENT_STRICT_ESCALATION", ["true", "false"], "true") === "true",
   agentRequirePlaybook: enumEnv("AGENT_REQUIRE_PLAYBOOK", ["true", "false"], "true") === "true",
@@ -136,6 +144,12 @@ export const config = {
   ollamaKeepAlive: process.env.OLLAMA_KEEP_ALIVE || "10m",
   ollamaTemperature: numberEnv("OLLAMA_TEMPERATURE", 0.1),
   ollamaNumCtx: numberEnv("OLLAMA_NUM_CTX", 8192),
+  geminiBaseUrl: (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/$/, ""),
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+  geminiTimeoutMs: numberEnv("GEMINI_TIMEOUT_MS", 60000),
+  geminiTemperature: numberEnv("GEMINI_TEMPERATURE", 0.1),
+  geminiMaxOutputTokens: numberEnv("GEMINI_MAX_OUTPUT_TOKENS", 2048),
   agentHistoryMessages: numberEnv("AGENT_HISTORY_MESSAGES", 12),
   agentStatusCacheMs: numberEnv("AGENT_STATUS_CACHE_MS", 10000),
 
