@@ -7,25 +7,25 @@ Ticket và lịch sử trao đổi
         ↓
 Lọc audience=employee
         ↓
-Lexical search + embeddinggemma semantic search
+BM25 lexical search
         ↓
-Top procedure phù hợp
+Optional Gemini embedding hybrid score
         ↓
-Qwen/Ollama chọn sourceId và stepNumbers
+Cloud AI chọn sourceId và stepNumbers
         ↓
-Backend xác minh và lấy bước thật từ playbook
+Backend xác minh và lấy bước thật từ Playbook
         ↓
 Trả lời người dùng hoặc escalation
 ```
 
-Playbook nội bộ được ưu tiên hơn Knowledge Base và kiến thức chung của model. AI không được tự viết lệnh kỹ thuật nằm ngoài nguồn đã duyệt.
+Playbook nội bộ được ưu tiên hơn Knowledge Base và kiến thức chung của model. AI không được tự viết lệnh kỹ thuật nằm ngoài nguồn đã duyệt. Khi cloud AI không sẵn sàng, Rules/HelpDesk fallback vẫn hoạt động.
 
-## Cài đặt trên Windows
+## Cài baseline trên Windows
 
-Đảm bảo Ollama đang chạy tại `http://127.0.0.1:11434`, sau đó chạy:
+Chạy:
 
 ```text
-INSTALL_ENTERPRISE_PLAYBOOK.bat
+scripts\windows\launchers\INSTALL_ENTERPRISE_PLAYBOOK.bat
 ```
 
 Hoặc trong VS Code:
@@ -36,63 +36,49 @@ Terminal → Run Task → HelpDesk: Cai dat Enterprise Playbook
 
 Script sẽ:
 
-1. Tìm `ollama.exe`, bao gồm vị trí `E:\Ollama`.
-2. Tải `embeddinggemma` nếu chưa có.
-3. Chuẩn hóa các biến PLAYBOOK trong `backend/.env`.
-4. Chạy `npm run playbook:index:force`.
+1. Đặt retrieval về `lexical` và embedding provider về `none`.
+2. Giữ nguyên secret hiện có trong `backend/.env` và tạo file backup.
+3. Chạy benchmark Playbook Top-K.
 
-Restart backend sau khi hoàn tất.
+Không cần tải model hoặc khởi động thêm AI service trên máy backend.
+
+## Bật hybrid bằng Gemini embedding
+
+```env
+AI_CLOUD_ENABLED=true
+GEMINI_ENABLED=true
+GEMINI_API_KEY=your-server-side-key
+PLAYBOOK_RETRIEVAL_MODE=hybrid
+PLAYBOOK_EMBED_PROVIDER=gemini
+PLAYBOOK_EMBED_MODEL=gemini-embedding-001
+PLAYBOOK_AUTO_INDEX=true
+```
+
+Sau đó chạy `npm run playbook:index:force`. Nếu embedding/index lỗi, search tự quay về BM25.
 
 ## Trạng thái mong đợi
 
-Mở:
-
-```text
-http://127.0.0.1:8080/health
-```
-
-Phần `playbook` cần có:
+Mở `http://127.0.0.1:8080/health`. Với baseline:
 
 ```json
 {
-  "enabled": true,
-  "totalEntries": 173,
-  "semanticEnabled": true,
-  "embedModel": "embeddinggemma",
-  "indexExists": true,
-  "indexCurrent": true,
+  "retrievalMode": "lexical",
+  "embeddingProvider": "none",
+  "semanticEnabled": false,
   "ready": true
 }
 ```
 
-## Dashboard Admin
+## Dashboard và cập nhật procedure
 
-Mở `/admin`, đăng nhập và chọn tab `Enterprise Playbook`.
+Mở `/admin`, đăng nhập và chọn tab `Enterprise Playbook`. Có thể tìm thử theo mô tả ticket, kiểm tra audience/category và re-index sau khi sửa Playbook.
 
-Có thể:
-
-- Xem số procedure theo audience/category.
-- Tìm thử theo câu mô tả ticket.
-- Chọn `employee` hoặc `technician`.
-- Xem điểm lexical/semantic và các bước tương ứng.
-- Re-index sau khi sửa playbook.
-
-## Cập nhật procedure
-
-File chính:
-
-```text
-backend/playbooks/enterprise-playbook.json
-```
-
-Sau khi sửa:
+File nguồn mặc định: `backend/playbooks/enterprise-playbook.json`.
 
 ```powershell
 cd backend
-npm run playbook:index:force
+npm run playbook:benchmark
 ```
-
-Sau đó restart backend hoặc bấm `Re-index` trong Dashboard.
 
 ## Quy tắc dữ liệu
 

@@ -1,14 +1,14 @@
-# AI HelpDesk Agent v5.9
+# AI HelpDesk Agent v5.9.1
 
-AI Agent v5.9 dùng Router V2, BM25 Playbook retrieval và telemetry theo từng provider attempt. Ollama là LLM cuối cùng, không còn là dependency bắt buộc của RAG.
+AI Agent dùng Router V2 chỉ với cloud provider, BM25 Playbook retrieval và telemetry theo từng attempt. Không có local model hoặc local embedding service trong đường chạy.
 
 ## Luồng quyết định
 
 1. Backend phân loại rule và tìm Enterprise Playbook bằng BM25.
-2. Router thử `gemini → groq → openrouter → sambanova → ollama` theo feature flag, cấu hình và quota còn lại.
+2. Router thử `gemini → groq → openrouter → sambanova` theo feature flag, cấu hình và quota còn lại.
 3. `429`, timeout, `5xx`, JSON/schema sai hoặc confidence thấp sẽ chuyển provider tiếp theo.
 4. Backend kiểm tra lại risk, priority, Playbook ID và selected steps.
-5. Nếu tất cả provider lỗi, ticket vẫn được tạo với priority `normal` và chuyển HelpDesk.
+5. Nếu tất cả cloud provider lỗi, ticket vẫn được tạo với priority `normal` và chuyển HelpDesk.
 
 Model chỉ được chọn các bước tồn tại trong Playbook đã duyệt. Password, OTP, bảo mật, mất dữ liệu, BSOD, BIOS, server, switch, firewall, quyền admin và phần cứng nguy hiểm luôn được chuyển kỹ thuật viên.
 
@@ -16,7 +16,7 @@ Model chỉ được chọn các bước tồn tại trong Playbook đã duyệt
 
 ```env
 AI_ROUTER_ENABLED=true
-AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova,ollama
+AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova
 AI_ROUTING_POLICY=capability_then_free_quota
 AI_CLOUD_ENABLED=true
 AI_REDACTION_ENABLED=false
@@ -28,7 +28,9 @@ SAMBANOVA_API_KEY=
 
 Provider cloud còn cần feature flag tương ứng. Key trống làm provider được bỏ qua, không làm ticket thất bại.
 
-## Retrieval không phụ thuộc Ollama
+## Playbook retrieval
+
+Baseline BM25 không gọi AI:
 
 ```env
 PLAYBOOK_RETRIEVAL_MODE=lexical
@@ -38,7 +40,7 @@ PLAYBOOK_MIN_SCORE=0.20
 PLAYBOOK_AUTO_MIN_SCORE=0.72
 ```
 
-Hybrid là tùy chọn:
+Hybrid bằng remote embedding là tùy chọn:
 
 ```env
 PLAYBOOK_RETRIEVAL_MODE=hybrid
@@ -56,13 +58,13 @@ npm run playbook:benchmark
 
 ## Health và rollback
 
-`GET /health` trả `version: 5.9.0`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
+`GET /health` trả `version: 5.9.1`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
 
-Rollback:
+Rollback không dùng model:
 
 ```env
 AI_ROUTER_ENABLED=false
-AI_PROVIDER=ollama
+AI_PROVIDER=rules
 AI_CLOUD_ENABLED=false
 PLAYBOOK_RETRIEVAL_MODE=lexical
 PLAYBOOK_EMBED_PROVIDER=none

@@ -117,26 +117,11 @@ AGENT_MODE=rules
 - RAM/CPU rất thấp.
 - Kết quả ổn định, checklist chỉ lấy từ Knowledge Base.
 
-### Chế độ local LLM tùy chọn
+### Cloud AI free tier tùy chọn
 
-Cài Ollama trên chính máy backend, tải một model phù hợp, rồi đặt:
+Router v5.9.1 có thể dùng Gemini, Groq, OpenRouter và SambaNova khi provider được bật, có API key phía server và `AI_CLOUD_ENABLED=true`. Không cần cài model hoặc AI service trên máy backend.
 
-```env
-AGENT_MODE=ollama
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen3.5:9b
-```
-
-Ví dụ:
-
-```bash
-ollama pull qwen3.5:9b
-ollama serve
-```
-
-Ollama chỉ hỗ trợ diễn giải/phân loại. Các bước xử lý vẫn bắt buộc lấy từ Knowledge Base đã duyệt. Nếu Ollama tắt, timeout hoặc thiếu model, backend tự quay về `rules-local` nên ticket vẫn hoạt động.
-
-Máy yếu nên giữ `AGENT_MODE=rules`.
+Nếu không có key hoặc toàn bộ provider lỗi, backend tự dùng Rules/HelpDesk fallback nên ticket vẫn hoạt động.
 
 ## 5. Tự khởi động cùng Windows
 
@@ -172,4 +157,4 @@ Có thể dùng Windows Task Scheduler/cron để chạy mỗi ngày. Nên sao c
 - Remote control tự động.
 - Managed monitoring/logging.
 
-Các chức năng ticket, dashboard, hội thoại, thống kê, Knowledge Base, rule agent và local Ollama vẫn hoạt động.
+Các chức năng ticket, dashboard, hội thoại, thống kê, Knowledge Base và rule agent vẫn hoạt động.

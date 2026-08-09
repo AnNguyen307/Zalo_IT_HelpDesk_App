@@ -71,15 +71,15 @@ function slaPolicy(priority, firstResponse, resolution) {
   };
 }
 
-const legacyAgentMode = enumEnv("AGENT_MODE", ["rules", "ollama"], "rules");
-const aiProviderKeys = ["rules", "ollama", "gemini", "groq", "openrouter", "sambanova"];
+const legacyAgentMode = enumEnv("AGENT_MODE", ["rules"], "rules");
+const aiProviderKeys = ["rules", "gemini", "groq", "openrouter", "sambanova"];
 const aiProvider = enumEnv("AI_PROVIDER", aiProviderKeys, legacyAgentMode);
 const aiProviderOrder = stringListEnv(
   "AI_PROVIDER_ORDER",
   aiProviderKeys.filter((value) => value !== "rules"),
-  ["gemini", "groq", "openrouter", "sambanova", "ollama"],
+  ["gemini", "groq", "openrouter", "sambanova"],
 );
-const playbookEmbedProvider = enumEnv("PLAYBOOK_EMBED_PROVIDER", ["none", "gemini", "ollama"], "none");
+const playbookEmbedProvider = enumEnv("PLAYBOOK_EMBED_PROVIDER", ["none", "gemini"], "none");
 const legacyPlaybookSemantic = booleanEnv("PLAYBOOK_SEMANTIC", false);
 const playbookRetrievalMode = enumEnv(
   "PLAYBOOK_RETRIEVAL_MODE",
@@ -148,7 +148,7 @@ export const config = {
     holidays: String(process.env.SLA_HOLIDAYS || "").split(",").map((value) => value.trim()).filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
   },
 
-  // AI Router V2: AGENT_MODE and AI_PROVIDER remain rollback-compatible aliases.
+  // AI Router V2: AGENT_MODE=rules remains a rollback-compatible alias.
   agentMode: legacyAgentMode,
   aiProvider,
   aiRouterEnabled: booleanEnv("AI_ROUTER_ENABLED", true),
@@ -164,12 +164,6 @@ export const config = {
   agentStrictEscalation: enumEnv("AGENT_STRICT_ESCALATION", ["true", "false"], "true") === "true",
   agentRequirePlaybook: enumEnv("AGENT_REQUIRE_PLAYBOOK", ["true", "false"], "true") === "true",
   agentMinConfidence: numberEnv("AGENT_MIN_CONFIDENCE", 0.82),
-  ollamaBaseUrl: (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/$/, ""),
-  ollamaModel: process.env.OLLAMA_MODEL || "qwen3.5:9b",
-  ollamaTimeoutMs: numberEnv("OLLAMA_TIMEOUT_MS", 180000),
-  ollamaKeepAlive: process.env.OLLAMA_KEEP_ALIVE || "10m",
-  ollamaTemperature: numberEnv("OLLAMA_TEMPERATURE", 0.1),
-  ollamaNumCtx: numberEnv("OLLAMA_NUM_CTX", 8192),
   geminiBaseUrl: (process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/$/, ""),
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
@@ -218,7 +212,7 @@ export const config = {
   playbookAutoIndex: enumEnv("PLAYBOOK_AUTO_INDEX", ["true", "false"], "false") === "true",
   playbookEmbedProvider,
   playbookEmbedModel: process.env.PLAYBOOK_EMBED_MODEL
-    || (playbookEmbedProvider === "gemini" ? "gemini-embedding-001" : playbookEmbedProvider === "ollama" ? "embeddinggemma" : "none"),
+    || (playbookEmbedProvider === "gemini" ? "gemini-embedding-001" : "none"),
   playbookEmbedTimeoutMs: numberEnv("PLAYBOOK_EMBED_TIMEOUT_MS", 120000),
   playbookEmbedBatchSize: numberEnv("PLAYBOOK_EMBED_BATCH_SIZE", 12),
   playbookTopK: numberEnv("PLAYBOOK_TOP_K", 5),

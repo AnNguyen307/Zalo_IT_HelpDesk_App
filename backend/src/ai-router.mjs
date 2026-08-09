@@ -4,7 +4,6 @@ import { nowIso } from "./utils.mjs";
 
 const PROVIDERS = {
   rules: { id: "rules-local", dataBoundary: "local", capability: 0, family: "rules" },
-  ollama: { id: "ollama-local", dataBoundary: "local", capability: 60, family: "qwen" },
   gemini: { id: "gemini-cloud", dataBoundary: "external", capability: 100, family: "gemini" },
   groq: { id: "groq-cloud", dataBoundary: "external", capability: 90, family: "gpt-oss" },
   openrouter: { id: "openrouter-cloud", dataBoundary: "external", capability: 90, family: "gpt-oss" },
@@ -45,18 +44,6 @@ function providerDefinition(name) {
 
 function providerSettings(name) {
   const common = { name, ...providerDefinition(name) };
-  if (name === "ollama") return {
-    ...common,
-    enabled: true,
-    baseUrl: config.ollamaBaseUrl,
-    apiKey: "",
-    model: config.ollamaModel,
-    timeoutMs: config.ollamaTimeoutMs,
-    temperature: config.ollamaTemperature,
-    maxOutputTokens: 0,
-    dailyRequestLimit: 0,
-    dailyTokenLimit: 0,
-  };
   if (name === "gemini") return {
     ...common,
     enabled: config.geminiEnabled,
@@ -162,15 +149,6 @@ function routeKeys() {
   });
 }
 
-function modelNameMatches(installed, requested) {
-  const left = String(installed || "").toLowerCase();
-  const right = String(requested || "").toLowerCase();
-  if (!left || !right) return false;
-  if (left === right) return true;
-  if (!right.includes(":")) return left === `${right}:latest` || left.startsWith(`${right}:`);
-  return false;
-}
-
 function baseStatus(settings) {
   const state = stateFor(settings.name);
   const configured = providerConfigured(settings);
@@ -184,7 +162,7 @@ function baseStatus(settings) {
     capability: settings.capability,
     dataBoundary: settings.dataBoundary,
     model: settings.model,
-    baseUrl: settings.dataBoundary === "local" ? settings.baseUrl : null,
+    baseUrl: null,
     reachable: settings.name === "rules" ? true : null,
     modelInstalled: settings.name === "rules" ? true : null,
     ready: settings.name === "rules",
@@ -219,37 +197,7 @@ async function providerStatus(name) {
   }
   if (budgetExhausted(settings)) return { ...base, ready: false, error: "Đã chạm ngân sách miễn phí cấu hình trong ngày." };
   if (base.circuit.open) return { ...base, ready: false, error: `Circuit đang tạm mở đến ${base.circuit.openUntil}.` };
-  if (name !== "ollama") return { ...base, reachable: true, modelInstalled: true, ready: true };
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.min(config.ollamaTimeoutMs, 8000));
-  try {
-    const response = await fetch(`${config.ollamaBaseUrl}/api/tags`, { signal: controller.signal });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body?.error || `Ollama HTTP ${response.status}`);
-    const installed = Array.isArray(body.models) ? body.models.map((item) => item.name || item.model).filter(Boolean) : [];
-    const modelInstalled = installed.some((item) => modelNameMatches(item, config.ollamaModel));
-    return {
-      ...base,
-      reachable: true,
-      modelInstalled,
-      ready: modelInstalled,
-      installedModels: installed,
-      error: modelInstalled ? null : `Chưa tải model ${config.ollamaModel}`,
-      checkedAt: nowIso(),
-    };
-  } catch (error) {
-    return {
-      ...base,
-      reachable: false,
-      modelInstalled: false,
-      ready: false,
-      error: error?.name === "AbortError" ? "Ollama không phản hồi kịp thời" : String(error?.message || error),
-      checkedAt: nowIso(),
-    };
-  } finally {
-    clearTimeout(timer);
-  }
+  return { ...base, reachable: true, modelInstalled: true, ready: true };
 }
 
 export function getAiRoute() {
@@ -257,7 +205,7 @@ export function getAiRoute() {
     return {
       providerKey: "router",
       provider: "ai-router-v2",
-      dataBoundary: "mixed",
+      dataBoundary: "external",
       model: null,
       order: routeKeys(),
       cloudEnabled: config.aiCloudEnabled,
@@ -292,7 +240,7 @@ export async function getAiProviderStatus({ force = false } = {}) {
     mode: "router",
     provider: "ai-router-v2",
     providerKey: "router",
-    dataBoundary: "mixed",
+    dataBoundary: "external",
     model: readyProviders[0]?.model || null,
     ready: readyProviders.length > 0,
     cloudEnabled: config.aiCloudEnabled,
@@ -308,39 +256,6 @@ export async function getAiProviderStatus({ force = false } = {}) {
   return statusCache;
 }
 
-async function requestOllama({ settings, system, payload, schema, signal }) {
-  const response = await fetch(`${settings.baseUrl}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: settings.model,
-      stream: false,
-      think: false,
-      keep_alive: config.ollamaKeepAlive,
-      format: schema,
-      options: { temperature: settings.temperature, num_ctx: config.ollamaNumCtx },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: JSON.stringify(payload) },
-      ],
-    }),
-    signal,
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw providerHttpError(settings, response, body);
-  return {
-    content: body?.message?.content,
-    model: settings.model,
-    responseId: null,
-    usage: {
-      promptTokens: Number(body?.prompt_eval_count || 0) || null,
-      outputTokens: Number(body?.eval_count || 0) || null,
-      totalTokens: Number(body?.prompt_eval_count || 0) + Number(body?.eval_count || 0) || null,
-    },
-    headers: response.headers,
-  };
-}
-
 async function requestGemini({ settings, system, payload, schema, signal }) {
   const model = encodeURIComponent(settings.model);
   const response = await fetch(`${settings.baseUrl}/models/${model}:generateContent`, {
@@ -348,7 +263,7 @@ async function requestGemini({ settings, system, payload, schema, signal }) {
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": settings.apiKey,
-      "x-goog-api-client": "zalo-helpdesk/5.9.0",
+      "x-goog-api-client": "zalo-helpdesk/5.9.1",
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
@@ -498,7 +413,6 @@ function skippedReason(settings) {
 }
 
 async function callProvider(settings, args) {
-  if (settings.name === "ollama") return requestOllama({ settings, ...args });
   if (settings.name === "gemini") return requestGemini({ settings, ...args });
   return requestOpenAiCompatible({ settings, ...args });
 }

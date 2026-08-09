@@ -11,7 +11,6 @@ function providerFromAnalysis(analysis = {}) {
   if (analysis.providerTelemetry?.provider) return analysis.providerTelemetry.provider;
   const source = String(analysis.source || "");
   if (source.startsWith("gemini")) return "gemini-cloud";
-  if (source.startsWith("ollama")) return "ollama-local";
   return "rules-local";
 }
 

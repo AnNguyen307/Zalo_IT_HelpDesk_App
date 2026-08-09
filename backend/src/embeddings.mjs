@@ -10,15 +10,6 @@ function providerConfig() {
       configured: Boolean(config.aiCloudEnabled && config.geminiEnabled && config.geminiApiKey && config.playbookEmbedModel),
     };
   }
-  if (config.playbookEmbedProvider === "ollama") {
-    return {
-      provider: "ollama",
-      model: config.playbookEmbedModel,
-      baseUrl: config.ollamaBaseUrl,
-      timeoutMs: config.playbookEmbedTimeoutMs,
-      configured: Boolean(config.ollamaBaseUrl && config.playbookEmbedModel),
-    };
-  }
   return { provider: "none", model: "none", baseUrl: null, timeoutMs: 0, configured: true };
 }
 
@@ -38,33 +29,13 @@ export function getEmbeddingProviderStatus() {
   };
 }
 
-async function ollamaEmbed(inputs, settings, signal) {
-  const response = await fetch(`${settings.baseUrl}/api/embed`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: settings.model,
-      input: inputs,
-      truncate: true,
-      keep_alive: config.ollamaKeepAlive,
-    }),
-    signal,
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body?.error || `Ollama embed HTTP ${response.status}`);
-  if (!Array.isArray(body.embeddings) || body.embeddings.length !== inputs.length) {
-    throw new Error("Ollama không trả về đủ embeddings hợp lệ");
-  }
-  return body.embeddings;
-}
-
 async function geminiEmbed(inputs, settings, signal) {
   const response = await fetch(`${settings.baseUrl}/openai/embeddings`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.geminiApiKey}`,
-      "x-goog-api-client": "zalo-helpdesk-rag/5.9.0",
+      "x-goog-api-client": "zalo-helpdesk-rag/5.9.1",
     },
     body: JSON.stringify({ model: settings.model, input: inputs }),
     signal,
@@ -89,9 +60,7 @@ export async function embedTexts(inputs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), settings.timeoutMs);
   try {
-    return settings.provider === "gemini"
-      ? await geminiEmbed(inputs, settings, controller.signal)
-      : await ollamaEmbed(inputs, settings, controller.signal);
+    return await geminiEmbed(inputs, settings, controller.signal);
   } catch (error) {
     if (error?.name === "AbortError") throw new Error(`${settings.provider} embedding timeout sau ${settings.timeoutMs} ms`);
     throw error;

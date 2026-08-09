@@ -213,7 +213,7 @@ ${latest}`;
   return analysis;
 }
 
-const ollamaSchema = {
+const providerDecisionSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -417,7 +417,7 @@ async function analyzeWithModelProvider(ticket, matches, playbookMatches, fallba
   const providerResult = await requestAiProviderDecision({
     system,
     payload,
-    schema: ollamaSchema,
+    schema: providerDecisionSchema,
     validate: validateProviderDecision,
   });
   const telemetry = providerResult.telemetry;

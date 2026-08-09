@@ -39,7 +39,7 @@ test("playbook status reports audience counts", async () => {
   assert.ok(status.byAudience.employee >= 20);
   assert.ok(status.byAudience.technician >= 100);
   assert.ok(["lexical", "hybrid"].includes(status.retrievalMode));
-  assert.ok(["none", "gemini", "ollama"].includes(status.embeddingProvider));
+  assert.ok(["none", "gemini"].includes(status.embeddingProvider));
 });
 
 test("BM25 lexical ranking rewards coverage instead of a single incidental token", async () => {
