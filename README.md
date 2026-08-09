@@ -1,6 +1,6 @@
-# Zalo IT HelpDesk v5.9.0 - AI Router V2 & Ollama-independent RAG
+# Zalo IT HelpDesk v5.9.1 - Cloud-only AI Router
 
-Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App. Router V2 ưu tiên các model cloud có free tier, để Ollama ở vị trí LLM cuối cùng và luôn giữ Rules/HelpDesk làm fallback vận hành.
+Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App. Router V2 chỉ dùng các model cloud có free tier và luôn giữ Rules/HelpDesk làm fallback vận hành; backend không cần local AI service.
 
 Để tiếp tục phát triển hoặc bàn giao giữa các agent, đọc và cập nhật [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) trước tiên.
 
@@ -8,10 +8,10 @@
 
 - **Zalo Mini App** cho nhân viên tạo, xem và phản hồi ticket.
 - **Backend Node.js 20** gọi provider bằng native `fetch`, không thêm AI SDK.
-- **AI Router V2** điều phối Gemini, Groq, OpenRouter, SambaNova rồi mới đến Ollama.
+- **AI Router V2** điều phối Gemini, Groq, OpenRouter và SambaNova.
 - **AI Quality Control** lưu decision record, telemetry và phản hồi Đúng/Cần sửa của Admin.
-- **Enterprise Playbook RAG** dùng BM25 lexical mặc định; embedding Gemini/Ollama là tùy chọn.
-- **Ollama tùy chọn** là LLM cuối cùng, không còn là dependency bắt buộc của retrieval.
+- **Enterprise Playbook RAG** dùng BM25 lexical mặc định; Gemini embedding là tùy chọn.
+- **Không phụ thuộc local AI** trong router, retrieval hoặc quy trình khởi động Windows.
 - **Dashboard kỹ thuật viên** tại `/admin`.
 - **JSON store** ghi nguyên tử tại `backend/data/db.json`.
 - **Thông báo trong Mini App** khi có phản hồi, đổi trạng thái, file mới hoặc quá SLA.
@@ -25,7 +25,6 @@
 | Thành phần | Mặc định | Phí dịch vụ bắt buộc |
 |---|---|---:|
 | Agent | Rule engine + Knowledge Base | 0 |
-| Local LLM | Ollama tùy chọn | 0 |
 | Cloud AI | Gemini/Groq/OpenRouter/SambaNova tùy chọn | 0 trong free tier; phụ thuộc quota hiện hành |
 | Backend | PC/NAS/máy chủ sẵn có | 0 phí thuê mới |
 | Database | JSON local | 0 |
@@ -63,13 +62,13 @@ Zalo Mini App
 Node.js API chạy tại doanh nghiệp
    ├── Ticket / Message / Attachment / Notification JSON store
    ├── Rule Engine + Knowledge Base
-   ├── AI Router V2 → Gemini / Groq / OpenRouter / SambaNova / Ollama
-   ├── BM25 Playbook Retrieval → optional Gemini/Ollama embeddings
+   ├── AI Router V2 → Gemini / Groq / OpenRouter / SambaNova
+   ├── BM25 Playbook Retrieval → optional Gemini embeddings
    ├── Decision telemetry + Admin quality review
    └── Admin dashboard
 ```
 
-Không bắt buộc API trả phí, vector database managed hoặc Ollama. BM25 luôn hoạt động cục bộ; semantic retrieval chỉ bật khi `PLAYBOOK_RETRIEVAL_MODE=hybrid` và chọn rõ `PLAYBOOK_EMBED_PROVIDER=gemini|ollama`.
+Không bắt buộc API trả phí hoặc vector database managed. BM25 luôn hoạt động trong backend; semantic retrieval chỉ bật khi `PLAYBOOK_RETRIEVAL_MODE=hybrid` và `PLAYBOOK_EMBED_PROVIDER=gemini`.
 
 ## Cấu trúc thư mục
 
@@ -114,7 +113,7 @@ APP_SECRET=chuoi-ngau-nhien-dai-it-nhat-32-ky-tu
 ADMIN_PASSWORD=mat-khau-quan-tri-manh
 ZALO_AUTH_MODE=development
 AI_ROUTER_ENABLED=true
-AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova,ollama
+AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova
 PLAYBOOK_RETRIEVAL_MODE=lexical
 PLAYBOOK_EMBED_PROVIDER=none
 ```
@@ -157,14 +156,14 @@ Trên điện thoại, `localhost` là điện thoại. Mini App cần URL backe
 Chuỗi mặc định:
 
 ```text
-Gemini → Groq → OpenRouter → SambaNova → Ollama → Rules/HelpDesk
+Gemini → Groq → OpenRouter → SambaNova → Rules/HelpDesk
 ```
 
 Router bỏ qua provider chưa bật/chưa có key, chuyển tiếp khi gặp `429`, timeout, `5xx`, JSON/schema lỗi hoặc confidence thấp, đồng thời lưu telemetry cho từng attempt. Các ngân sách request/token trong `.env` là giới hạn vận hành có thể chỉnh lại; quota thật vẫn do từng provider quyết định.
 
 ```env
 AI_ROUTER_ENABLED=true
-AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova,ollama
+AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova
 AI_ROUTING_POLICY=capability_then_free_quota
 AI_CLOUD_ENABLED=true
 AI_REDACTION_ENABLED=false
@@ -176,7 +175,7 @@ SAMBANOVA_API_KEY=server-side-only
 
 `AI_REDACTION_ENABLED=false` chỉ phù hợp môi trường mock hiện tại. API key luôn nằm trong `backend/.env`, không đưa vào Git, Mini App hoặc Admin JavaScript.
 
-BM25 là retrieval mặc định và không cần Ollama:
+BM25 là retrieval mặc định và không cần AI service:
 
 ```env
 PLAYBOOK_RETRIEVAL_MODE=lexical
@@ -196,7 +195,7 @@ Rollback về single-provider:
 
 ```env
 AI_ROUTER_ENABLED=false
-AI_PROVIDER=ollama
+AI_PROVIDER=rules
 AI_CLOUD_ENABLED=false
 PLAYBOOK_RETRIEVAL_MODE=lexical
 PLAYBOOK_EMBED_PROVIDER=none
@@ -338,16 +337,11 @@ Hoặc nhấp đúp `START_HELPDESK_AUTO.bat`.
 
 Script sẽ tự khởi động backend/ngrok, đọc URL HTTPS hiện tại từ ngrok Agent API, cập nhật `miniapp/.env`, build và gọi `zmp deploy` khi URL thay đổi. Xem `AUTO_NGROK.md` để biết các tham số.
 
-## AI HelpDesk Agent v4
-
-Phiên bản v4 hỗ trợ AI Agent cục bộ qua Ollama. Agent dùng lịch sử hội thoại và Knowledge Base để tạo phản hồi động; các bước kỹ thuật vẫn bị giới hạn trong quy trình đã được quản trị viên phê duyệt. Xem `README_AI_AGENT.md` và chạy `INSTALL_AI_AGENT.bat` hoặc VS Code Task `HelpDesk: Cài/kiểm tra AI Agent`.
-
-
 ## Enterprise Playbook RAG (v5)
 
 Phiên bản v5 bổ sung 173 procedure đã chuẩn hóa và ưu tiên playbook doanh nghiệp trước Knowledge Base/kiến thức chung của model. Raw config Aruba/FortiGate/OS9700 không được đưa vào index và các secret đã được loại bỏ.
 
-Cài đặt:
+Cài baseline BM25:
 
 ```text
 INSTALL_ENTERPRISE_PLAYBOOK.bat

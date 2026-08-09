@@ -457,7 +457,7 @@ function renderAiQuality() {
     const proposal = item.proposal || {}; const review = item.review;
     const result = review?.result === "correct" ? '<span class="badge guide">ĐÚNG</span>' : review?.result === "incorrect" ? '<span class="badge escalate">CẦN SỬA</span>' : '<span class="badge">CHƯA REVIEW</span>';
     return `<tr><td><button type="button" class="ai-ticket-link" data-ai-ticket="${esc(item.ticketId)}"><strong>${esc(item.ticketCode || item.ticketId)}</strong><small>${esc(item.ticketTitle || "")}</small></button></td><td><strong>${esc(item.provider || "—")}</strong></td><td>${esc(labels[proposal.category] || proposal.category || "—")} · ${esc(labels[proposal.priority] || proposal.priority || "—")}</td><td>${result}</td><td>${formatDate(item.generatedAt)}</td></tr>`;
-  }).join("") : '<tr><td colspan="5" class="muted">Chưa có quyết định AI v5.9 trong khoảng đã chọn.</td></tr>';
+  }).join("") : '<tr><td colspan="5" class="muted">Chưa có quyết định AI v5.9.1 trong khoảng đã chọn.</td></tr>';
   $$('[data-ai-ticket]').forEach((button) => { button.onclick = () => openTicket(button.dataset.aiTicket).catch((error) => toast(error.message)); });
 }
 

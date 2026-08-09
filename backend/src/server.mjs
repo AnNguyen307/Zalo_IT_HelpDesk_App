@@ -148,7 +148,7 @@ function recordStatusChange(db, ticket, from, to, actorId, actorName, note = "")
 }
 
 function agentDisplayName(analysis) {
-  if (analysis?.source?.startsWith("ollama") && analysis?.canAutoHandle) return "AI HelpDesk Agent";
+  if (analysis?.source?.includes("+playbook-rag") && analysis?.canAutoHandle) return "AI HelpDesk Agent";
   if (analysis?.canAutoHandle) return "HelpDesk Playbook";
   return "HelpDesk Escalation";
 }
@@ -337,7 +337,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
   };
 
   // Second guard is evaluated inside the serialized write. It prevents a race where
-  // staff joins while Ollama is still analyzing the user's reply.
+  // staff joins while an AI provider is still analyzing the user's reply.
   const persisted = await updateDb((db) => {
     const ticket = db.tickets.find((item) => item.id === ticketId);
     const currentMessages = db.messages.filter((item) => item.ticketId === ticketId);
@@ -466,10 +466,10 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.9.0",
+      version: "5.9.1",
       time: nowIso(),
-      features: ["ai-router-v2", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "embedding-provider-abstraction", "ollama-independent-rag", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
-      agent: { ...agent, paidApiRequired: agent.dataBoundary === "external" || agent.providers?.some((item) => item.dataBoundary === "external" && item.configured) },
+      features: ["ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      agent: { ...agent, paidApiRequired: Boolean(agent.dataBoundary === "external" && agent.configured) },
       playbook,
       playbookGovernance,
       database,
@@ -866,7 +866,7 @@ async function handleApi(req, res, url, headers) {
       attachments: [],
       trigger: "admin_sandbox",
     });
-    await audit(session.sub, "test", "aiAgent", config.ollamaModel, { source: analysis.source, latencyMs: analysis.latencyMs });
+    await audit(session.sub, "test", "aiAgent", analysis.model || "rules", { source: analysis.source, latencyMs: analysis.latencyMs });
     return json(res, 200, { analysis, reply: formatAgentReply(analysis) }, headers);
   }
 
@@ -1258,7 +1258,7 @@ server.listen(config.port, "0.0.0.0", () => {
   if (config.zaloAuthMode === "development") console.warn("WARNING: ZALO_AUTH_MODE=development must not be used in production.");
   if (config.appSecret === "dev-only-secret-change-me") console.warn("WARNING: Change APP_SECRET before production.");
   console.log(`Database: ${config.dbProvider}${config.dbProvider === "sqlserver" ? ` (${config.sqlServerDatabase})` : ` (${config.dataFile})`}`);
-  console.log(`Agent mode: ${config.agentMode}${config.agentMode === "ollama" ? ` (${config.ollamaModel})` : ""}; no paid AI API is used.`);
+  console.log(`AI routing: ${config.aiRouterEnabled ? config.aiProviderOrder.join(" -> ") : config.aiProvider}; cloud enabled=${config.aiCloudEnabled}; Rules/HelpDesk fallback enabled.`);
   getAgentStatus({ force: true }).then((status) => {
     if (status.ready) console.log(`AI Agent ready: ${status.provider}${status.model ? ` / ${status.model}` : ""}`);
     else console.warn(`AI Agent not ready: ${status.error || "unknown error"}. Playbook/rules fallback remains active.`);

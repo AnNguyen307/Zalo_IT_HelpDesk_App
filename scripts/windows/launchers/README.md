@@ -10,7 +10,6 @@ Run launchers from the project root, for example:
 
 - `CONFIGURE_SQL_SERVER.bat`
 - `CONFIGURE_UPLOAD_LIMIT_30MB.bat`
-- `INSTALL_AI_AGENT.bat`
 - `INSTALL_ENTERPRISE_PLAYBOOK.bat`
 - `INSTALL_PLAYBOOK_GOVERNANCE.bat`
 - `ORGANIZE_PROJECT_FILES.bat`

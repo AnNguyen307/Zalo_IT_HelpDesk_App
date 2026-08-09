@@ -2,51 +2,13 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "HelpDesk: Ollama AI",
-      "type": "process",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\scripts\\windows\\start-ollama.ps1",
-        "-Model",
-        "qwen3.5:9b"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "dedicated",
-        "showReuseMessage": false,
-        "clear": true,
-        "close": false
-      },
-      "runOptions": {
-        "instanceLimit": 1,
-        "instancePolicy": "silent"
-      }
-    },
-    {
       "label": "HelpDesk: Backend",
       "type": "process",
-      "command": "powershell.exe",
+      "command": "cmd.exe",
       "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\scripts\\windows\\wait-ollama-start-backend.ps1",
-        "-Model",
-        "qwen3.5:9b",
-        "-WaitSeconds",
-        "90"
+        "/d",
+        "/c",
+        "${workspaceFolder}\\scripts\\windows\\start-backend.bat"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -126,7 +88,6 @@
     {
       "label": "HelpDesk: Khởi động toàn bộ",
       "dependsOn": [
-        "HelpDesk: Ollama AI",
         "HelpDesk: Backend",
         "HelpDesk: ngrok",
         "HelpDesk: Đồng bộ URL + Deploy"
@@ -147,35 +108,6 @@
         "instanceLimit": 1,
         "instancePolicy": "silent",
         "runOn": "folderOpen"
-      }
-    },
-    {
-      "label": "HelpDesk: Cài/kiểm tra AI Agent",
-      "type": "process",
-      "command": "powershell.exe",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}\\scripts\\windows\\install-ai-agent.ps1"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": true,
-        "panel": "dedicated",
-        "showReuseMessage": false,
-        "clear": true,
-        "close": false
-      },
-      "runOptions": {
-        "instanceLimit": 1,
-        "instancePolicy": "silent"
       }
     },
     {

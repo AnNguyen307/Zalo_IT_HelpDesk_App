@@ -55,7 +55,7 @@ try {
     Step "Tao semantic index tu cac version Published"
     & npm.cmd run playbook:index:force
     if ($LASTEXITCODE -ne 0) {
-      Warn "Semantic index chua tao duoc. Kiem tra Ollama va embeddinggemma, sau do re-index trong Dashboard."
+      Warn "Semantic index chua tao duoc. Kiem tra Gemini embedding hoac giu lexical mode, sau do re-index trong Dashboard."
     } else { Ok "Semantic index completed" }
   }
 } finally { Pop-Location }

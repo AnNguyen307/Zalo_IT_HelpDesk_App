@@ -70,7 +70,7 @@ test("Admin can review a v5.8 AI decision and apply corrections to the ticket", 
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.9.0");
+  assert.equal(health.version, "5.9.1");
   assert.equal(health.agent.provider, "rules-local");
 
   const adminLogin = await request(baseUrl, "/api/auth/staff", { method: "POST", body: { username: "admin", password: "AdminTest2026" } });
@@ -184,7 +184,6 @@ test("ticket is still created with Normal priority when Gemini staging is disabl
 test("ticket survives total Router V2 provider failure with attempt telemetry", { timeout: 20_000 }, async (context) => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "helpdesk-v59-router-fail-"));
   const port = await availablePort();
-  const unusedOllamaPort = await availablePort();
   let logs = "";
   const child = spawn(process.execPath, ["src/server.mjs"], {
     cwd: backendRoot,
@@ -196,14 +195,12 @@ test("ticket survives total Router V2 provider failure with attempt telemetry", 
       UPLOADS_DIR: path.join(tempRoot, "uploads"),
       APP_SECRET: "ai-router-v59-failure-secret-at-least-32-chars",
       AI_ROUTER_ENABLED: "true",
-      AI_PROVIDER_ORDER: "gemini,groq,openrouter,sambanova,ollama",
+      AI_PROVIDER_ORDER: "gemini,groq,openrouter,sambanova",
       AI_CLOUD_ENABLED: "true",
       GEMINI_ENABLED: "false",
       GROQ_ENABLED: "false",
       OPENROUTER_ENABLED: "false",
       SAMBANOVA_ENABLED: "false",
-      OLLAMA_BASE_URL: `http://127.0.0.1:${unusedOllamaPort}`,
-      OLLAMA_TIMEOUT_MS: "200",
       AI_PROVIDER_RETRIES: "0",
       PLAYBOOK_RETRIEVAL_MODE: "lexical",
       PLAYBOOK_EMBED_PROVIDER: "none",
@@ -222,8 +219,9 @@ test("ticket survives total Router V2 provider failure with attempt telemetry", 
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.9.0");
+  assert.equal(health.version, "5.9.1");
   assert.equal(health.agent.provider, "ai-router-v2");
+  assert.equal(health.agent.paidApiRequired, false);
 
   const login = await request(baseUrl, "/api/auth/zalo", {
     method: "POST",
@@ -240,6 +238,6 @@ test("ticket survives total Router V2 provider failure with attempt telemetry", 
   assert.equal(created.body.ticket.aiAnalysis.escalationCode, "agent_unavailable");
   assert.equal(created.body.ticket.aiAnalysis.quality.provider, "ai-router-v2");
   assert.deepEqual(created.body.ticket.aiAnalysis.quality.attempts.map((item) => item.providerKey), [
-    "gemini", "groq", "openrouter", "sambanova", "ollama",
+    "gemini", "groq", "openrouter", "sambanova",
   ]);
 });

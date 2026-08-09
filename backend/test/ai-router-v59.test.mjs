@@ -17,7 +17,6 @@ function configureRouter(context) {
     "groqEnabled", "groqApiKey", "groqModel", "groqTimeoutMs",
     "openrouterEnabled", "openrouterApiKey", "openrouterModel", "openrouterTimeoutMs",
     "sambanovaEnabled", "sambanovaApiKey", "sambanovaModel", "sambanovaTimeoutMs",
-    "ollamaBaseUrl", "ollamaModel", "ollamaTimeoutMs",
   ];
   const original = Object.fromEntries(keys.map((key) => [key, config[key]]));
   const originalFetch = globalThis.fetch;
@@ -29,7 +28,7 @@ function configureRouter(context) {
   Object.assign(config, {
     aiRouterEnabled: true,
     aiCloudEnabled: true,
-    aiProviderOrder: ["gemini", "groq", "openrouter", "sambanova", "ollama"],
+    aiProviderOrder: ["gemini", "groq", "openrouter", "sambanova"],
     aiRoutingPolicy: "capability_then_free_quota",
     aiProviderRetries: 0,
     geminiEnabled: true,
@@ -42,9 +41,6 @@ function configureRouter(context) {
     groqTimeoutMs: 1000,
     openrouterEnabled: false,
     sambanovaEnabled: false,
-    ollamaBaseUrl: "http://ollama.test",
-    ollamaModel: "ollama-test",
-    ollamaTimeoutMs: 1000,
   });
   resetAiRouterStateForTest();
 }
@@ -58,7 +54,7 @@ function okOpenAi(provider, confidence = 0.95) {
   }), { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
-test("Router V2 falls through quota failure and keeps Ollama last", async (context) => {
+test("Router V2 falls through quota failure to the next cloud provider", async (context) => {
   configureRouter(context);
   const called = [];
   globalThis.fetch = async (url) => {
@@ -85,7 +81,7 @@ test("Router V2 falls through quota failure and keeps Ollama last", async (conte
     ["gemini", "failed"],
     ["groq", "success"],
   ]);
-  assert.equal(called.some((url) => url.includes("ollama.test")), false);
+  assert.equal(called.length, 2);
 });
 
 test("Router V2 rejects low-confidence output and tries a different model family", async (context) => {
@@ -169,10 +165,7 @@ test("all-provider failure returns attempt telemetry for safe Rules handoff", as
   configureRouter(context);
   config.geminiEnabled = false;
   config.groqEnabled = false;
-  globalThis.fetch = async (url) => {
-    if (String(url).includes("ollama.test")) throw new TypeError("connection refused");
-    throw new Error(`Unexpected URL ${url}`);
-  };
+  globalThis.fetch = async (url) => { throw new Error(`Unexpected URL ${url}`); };
 
   await assert.rejects(
     requestAiProviderDecision({ system: "test", payload: {}, schema }),
@@ -180,7 +173,7 @@ test("all-provider failure returns attempt telemetry for safe Rules handoff", as
       assert.equal(error.reasonCode, "all_providers_unavailable");
       assert.equal(error.providerTelemetry.provider, "ai-router-v2");
       assert.deepEqual(error.providerTelemetry.attempts.map((item) => item.providerKey), [
-        "gemini", "groq", "openrouter", "sambanova", "ollama",
+        "gemini", "groq", "openrouter", "sambanova",
       ]);
       return true;
     },
