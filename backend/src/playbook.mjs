@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.mjs";
+import { embedTexts, getEmbeddingIdentity, getEmbeddingProviderStatus } from "./embeddings.mjs";
 import { clamp, normalizeText, nowIso } from "./utils.mjs";
 import { loadPublishedManagedPlaybook, updatePlaybookIndexState } from "./playbook-governance.mjs";
 
@@ -102,25 +103,69 @@ export async function loadPlaybook({ force = false } = {}) {
   return loadFilePlaybook({ force });
 }
 
-function lexicalScore(query, entry) {
+function lexicalTokens(value) {
+  return normalizeText(value).split(/\s+/).filter((token) => token.length > 2);
+}
+
+function termFrequency(tokens) {
+  const frequencies = new Map();
+  for (const token of tokens) frequencies.set(token, (frequencies.get(token) || 0) + 1);
+  return frequencies;
+}
+
+export function rankPlaybookLexical(query, entries) {
   const normalizedQuery = normalizeText(query);
-  if (!normalizedQuery) return 0;
-  const haystack = normalizeText(searchableText(entry));
-  const tokens = [...new Set(normalizedQuery.split(/\s+/).filter((token) => token.length > 2))];
-  if (!tokens.length) return 0;
-  let weightedHits = 0;
-  for (const token of tokens) {
-    if (normalizeText(entry.title).includes(token)) weightedHits += 2.4;
-    else if (normalizeText((entry.keywords || []).join(" ")).includes(token)) weightedHits += 1.8;
-    else if (haystack.includes(token)) weightedHits += 1;
-  }
-  const phraseBonus = (entry.keywords || []).some((keyword) => {
-    const phrase = normalizeText(keyword);
-    return phrase.length > 3 && normalizedQuery.includes(phrase);
-  }) ? 0.35 : 0;
-  const idBonus = normalizedQuery.includes(normalizeText(entry.id)) ? 0.5 : 0;
-  const enterpriseBonus = entry.sourceType === "enterprise-playbook" || entry.sourceType === "enterprise-infrastructure" ? 0.08 : 0;
-  return clamp(weightedHits / Math.max(5, tokens.length * 1.8) + phraseBonus + idBonus + enterpriseBonus, 0, 1);
+  const queryTokens = [...new Set(lexicalTokens(query))];
+  if (!normalizedQuery || !queryTokens.length || !entries.length) return new Map(entries.map((entry) => [entry.id, 0]));
+  const documents = entries.map((entry) => {
+    const tokens = lexicalTokens(searchableText(entry));
+    return { entry, tokens, frequencies: termFrequency(tokens) };
+  });
+  const averageLength = documents.reduce((sum, item) => sum + item.tokens.length, 0) / Math.max(1, documents.length);
+  const documentFrequency = new Map(queryTokens.map((token) => [
+    token,
+    documents.filter((item) => item.frequencies.has(token)).length,
+  ]));
+  const k1 = 1.5;
+  const b = 0.75;
+  const rawScores = documents.map(({ entry, tokens, frequencies }) => {
+    let bm25 = 0;
+    let matched = 0;
+    let fieldHits = 0;
+    const title = normalizeText(entry.title);
+    const keywords = normalizeText((entry.keywords || []).join(" "));
+    for (const token of queryTokens) {
+      const frequency = frequencies.get(token) || 0;
+      if (!frequency) continue;
+      matched += 1;
+      if (title.includes(token)) fieldHits += 2.4;
+      else if (keywords.includes(token)) fieldHits += 1.8;
+      else fieldHits += 1;
+      const df = documentFrequency.get(token) || 0;
+      const idf = Math.log(1 + (documents.length - df + 0.5) / (df + 0.5));
+      const denominator = frequency + k1 * (1 - b + b * tokens.length / Math.max(1, averageLength));
+      bm25 += idf * (frequency * (k1 + 1)) / denominator;
+    }
+    return {
+      entry,
+      bm25,
+      coverage: matched / queryTokens.length,
+      fieldSignal: clamp(fieldHits / Math.max(2.4, queryTokens.length * 2.4), 0, 1),
+    };
+  });
+  const maximum = Math.max(0, ...rawScores.map((item) => item.bm25));
+  return new Map(rawScores.map(({ entry, bm25, coverage, fieldSignal }) => {
+    if (!bm25 || !maximum) return [entry.id, 0];
+    const normalizedBm25 = bm25 / maximum;
+    const phraseBonus = (entry.keywords || []).some((keyword) => {
+      const phrase = normalizeText(keyword);
+      return phrase.length > 3 && normalizedQuery.includes(phrase);
+    }) ? 0.08 : 0;
+    const idBonus = normalizedQuery.includes(normalizeText(entry.id)) ? 0.12 : 0;
+    const enterpriseBonus = entry.sourceType === "enterprise-playbook" || entry.sourceType === "enterprise-infrastructure" ? 0.03 : 0;
+    const score = normalizedBm25 * (0.55 + coverage * 0.35) + fieldSignal * 0.1 + phraseBonus + idBonus + enterpriseBonus;
+    return [entry.id, clamp(score, 0, 1)];
+  }));
 }
 
 function audienceAllowed(entry, audience) {
@@ -155,30 +200,6 @@ async function readIndex() {
   }
 }
 
-async function ollamaEmbed(inputs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.playbookEmbedTimeoutMs);
-  try {
-    const response = await fetch(`${config.ollamaBaseUrl}/api/embed`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: config.playbookEmbedModel,
-        input: inputs,
-        truncate: true,
-        keep_alive: config.ollamaKeepAlive,
-      }),
-      signal: controller.signal,
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body?.error || `Ollama embed HTTP ${response.status}`);
-    if (!Array.isArray(body.embeddings)) throw new Error("Ollama không trả về embeddings hợp lệ");
-    return body.embeddings;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 export async function buildPlaybookIndex({ force = false } = {}) {
   if (buildPromise) return buildPromise;
   buildPromise = (async () => {
@@ -186,24 +207,33 @@ export async function buildPlaybookIndex({ force = false } = {}) {
     try {
       const playbook = await loadPlaybook({ force });
       const existing = await readIndex();
-      if (!force && existing?.sourceFingerprint === playbook.fingerprint && existing?.model === config.playbookEmbedModel) {
+      const embedding = getEmbeddingProviderStatus();
+      const embeddingIdentity = getEmbeddingIdentity();
+      if (!force && existing?.sourceFingerprint === playbook.fingerprint && existing?.embeddingIdentity === embeddingIdentity) {
         await updatePlaybookIndexState("ready", { sourceFingerprint: existing.sourceFingerprint, indexedEntries: existing.records?.length || 0, error: "" }).catch(() => undefined);
         return existing;
       }
       const records = [];
       const entries = playbook.entries;
-      for (let offset = 0; offset < entries.length; offset += config.playbookEmbedBatchSize) {
-        const batch = entries.slice(offset, offset + config.playbookEmbedBatchSize);
-        const inputs = batch.map(searchableText);
-        const embeddings = await ollamaEmbed(inputs);
-        batch.forEach((entry, index) => {
-          records.push({ id: entry.id, embedding: embeddings[index] || [] });
-        });
-        console.log(`[Playbook] Indexed ${Math.min(offset + batch.length, entries.length)}/${entries.length}`);
+      if (embedding.enabled) {
+        for (let offset = 0; offset < entries.length; offset += config.playbookEmbedBatchSize) {
+          const batch = entries.slice(offset, offset + config.playbookEmbedBatchSize);
+          const inputs = batch.map(searchableText);
+          const embeddings = await embedTexts(inputs);
+          batch.forEach((entry, index) => {
+            records.push({ id: entry.id, embedding: embeddings[index] || [] });
+          });
+          console.log(`[Playbook] Indexed ${Math.min(offset + batch.length, entries.length)}/${entries.length}`);
+        }
+      } else {
+        records.push(...entries.map((entry) => ({ id: entry.id })));
       }
       const index = {
-        schemaVersion: 1,
+        schemaVersion: 2,
+        provider: embedding.provider,
         model: config.playbookEmbedModel,
+        embeddingIdentity,
+        retrievalMode: config.playbookRetrievalMode,
         generatedAt: nowIso(),
         sourceFingerprint: playbook.fingerprint,
         dimensions: records[0]?.embedding?.length || 0,
@@ -228,9 +258,9 @@ export async function buildPlaybookIndex({ force = false } = {}) {
 }
 
 async function queryEmbedding(query) {
-  const cacheKey = `${config.playbookEmbedModel}:${query}`;
+  const cacheKey = `${getEmbeddingIdentity()}:${query}`;
   if (queryEmbeddingCache.has(cacheKey)) return queryEmbeddingCache.get(cacheKey);
-  const [embedding] = await ollamaEmbed([query]);
+  const [embedding] = await embedTexts([query]);
   queryEmbeddingCache.set(cacheKey, embedding);
   if (queryEmbeddingCache.size > 100) queryEmbeddingCache.delete(queryEmbeddingCache.keys().next().value);
   return embedding;
@@ -276,13 +306,13 @@ export async function searchPlaybook(query, {
   let candidates = playbook.entries.filter((entry) => audienceAllowed(entry, audience));
   if (category) candidates = candidates.filter((entry) => entry.category === category || entry.category === "other");
 
-  const lexical = new Map(candidates.map((entry) => [entry.id, lexicalScore(query, entry)]));
+  const lexical = rankPlaybookLexical(query, candidates);
   let semanticScores = new Map();
   let semanticUsed = false;
-  if (semantic && config.agentMode === "ollama") {
+  if (semantic && config.playbookEmbedProvider !== "none") {
     try {
       let index = indexCache || await readIndex();
-      if ((!index || index.sourceFingerprint !== playbook.fingerprint || index.model !== config.playbookEmbedModel) && config.playbookAutoIndex) {
+      if ((!index || index.sourceFingerprint !== playbook.fingerprint || index.embeddingIdentity !== getEmbeddingIdentity()) && config.playbookAutoIndex) {
         index = await buildPlaybookIndex();
       }
       if (index?.records?.length) {
@@ -326,7 +356,8 @@ export async function getPlaybookStatus({ force = false } = {}) {
       byAudience[entry.audience] = (byAudience[entry.audience] || 0) + 1;
       byCategory[entry.category] = (byCategory[entry.category] || 0) + 1;
     }
-    const indexCurrent = Boolean(index && index.sourceFingerprint === playbook.fingerprint && index.model === config.playbookEmbedModel);
+    const embedding = getEmbeddingProviderStatus();
+    const indexCurrent = Boolean(index && index.sourceFingerprint === playbook.fingerprint && index.embeddingIdentity === getEmbeddingIdentity());
     return {
       enabled: config.playbookEnabled,
       name: playbook.metadata.name || "Enterprise Playbook",
@@ -337,6 +368,9 @@ export async function getPlaybookStatus({ force = false } = {}) {
       byAudience,
       byCategory,
       semanticEnabled: config.playbookSemantic,
+      retrievalMode: config.playbookRetrievalMode,
+      embeddingProvider: embedding.provider,
+      embeddingConfigured: embedding.configured,
       embedModel: config.playbookEmbedModel,
       indexExists: Boolean(index),
       indexCurrent,

@@ -55,6 +55,14 @@ function numberListEnv(name, fallback) {
   return values.length ? [...new Set(values)] : fallback;
 }
 
+function stringListEnv(name, allowed, fallback) {
+  const values = String(process.env[name] || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => allowed.includes(value));
+  return values.length ? [...new Set(values)] : fallback;
+}
+
 function slaPolicy(priority, firstResponse, resolution) {
   const key = priority.toUpperCase();
   return {
@@ -64,7 +72,20 @@ function slaPolicy(priority, firstResponse, resolution) {
 }
 
 const legacyAgentMode = enumEnv("AGENT_MODE", ["rules", "ollama"], "rules");
-const aiProvider = enumEnv("AI_PROVIDER", ["rules", "ollama", "gemini"], legacyAgentMode);
+const aiProviderKeys = ["rules", "ollama", "gemini", "groq", "openrouter", "sambanova"];
+const aiProvider = enumEnv("AI_PROVIDER", aiProviderKeys, legacyAgentMode);
+const aiProviderOrder = stringListEnv(
+  "AI_PROVIDER_ORDER",
+  aiProviderKeys.filter((value) => value !== "rules"),
+  ["gemini", "groq", "openrouter", "sambanova", "ollama"],
+);
+const playbookEmbedProvider = enumEnv("PLAYBOOK_EMBED_PROVIDER", ["none", "gemini", "ollama"], "none");
+const legacyPlaybookSemantic = booleanEnv("PLAYBOOK_SEMANTIC", false);
+const playbookRetrievalMode = enumEnv(
+  "PLAYBOOK_RETRIEVAL_MODE",
+  ["lexical", "hybrid"],
+  legacyPlaybookSemantic ? "hybrid" : "lexical",
+);
 
 export const config = {
   port: numberEnv("PORT", 8080),
@@ -127,13 +148,18 @@ export const config = {
     holidays: String(process.env.SLA_HOLIDAYS || "").split(",").map((value) => value.trim()).filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
   },
 
-  // AI Router: AGENT_MODE remains a backward-compatible alias for rules/ollama.
-  // Gemini is staging-only until both the provider and cloud feature flag are enabled.
+  // AI Router V2: AGENT_MODE and AI_PROVIDER remain rollback-compatible aliases.
   agentMode: legacyAgentMode,
   aiProvider,
+  aiRouterEnabled: booleanEnv("AI_ROUTER_ENABLED", true),
+  aiProviderOrder,
+  aiRoutingPolicy: enumEnv("AI_ROUTING_POLICY", ["fixed", "capability_then_free_quota"], "capability_then_free_quota"),
   aiCloudEnabled: booleanEnv("AI_CLOUD_ENABLED", false),
-  aiRedactionEnabled: booleanEnv("AI_REDACTION_ENABLED", true),
+  aiRedactionEnabled: booleanEnv("AI_REDACTION_ENABLED", false),
   aiQualityRetentionDays: numberEnv("AI_QUALITY_RETENTION_DAYS", 180),
+  aiProviderRetries: numberEnv("AI_PROVIDER_RETRIES", 1),
+  aiCircuitFailureThreshold: numberEnv("AI_CIRCUIT_FAILURE_THRESHOLD", 2),
+  aiCircuitCooldownMs: numberEnv("AI_CIRCUIT_COOLDOWN_MS", 60000),
   autoResolveThreshold: numberEnv("AUTO_RESOLVE_THRESHOLD", 0.78),
   agentStrictEscalation: enumEnv("AGENT_STRICT_ESCALATION", ["true", "false"], "true") === "true",
   agentRequirePlaybook: enumEnv("AGENT_REQUIRE_PLAYBOOK", ["true", "false"], "true") === "true",
@@ -150,6 +176,36 @@ export const config = {
   geminiTimeoutMs: numberEnv("GEMINI_TIMEOUT_MS", 60000),
   geminiTemperature: numberEnv("GEMINI_TEMPERATURE", 0.1),
   geminiMaxOutputTokens: numberEnv("GEMINI_MAX_OUTPUT_TOKENS", 2048),
+  geminiEnabled: booleanEnv("GEMINI_ENABLED", true),
+  geminiDailyRequestLimit: numberEnv("GEMINI_DAILY_REQUEST_LIMIT", 0),
+  geminiDailyTokenLimit: numberEnv("GEMINI_DAILY_TOKEN_LIMIT", 0),
+  groqEnabled: booleanEnv("GROQ_ENABLED", false),
+  groqBaseUrl: (process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, ""),
+  groqApiKey: process.env.GROQ_API_KEY || "",
+  groqModel: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+  groqTimeoutMs: numberEnv("GROQ_TIMEOUT_MS", 60000),
+  groqTemperature: numberEnv("GROQ_TEMPERATURE", 0.1),
+  groqMaxOutputTokens: numberEnv("GROQ_MAX_OUTPUT_TOKENS", 2048),
+  groqDailyRequestLimit: numberEnv("GROQ_DAILY_REQUEST_LIMIT", 1000),
+  groqDailyTokenLimit: numberEnv("GROQ_DAILY_TOKEN_LIMIT", 200000),
+  openrouterEnabled: booleanEnv("OPENROUTER_ENABLED", false),
+  openrouterBaseUrl: (process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, ""),
+  openrouterApiKey: process.env.OPENROUTER_API_KEY || "",
+  openrouterModel: process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free",
+  openrouterTimeoutMs: numberEnv("OPENROUTER_TIMEOUT_MS", 60000),
+  openrouterTemperature: numberEnv("OPENROUTER_TEMPERATURE", 0.1),
+  openrouterMaxOutputTokens: numberEnv("OPENROUTER_MAX_OUTPUT_TOKENS", 2048),
+  openrouterDailyRequestLimit: numberEnv("OPENROUTER_DAILY_REQUEST_LIMIT", 50),
+  openrouterDailyTokenLimit: numberEnv("OPENROUTER_DAILY_TOKEN_LIMIT", 0),
+  sambanovaEnabled: booleanEnv("SAMBANOVA_ENABLED", false),
+  sambanovaBaseUrl: (process.env.SAMBANOVA_BASE_URL || "https://api.sambanova.ai/v1").replace(/\/$/, ""),
+  sambanovaApiKey: process.env.SAMBANOVA_API_KEY || "",
+  sambanovaModel: process.env.SAMBANOVA_MODEL || "DeepSeek-V3.2",
+  sambanovaTimeoutMs: numberEnv("SAMBANOVA_TIMEOUT_MS", 60000),
+  sambanovaTemperature: numberEnv("SAMBANOVA_TEMPERATURE", 0.1),
+  sambanovaMaxOutputTokens: numberEnv("SAMBANOVA_MAX_OUTPUT_TOKENS", 2048),
+  sambanovaDailyRequestLimit: numberEnv("SAMBANOVA_DAILY_REQUEST_LIMIT", 20),
+  sambanovaDailyTokenLimit: numberEnv("SAMBANOVA_DAILY_TOKEN_LIMIT", 200000),
   agentHistoryMessages: numberEnv("AGENT_HISTORY_MESSAGES", 12),
   agentStatusCacheMs: numberEnv("AGENT_STATUS_CACHE_MS", 10000),
 
@@ -157,9 +213,12 @@ export const config = {
   playbookEnabled: enumEnv("PLAYBOOK_ENABLED", ["true", "false"], "true") === "true",
   playbookFile: path.resolve(backendRoot, process.env.PLAYBOOK_FILE || "./playbooks/enterprise-playbook.json"),
   playbookIndexFile: path.resolve(backendRoot, process.env.PLAYBOOK_INDEX_FILE || "./data/playbook-index.json"),
-  playbookSemantic: enumEnv("PLAYBOOK_SEMANTIC", ["true", "false"], "true") === "true",
+  playbookRetrievalMode,
+  playbookSemantic: playbookRetrievalMode === "hybrid",
   playbookAutoIndex: enumEnv("PLAYBOOK_AUTO_INDEX", ["true", "false"], "false") === "true",
-  playbookEmbedModel: process.env.PLAYBOOK_EMBED_MODEL || "embeddinggemma",
+  playbookEmbedProvider,
+  playbookEmbedModel: process.env.PLAYBOOK_EMBED_MODEL
+    || (playbookEmbedProvider === "gemini" ? "gemini-embedding-001" : playbookEmbedProvider === "ollama" ? "embeddinggemma" : "none"),
   playbookEmbedTimeoutMs: numberEnv("PLAYBOOK_EMBED_TIMEOUT_MS", 120000),
   playbookEmbedBatchSize: numberEnv("PLAYBOOK_EMBED_BATCH_SIZE", 12),
   playbookTopK: numberEnv("PLAYBOOK_TOP_K", 5),

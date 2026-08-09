@@ -1,17 +1,17 @@
-# Zalo IT HelpDesk v5.8.0 - AI Quality Control
+# Zalo IT HelpDesk v5.9.0 - AI Router V2 & Ollama-independent RAG
 
-Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App theo kiến trúc local-first. Rules/Ollama vẫn là mặc định; Cloud AI chỉ hoạt động trong staging khi được bật rõ bằng feature flag và có đường rollback.
+Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App. Router V2 ưu tiên các model cloud có free tier, để Ollama ở vị trí LLM cuối cùng và luôn giữ Rules/HelpDesk làm fallback vận hành.
 
 Để tiếp tục phát triển hoặc bàn giao giữa các agent, đọc và cập nhật [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) trước tiên.
 
 ## Thành phần
 
 - **Zalo Mini App** cho nhân viên tạo, xem và phản hồi ticket.
-- **Backend Node.js 20** không có dependency npm bên ngoài.
-- **AI Router** dùng một contract thống nhất cho Rules, Ollama và Gemini staging.
+- **Backend Node.js 20** gọi provider bằng native `fetch`, không thêm AI SDK.
+- **AI Router V2** điều phối Gemini, Groq, OpenRouter, SambaNova rồi mới đến Ollama.
 - **AI Quality Control** lưu decision record, telemetry và phản hồi Đúng/Cần sửa của Admin.
-- **Local HelpDesk Agent** dùng Enterprise Playbook RAG + Knowledge Base + Ollama ngay trên máy backend.
-- **Ollama tùy chọn** để hỗ trợ phân loại bằng local LLM; không cần API key.
+- **Enterprise Playbook RAG** dùng BM25 lexical mặc định; embedding Gemini/Ollama là tùy chọn.
+- **Ollama tùy chọn** là LLM cuối cùng, không còn là dependency bắt buộc của retrieval.
 - **Dashboard kỹ thuật viên** tại `/admin`.
 - **JSON store** ghi nguyên tử tại `backend/data/db.json`.
 - **Thông báo trong Mini App** khi có phản hồi, đổi trạng thái, file mới hoặc quá SLA.
@@ -26,7 +26,7 @@
 |---|---|---:|
 | Agent | Rule engine + Knowledge Base | 0 |
 | Local LLM | Ollama tùy chọn | 0 |
-| Cloud AI staging | Gemini tùy chọn, tắt mặc định | Theo tài khoản/quota provider |
+| Cloud AI | Gemini/Groq/OpenRouter/SambaNova tùy chọn | 0 trong free tier; phụ thuộc quota hiện hành |
 | Backend | PC/NAS/máy chủ sẵn có | 0 phí thuê mới |
 | Database | JSON local | 0 |
 | Dashboard | Static HTML/CSS/JS | 0 |
@@ -39,7 +39,7 @@ Lưu ý: vẫn có chi phí điện, Internet, vận hành máy và có thể c�
 
 Ở v5.2, Agent chạy theo **Strict Escalation**. Hệ thống chỉ tự hướng dẫn khi tìm thấy Enterprise Playbook đã duyệt, procedure được phép hướng dẫn người dùng, rủi ro không cao và confidence đạt ngưỡng. Knowledge Base đơn lẻ không đủ quyền để Agent đưa checklist.
 
-Khi request nằm ngoài Playbook, Ollama không sẵn sàng, Playbook yêu cầu kỹ thuật viên hoặc confidence thấp, hệ thống **escalate ngay** và không đưa gợi ý mơ hồ.
+Khi request nằm ngoài Playbook, toàn bộ provider không sẵn sàng, Playbook yêu cầu kỹ thuật viên hoặc confidence thấp, hệ thống **escalate ngay** và không đưa gợi ý mơ hồ.
 
 Luôn chuyển kỹ thuật viên đối với:
 
@@ -63,12 +63,13 @@ Zalo Mini App
 Node.js API chạy tại doanh nghiệp
    ├── Ticket / Message / Attachment / Notification JSON store
    ├── Rule Engine + Knowledge Base
-   ├── AI Router → Rules / Ollama local / Gemini staging
+   ├── AI Router V2 → Gemini / Groq / OpenRouter / SambaNova / Ollama
+   ├── BM25 Playbook Retrieval → optional Gemini/Ollama embeddings
    ├── Decision telemetry + Admin quality review
    └── Admin dashboard
 ```
 
-Không bắt buộc OpenAI API, embedding API trả phí, vector database managed, managed database hoặc Zalo OA adapter. Embedding vẫn được tạo cục bộ bằng Ollama và lưu trong file JSON local. Gemini chỉ nhận payload tối thiểu đã redaction sau bước Retrieval Top-K khi `AI_PROVIDER=gemini` và `AI_CLOUD_ENABLED=true`.
+Không bắt buộc API trả phí, vector database managed hoặc Ollama. BM25 luôn hoạt động cục bộ; semantic retrieval chỉ bật khi `PLAYBOOK_RETRIEVAL_MODE=hybrid` và chọn rõ `PLAYBOOK_EMBED_PROVIDER=gemini|ollama`.
 
 ## Cấu trúc thư mục
 
@@ -112,8 +113,10 @@ Sửa tối thiểu:
 APP_SECRET=chuoi-ngau-nhien-dai-it-nhat-32-ky-tu
 ADMIN_PASSWORD=mat-khau-quan-tri-manh
 ZALO_AUTH_MODE=development
-AI_PROVIDER=rules
-# AGENT_MODE=rules vẫn được hỗ trợ để tương thích cấu hình cũ.
+AI_ROUTER_ENABLED=true
+AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova,ollama
+PLAYBOOK_RETRIEVAL_MODE=lexical
+PLAYBOOK_EMBED_PROVIDER=none
 ```
 
 Chạy:
@@ -149,65 +152,54 @@ Trong browser preview, ứng dụng dùng tài khoản demo. Trên Zalo, ứng d
 
 Trên điện thoại, `localhost` là điện thoại. Mini App cần URL backend HTTPS có thể truy cập từ Internet.
 
-## 3. Chế độ Agent
+## 3. AI Router V2 và RAG
 
-### Rules — nhẹ nhất và luôn sẵn sàng
+Chuỗi mặc định:
 
-```env
-AI_PROVIDER=rules
-AUTO_RESOLVE_THRESHOLD=0.78
+```text
+Gemini → Groq → OpenRouter → SambaNova → Ollama → Rules/HelpDesk
 ```
 
-Luồng:
-
-1. Chuẩn hóa nội dung ticket.
-2. Phân loại bằng từ khóa và luật rủi ro.
-3. Chấm điểm các bài Knowledge Base.
-4. Chỉ tự hướng dẫn khi bài KB có `autoEligible=true`, không rủi ro cao và điểm vượt threshold.
-5. Nếu không đạt, chuyển kỹ thuật viên.
-
-### Ollama — local LLM tùy chọn
+Router bỏ qua provider chưa bật/chưa có key, chuyển tiếp khi gặp `429`, timeout, `5xx`, JSON/schema lỗi hoặc confidence thấp, đồng thời lưu telemetry cho từng attempt. Các ngân sách request/token trong `.env` là giới hạn vận hành có thể chỉnh lại; quota thật vẫn do từng provider quyết định.
 
 ```env
-AI_PROVIDER=ollama
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen3.5:9b
-OLLAMA_TIMEOUT_MS=30000
-```
-
-Ví dụ:
-
-```bash
-ollama pull qwen3.5:9b
-ollama serve
-```
-
-Guardrail:
-
-- Model chỉ hỗ trợ phân loại, tóm tắt và chọn KB.
-- Checklist kỹ thuật luôn lấy từ KB đã duyệt, không dùng lệnh do model tự sinh.
-- Backend áp lại risk/priority/threshold sau kết quả model.
-- Khi Ollama lỗi hoặc chưa cài, backend tự chuyển sang `rules-local-fallback`.
-
-Vì vậy app không bị phụ thuộc local LLM.
-
-### Gemini — chỉ dành cho Cloud staging
-
-```env
-AI_PROVIDER=gemini
+AI_ROUTER_ENABLED=true
+AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova,ollama
+AI_ROUTING_POLICY=capability_then_free_quota
 AI_CLOUD_ENABLED=true
-AI_REDACTION_ENABLED=true
-GEMINI_API_KEY=your-server-side-key
-GEMINI_MODEL=gemini-3.6-flash
+AI_REDACTION_ENABLED=false
+GEMINI_API_KEY=server-side-only
+GROQ_API_KEY=server-side-only
+OPENROUTER_API_KEY=server-side-only
+SAMBANOVA_API_KEY=server-side-only
 ```
 
-API key chỉ nằm ở `backend/.env`, không đưa vào Mini App hoặc Admin JavaScript. Backend tìm Retrieval Top-K trước, chỉ gửi payload tối thiểu đã che email, số điện thoại, credential và IP. Nếu provider không sẵn sàng, Strict Mode tạo ticket với ưu tiên mặc định **Bình thường** và chuyển kỹ thuật viên.
+`AI_REDACTION_ENABLED=false` chỉ phù hợp môi trường mock hiện tại. API key luôn nằm trong `backend/.env`, không đưa vào Git, Mini App hoặc Admin JavaScript.
 
-Để rollback ngay:
+BM25 là retrieval mặc định và không cần Ollama:
 
 ```env
+PLAYBOOK_RETRIEVAL_MODE=lexical
+PLAYBOOK_EMBED_PROVIDER=none
+```
+
+Muốn thử hybrid bằng Gemini embedding:
+
+```env
+PLAYBOOK_RETRIEVAL_MODE=hybrid
+PLAYBOOK_EMBED_PROVIDER=gemini
+PLAYBOOK_EMBED_MODEL=gemini-embedding-001
+PLAYBOOK_AUTO_INDEX=true
+```
+
+Rollback về single-provider:
+
+```env
+AI_ROUTER_ENABLED=false
 AI_PROVIDER=ollama
 AI_CLOUD_ENABLED=false
+PLAYBOOK_RETRIEVAL_MODE=lexical
+PLAYBOOK_EMBED_PROVIDER=none
 ```
 
 ## 4. HTTPS miễn phí bằng ngrok

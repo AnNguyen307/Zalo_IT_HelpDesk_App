@@ -1,0 +1,12 @@
+[
+  { "query": "Máy Ricoh báo Offline, hàng đợi in bị kẹt", "audience": "employee", "expectedIds": ["VS-PRN-U01"] },
+  { "query": "Wi-Fi đã kết nối nhưng báo No Internet", "audience": "employee", "expectedIds": ["VS-NET-U05"] },
+  { "query": "Máy nhận địa chỉ 169.254 và không nhận DHCP", "audience": "employee", "expectedIds": ["VS-NET-U02"] },
+  { "query": "Excel Not Responding khi mở file lớn", "audience": "employee", "expectedIds": ["VS-OFF-U02"] },
+  { "query": "Windows màn hình xanh BSOD rồi tự khởi động lại", "audience": "employee", "expectedIds": ["VS-WIN-U02"] },
+  { "query": "Ổ C gần đầy và dung lượng giảm nhanh", "audience": "employee", "expectedIds": ["VS-WIN-U04"] },
+  { "query": "Không mở được shared folder và mapped drive có dấu X", "audience": "employee", "expectedIds": ["VS-NET-U08"] },
+  { "query": "Ricoh Scan to Folder không gửi file được", "audience": "employee", "expectedIds": ["VS-PRN-U04"] },
+  { "query": "Outlook treo Loading Profile và không nhận email", "audience": "employee", "expectedIds": ["VS-OFF-U03"] },
+  { "query": "VLAN80 nhận DHCP nhưng Guest Wi-Fi không ra Internet", "audience": "technician", "expectedIds": ["VS-INF-009"] }
+]

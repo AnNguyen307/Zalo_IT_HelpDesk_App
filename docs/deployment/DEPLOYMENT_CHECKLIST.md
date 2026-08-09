@@ -70,14 +70,17 @@
 - [ ] Tắt Ollama để kiểm thử fallback rules.
 - [ ] Không xem Ollama là dependency bắt buộc.
 
-## Cloud AI staging v5.8
+## AI Router V2 và RAG v5.9
 
-- [ ] Production hiện tại giữ `AI_CLOUD_ENABLED=false` cho tới khi staging được phê duyệt.
-- [ ] Gemini API key chỉ nằm trong `backend/.env`/secret store phía server.
-- [ ] Bật `AI_REDACTION_ENABLED=true` và kiểm thử payload không chứa email, số điện thoại, credential hoặc IP nguyên bản.
-- [ ] Xác nhận ticket vẫn được tạo và giữ ưu tiên Bình thường khi cloud provider timeout/lỗi.
-- [ ] Xem Admin → AI Agent để kiểm tra provider unavailable, latency và review coverage.
-- [ ] Có rollback sẵn: `AI_PROVIDER=ollama` và `AI_CLOUD_ENABLED=false`.
+- [ ] `AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova,ollama`; Rules/HelpDesk là fallback cuối.
+- [ ] API key chỉ nằm trong `backend/.env`/secret store phía server; provider chưa có key phải được skip.
+- [ ] Mock data có thể dùng `AI_REDACTION_ENABLED=false`; bật lại trước dữ liệu thật.
+- [ ] Kiểm thử `429`, timeout, schema lỗi, confidence thấp và circuit breaker đều chuyển provider tiếp theo.
+- [ ] Tắt toàn bộ provider và xác nhận ticket vẫn tạo với priority Bình thường, `agent_unavailable` và attempt telemetry.
+- [ ] `PLAYBOOK_RETRIEVAL_MODE=lexical`, `PLAYBOOK_EMBED_PROVIDER=none` vẫn tìm đúng Top-K khi Ollama dừng.
+- [ ] Chạy `npm run playbook:benchmark` và lưu kết quả cùng release validation.
+- [ ] Kiểm tra `/health` là `5.9.0`, Admin → AI Agent hiển thị order, quota/circuit và provider sẵn sàng.
+- [ ] Rollback: `AI_ROUTER_ENABLED=false`, `AI_PROVIDER=ollama`, `AI_CLOUD_ENABLED=false`.
 
 ## Dữ liệu và backup
 

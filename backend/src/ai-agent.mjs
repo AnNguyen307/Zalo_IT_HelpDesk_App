@@ -252,6 +252,44 @@ function parseJsonContent(content) {
   return JSON.parse(text);
 }
 
+function validateProviderDecision(content) {
+  let parsed;
+  try {
+    parsed = parseJsonContent(content);
+  } catch (error) {
+    const failure = new Error(`Provider trả JSON không hợp lệ: ${error.message}`);
+    failure.reasonCode = "invalid_json";
+    throw failure;
+  }
+  const valid = parsed
+    && typeof parsed === "object"
+    && CATEGORIES.includes(parsed.category)
+    && PRIORITIES.includes(parsed.priority)
+    && typeof parsed.priorityDetermined === "boolean"
+    && RISKS.includes(parsed.risk)
+    && Number.isFinite(Number(parsed.confidence))
+    && OUTCOMES.includes(parsed.outcome)
+    && typeof parsed.summary === "string"
+    && typeof parsed.reply === "string"
+    && Array.isArray(parsed.questions)
+    && typeof parsed.canAutoHandle === "boolean"
+    && typeof parsed.reason === "string"
+    && Array.isArray(parsed.kbIds)
+    && Array.isArray(parsed.playbookIds)
+    && Array.isArray(parsed.selectedSteps);
+  if (!valid) {
+    const failure = new Error("Provider trả quyết định không đúng schema HelpDesk");
+    failure.reasonCode = "schema_mismatch";
+    throw failure;
+  }
+  if (Number(parsed.confidence) < config.agentMinConfidence) {
+    const failure = new Error(`Provider chỉ đạt confidence ${Number(parsed.confidence).toFixed(2)}`);
+    failure.reasonCode = "low_confidence";
+    throw failure;
+  }
+  return parsed;
+}
+
 export async function getAgentStatus({ force = false } = {}) {
   const provider = await getAiProviderStatus({ force });
   return {
@@ -376,9 +414,14 @@ async function analyzeWithModelProvider(ticket, matches, playbookMatches, fallba
     },
   };
 
-  const providerResult = await requestAiProviderDecision({ system, payload, schema: ollamaSchema });
+  const providerResult = await requestAiProviderDecision({
+    system,
+    payload,
+    schema: ollamaSchema,
+    validate: validateProviderDecision,
+  });
   const telemetry = providerResult.telemetry;
-  const parsed = parseJsonContent(providerResult.content);
+  const parsed = providerResult.validated || validateProviderDecision(providerResult.content);
 
     const kbIdSet = new Set(matches.map((item) => item.id));
     const playbookIdSet = new Set(playbookMatches.map((item) => item.id));
@@ -492,7 +535,7 @@ ${context.latestUserMessage || ""}`;
   }
 
   const fallback = analyzeWithRules(ticket, entries, context, playbookMatches);
-  if (config.aiProvider === "rules") return fallback;
+  if (!config.aiRouterEnabled && config.aiProvider === "rules") return fallback;
 
   try {
     return await analyzeWithModelProvider(ticket, matches, playbookMatches, fallback, context);
