@@ -298,7 +298,7 @@ async function requestGemini({ settings, system, payload, schema, signal }) {
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": settings.apiKey,
-      "x-goog-api-client": "zalo-helpdesk/5.11.0",
+      "x-goog-api-client": "zalo-helpdesk/5.12.0",
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
@@ -515,7 +515,7 @@ export async function requestAiProviderDecision({ system, payload, schema, valid
           failure.retryable = false;
           attempts.push({ ...telemetry, status: "rejected", reasonCode: failure.reasonCode, error: failure.message });
           markFailure(settings, failure);
-          if (["invalid_json", "schema_mismatch", "low_confidence", "invalid_response"].includes(failure.reasonCode)) {
+          if (["invalid_json", "schema_mismatch", "low_confidence", "invalid_response", "unsafe_output"].includes(failure.reasonCode)) {
             rejectedFamilies.add(settings.family);
           }
           break;

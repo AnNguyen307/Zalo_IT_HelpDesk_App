@@ -1,4 +1,4 @@
-# AI HelpDesk Agent + Staff Copilot v5.11.0
+# AI HelpDesk Agent + Staff Copilot v5.12.0
 
 AI Agent dùng Router V2 chỉ với cloud provider, BM25 Playbook retrieval và telemetry theo từng attempt. Không có local model hoặc local embedding service trong đường chạy.
 
@@ -12,7 +12,7 @@ Sau khi handoff, AI Agent không còn phản hồi trực tiếp User. Staff AI 
 4. Backend kiểm tra lại risk, priority, Playbook ID và selected steps.
 5. Nếu tất cả cloud provider lỗi, ticket vẫn được tạo với priority `normal` và chuyển HelpDesk.
 
-Model chỉ được chọn các bước tồn tại trong Playbook đã duyệt. Password, OTP, bảo mật, mất dữ liệu, BSOD, BIOS, server, switch, firewall, quyền admin và phần cứng nguy hiểm luôn được chuyển kỹ thuật viên.
+AI Agent ở kênh User chỉ được chọn các bước tồn tại trong Playbook đã duyệt. Password, OTP, bảo mật, mất dữ liệu, BSOD, BIOS, server, switch, firewall, quyền admin và phần cứng nguy hiểm luôn được chuyển kỹ thuật viên.
 
 ## Cấu hình Router V2
 
@@ -62,13 +62,22 @@ npm run playbook:benchmark
 
 Copilot tự xếp hàng khi AI Agent escalation, User xác nhận chưa xử lý được hoặc staff tiếp nhận ticket. Tab Copilot phân biệt bước Playbook nguyên văn với giả thuyết AI, đồng thời tạo bản nháp không tự gửi.
 
+Mỗi kết quả cloud hợp lệ bắt buộc có:
+
+- Đánh giá Playbook `matched | partial | none`; không ép lỗi vào procedure chỉ vì gần từ khóa.
+- Ít nhất hai giả thuyết độc lập, kèm lý do, confidence và cách kiểm chứng.
+- Ít nhất hai hướng giải quyết, kèm bước thực hiện, tín hiệu thành công, điều kiện dừng/chuyển cấp và mức rủi ro.
+- Chế độ `hybrid` khi Playbook có giá trị hoặc `ai_led` khi không có procedure phù hợp.
+
+Phân tích độc lập là bản tóm tắt lập luận chẩn đoán có thể kiểm chứng, không phải chain-of-thought. Nó chỉ dành cho Helpdesk, không tự thực thi và không làm yếu guardrail của AI Agent ở kênh User.
+
 Helpdesk có thể chọn **Tự động**, Gemini, Groq, OpenRouter hoặc SambaNova cho lần phân tích tiếp theo. Chỉ các model nằm trong route server và đã cấu hình mới được chọn. Chọn model cụ thể không failover sang cloud model khác; nếu provider lỗi, Copilot dùng Rules/Playbook an toàn và lưu cả model yêu cầu lẫn model thực tế vào run audit.
 
 Nội dung Copilot chỉ xuất hiện qua `/api/staff/tickets/:ticketId/copilot`; public ticket và Mini App không có trường Copilot.
 
 ## Health và rollback
 
-`GET /health` trả `version: 5.11.0`, feature `copilot-model-selection`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
+`GET /health` trả `version: 5.12.0`, các feature `copilot-independent-reasoning`, `copilot-no-playbook-analysis`, `copilot-multi-path-solutions`, `copilot-model-selection`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
 
 Rollback không dùng model:
 

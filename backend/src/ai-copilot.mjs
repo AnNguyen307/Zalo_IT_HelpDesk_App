@@ -1,10 +1,16 @@
 import { getAiModelOptions, requestAiProviderDecision, resolveAiProviderSelection } from "./ai-router.mjs";
+import { config } from "./config.mjs";
 import { searchPlaybook } from "./playbook.mjs";
 import { readDb, updateDb } from "./store.mjs";
 import { id, nowIso } from "./utils.mjs";
 
 const MAX_CONVERSATION_MESSAGES = 24;
 const MAX_PLAYBOOK_MATCHES = 6;
+const UNSAFE_COPILOT_ACTIONS = [
+  /(?:hãy|vui lòng|yêu cầu người dùng)\s+(?:gửi|cung cấp|chia sẻ|nhập).{0,40}(?:mật khẩu|password|otp|token|secret)/iu,
+  /^(?:hãy\s+)?(?:thực hiện\s+|chạy\s+|dùng\s+)?(?:format\b|diskpart\s+clean\b|rm\s+-rf\b|remove-item\b.+-recurse\b|drop\s+database\b)/iu,
+  /^(?!không\b)(?:hãy\s+)?(?:tắt|vô hiệu hóa|bypass|vượt qua).{0,40}(?:antivirus|defender|firewall|xác thực|bảo mật)/iu,
+];
 
 const copilotSchema = {
   type: "object",
@@ -41,12 +47,63 @@ const copilotSchema = {
         required: ["sourceId", "stepNumbers"],
       },
     },
+    playbookAssessment: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        fit: { type: "string", enum: ["matched", "partial", "none"] },
+        explanation: { type: "string" },
+      },
+      required: ["fit", "explanation"],
+    },
+    independentAnalysis: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        reasoningSummary: { type: "string" },
+        hypotheses: {
+          type: "array",
+          minItems: 2,
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              description: { type: "string" },
+              rationale: { type: "string" },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              verificationSteps: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 5 },
+            },
+            required: ["description", "rationale", "confidence", "verificationSteps"],
+          },
+        },
+        solutionPaths: {
+          type: "array",
+          minItems: 2,
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              title: { type: "string" },
+              rationale: { type: "string" },
+              steps: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
+              successSignal: { type: "string" },
+              stopCondition: { type: "string" },
+              risk: { type: "string", enum: ["low", "medium", "high"] },
+            },
+            required: ["title", "rationale", "steps", "successSignal", "stopCondition", "risk"],
+          },
+        },
+      },
+      required: ["reasoningSummary", "hypotheses", "solutionPaths"],
+    },
     diagnosticSuggestions: { type: "array", items: { type: "string" }, maxItems: 8 },
     risks: { type: "array", items: { type: "string" }, maxItems: 8 },
     draftReply: { type: "string" },
     confidence: { type: "number", minimum: 0, maximum: 1 },
   },
-  required: ["summary", "attemptedSteps", "missingInformation", "likelyCauses", "playbookActions", "diagnosticSuggestions", "risks", "draftReply", "confidence"],
+  required: ["summary", "attemptedSteps", "missingInformation", "likelyCauses", "playbookActions", "playbookAssessment", "independentAnalysis", "diagnosticSuggestions", "risks", "draftReply", "confidence"],
 };
 
 function compactText(value, max = 2000) {
@@ -63,6 +120,10 @@ function parseJsonContent(content) {
   return JSON.parse(text);
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function validateCopilotDecision(content) {
   let parsed;
   try {
@@ -72,6 +133,8 @@ function validateCopilotDecision(content) {
     failure.reasonCode = "invalid_json";
     throw failure;
   }
+  const hypotheses = parsed?.independentAnalysis?.hypotheses;
+  const solutionPaths = parsed?.independentAnalysis?.solutionPaths;
   const valid = parsed
     && typeof parsed === "object"
     && typeof parsed.summary === "string"
@@ -79,6 +142,27 @@ function validateCopilotDecision(content) {
     && Array.isArray(parsed.missingInformation)
     && Array.isArray(parsed.likelyCauses)
     && Array.isArray(parsed.playbookActions)
+    && parsed.playbookAssessment
+    && ["matched", "partial", "none"].includes(parsed.playbookAssessment.fit)
+    && hasText(parsed.playbookAssessment.explanation)
+    && parsed.independentAnalysis
+    && hasText(parsed.independentAnalysis.reasoningSummary)
+    && Array.isArray(hypotheses)
+    && hypotheses.length >= 2
+    && hypotheses.every((item) => hasText(item?.description)
+      && hasText(item?.rationale)
+      && Number.isFinite(Number(item?.confidence))
+      && Array.isArray(item?.verificationSteps)
+      && item.verificationSteps.some(hasText))
+    && Array.isArray(solutionPaths)
+    && solutionPaths.length >= 2
+    && solutionPaths.every((item) => hasText(item?.title)
+      && hasText(item?.rationale)
+      && Array.isArray(item?.steps)
+      && item.steps.some(hasText)
+      && hasText(item?.successSignal)
+      && hasText(item?.stopCondition)
+      && ["low", "medium", "high"].includes(item?.risk))
     && Array.isArray(parsed.diagnosticSuggestions)
     && Array.isArray(parsed.risks)
     && typeof parsed.draftReply === "string"
@@ -88,7 +172,64 @@ function validateCopilotDecision(content) {
     failure.reasonCode = "schema_mismatch";
     throw failure;
   }
+  const generatedActions = [
+    ...solutionPaths.flatMap((item) => item.steps),
+    ...parsed.diagnosticSuggestions,
+    parsed.draftReply,
+  ].map((value) => compactText(value, 1200));
+  if (generatedActions.some((value) => UNSAFE_COPILOT_ACTIONS.some((pattern) => pattern.test(value)))) {
+    const failure = new Error("Copilot đề xuất thao tác không đạt guardrail an toàn");
+    failure.reasonCode = "unsafe_output";
+    throw failure;
+  }
   return parsed;
+}
+
+function normalizePlaybookAssessment(value, matches) {
+  const bestScore = Math.max(0, Math.min(1, Number(matches[0]?.score || 0)));
+  const requestedFit = ["matched", "partial", "none"].includes(value?.fit) ? value.fit : "none";
+  const fit = !matches.length || requestedFit === "none"
+    ? "none"
+    : requestedFit === "matched" && bestScore >= config.playbookAutoMinScore ? "matched" : "partial";
+  const defaultExplanation = fit === "none"
+    ? "Không có procedure nào giải thích đủ sát triệu chứng; Copilot chuyển sang phân tích độc lập cho Helpdesk."
+    : fit === "matched"
+      ? "Có procedure đủ mạnh để làm căn cứ, nhưng Copilot vẫn phân tích các khả năng ngoài Playbook."
+      : "Playbook chỉ bao phủ một phần triệu chứng; các khoảng trống cần được kiểm tra bằng phân tích độc lập.";
+  return {
+    fit,
+    explanation: fit === requestedFit ? compactText(value?.explanation, 1200) || defaultExplanation : defaultExplanation,
+    bestScore,
+  };
+}
+
+function normalizeIndependentAnalysis(value) {
+  const hypotheses = (Array.isArray(value?.hypotheses) ? value.hypotheses : [])
+    .map((item) => ({
+      description: compactText(item?.description, 800),
+      rationale: compactText(item?.rationale, 1200),
+      confidence: Math.max(0, Math.min(1, Number(item?.confidence) || 0)),
+      verificationSteps: compactStrings(item?.verificationSteps, 5, 700),
+    }))
+    .filter((item) => item.description && item.rationale && item.verificationSteps.length)
+    .slice(0, 4);
+  const solutionPaths = (Array.isArray(value?.solutionPaths) ? value.solutionPaths : [])
+    .map((item) => ({
+      title: compactText(item?.title, 300),
+      rationale: compactText(item?.rationale, 1200),
+      steps: compactStrings(item?.steps, 6, 800),
+      successSignal: compactText(item?.successSignal, 700),
+      stopCondition: compactText(item?.stopCondition, 700),
+      risk: ["low", "medium", "high"].includes(item?.risk) ? item.risk : "medium",
+    }))
+    .filter((item) => item.title && item.rationale && item.steps.length && item.successSignal && item.stopCondition)
+    .slice(0, 4);
+  return {
+    available: hypotheses.length > 0 && solutionPaths.length > 0,
+    reasoningSummary: compactText(value?.reasoningSummary, 1800),
+    hypotheses,
+    solutionPaths,
+  };
 }
 
 function compactPlaybook(matches) {
@@ -134,10 +275,13 @@ function exactPlaybookActions(selections, matchMap) {
 
 function normalizeSuggestion(parsed, matches) {
   const matchMap = new Map(matches.map((match) => [match.id, match]));
+  const playbookAssessment = normalizePlaybookAssessment(parsed.playbookAssessment, matches);
+  const independentAnalysis = normalizeIndependentAnalysis(parsed.independentAnalysis);
+  const playbookApplicable = playbookAssessment.fit !== "none";
   const likelyCauses = (Array.isArray(parsed.likelyCauses) ? parsed.likelyCauses : [])
     .map((item) => {
       const requestedPlaybook = compactText(item?.playbookId, 120);
-      const supportedByPlaybook = item?.basis === "playbook" && matchMap.has(requestedPlaybook);
+      const supportedByPlaybook = playbookApplicable && item?.basis === "playbook" && matchMap.has(requestedPlaybook);
       const matchedPlaybook = supportedByPlaybook ? matchMap.get(requestedPlaybook) : null;
       return {
         description: compactText(matchedPlaybook?.summary || matchedPlaybook?.title || item?.description, 1000),
@@ -154,20 +298,27 @@ function normalizeSuggestion(parsed, matches) {
     attemptedSteps: compactStrings(parsed.attemptedSteps),
     missingInformation: compactStrings(parsed.missingInformation),
     likelyCauses,
-    playbookActions: exactPlaybookActions(parsed.playbookActions, matchMap),
+    playbookActions: playbookApplicable ? exactPlaybookActions(parsed.playbookActions, matchMap) : [],
+    playbookAssessment,
+    independentAnalysis,
+    analysisMode: playbookAssessment.fit === "none" ? "ai_led" : "hybrid",
     diagnosticSuggestions: compactStrings(parsed.diagnosticSuggestions),
     risks: compactStrings(parsed.risks),
     draftReply: compactText(parsed.draftReply, 3000),
     confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
-    playbookIds: [...new Set([
+    playbookIds: playbookApplicable ? [...new Set([
       ...likelyCauses.map((item) => item.playbookId),
       ...(Array.isArray(parsed.playbookActions) ? parsed.playbookActions.map((item) => item?.sourceId) : []),
-    ].filter((value) => matchMap.has(value)))].slice(0, 8),
+    ].filter((value) => matchMap.has(value)))].slice(0, 8) : [],
   };
 }
 
 function fallbackSuggestion(ticket, matches) {
   const best = matches[0] || null;
+  const playbookAssessment = normalizePlaybookAssessment({
+    fit: best && Number(best.score || 0) >= config.playbookAutoMinScore ? "matched" : best ? "partial" : "none",
+    explanation: "Cloud AI chưa sẵn sàng nên hệ thống chỉ có thể đối chiếu Playbook và đưa checklist khoanh vùng an toàn.",
+  }, matches);
   const playbookActions = best
     ? (best.steps || []).slice(0, 5).map((step, index) => ({
       text: compactText(step, 1000),
@@ -194,6 +345,14 @@ function fallbackSuggestion(ticket, matches) {
       playbookId: best.id,
     }] : [],
     playbookActions,
+    playbookAssessment,
+    independentAnalysis: {
+      available: false,
+      reasoningSummary: "Không có cloud AI hợp lệ cho lần chạy này; chưa thể tạo phân tích độc lập.",
+      hypotheses: [],
+      solutionPaths: [],
+    },
+    analysisMode: "rules_fallback",
     diagnosticSuggestions: ["Xác minh lại triệu chứng, phạm vi ảnh hưởng và các bước người dùng đã thử trước khi thay đổi cấu hình."],
     risks: best ? compactStrings(best.forbiddenSteps, 8, 800) : ["Không thực hiện thay đổi phá hủy hoặc yêu cầu thông tin xác thực khi chưa có procedure được phê duyệt."],
     draftReply: `HelpDesk đã tiếp nhận ${ticket.code || "ticket"}. Vui lòng cung cấp mã lỗi chính xác, phạm vi ảnh hưởng và thời điểm sự cố bắt đầu để kỹ thuật viên tiếp tục kiểm tra.`,
@@ -211,12 +370,18 @@ export async function analyzeCopilot({ ticket, messages = [], attachments = [], 
   const system = [
     "Bạn là AI Copilot nội bộ cho kỹ thuật viên IT HelpDesk; luôn trả lời tiếng Việt và đúng JSON schema.",
     "Nội dung này tuyệt đối không được gửi trực tiếp cho người dùng và chỉ là gợi ý để kỹ thuật viên kiểm tra, duyệt rồi mới phản hồi.",
-    "Phân biệt rõ nội dung có căn cứ Playbook với suy luận riêng của AI.",
+    "Playbook là căn cứ nội bộ, không phải giới hạn tư duy: trong mọi lần phân tích, ngoài việc đối chiếu Playbook, bắt buộc tạo phân tích độc lập của AI.",
+    "Đánh giá playbookAssessment.fit là matched, partial hoặc none theo mức Playbook thật sự giải thích được triệu chứng; không ép lỗi vào procedure chỉ vì có từ khóa gần giống.",
     "Chỉ đưa thao tác từ Playbook qua playbookActions/sourceId/stepNumbers; hệ thống sẽ ánh xạ lại nguyên văn bước được duyệt.",
-    "Mọi diagnosticSuggestions và nguyên nhân không có Playbook phải được xem là ai_inference, không khẳng định chắc chắn.",
+    "Trong independentAnalysis, đưa 2-3 giả thuyết khác nhau và 2-3 hướng giải quyết ngắn gọn theo thứ tự ưu tiên; mỗi giả thuyết phải có lý do, cách kiểm chứng và confidence; mỗi hướng phải có các bước, tín hiệu thành công, điều kiện dừng và mức rủi ro.",
+    "Khi Playbook không khớp, đặt fit=none, để playbookActions rỗng và chủ động đề xuất hướng khoanh vùng/giải quyết bằng kiến thức chuyên môn của model; không trả lời máy móc rằng không có Playbook.",
+    "Khi Playbook có khớp, vẫn phải xem xét nguyên nhân ngoài Playbook, dữ kiện phản bác và ít nhất một hướng xử lý bổ sung có thể kiểm chứng.",
+    "Mọi diagnosticSuggestions, independentAnalysis và nguyên nhân không có Playbook đều là ai_inference, không khẳng định chắc chắn hay giả mạo nguồn nội bộ.",
+    "Không xuất chain-of-thought hoặc độc thoại suy nghĩ bí mật; reasoningSummary và rationale chỉ là lập luận chẩn đoán ngắn gọn, có thể kiểm chứng bởi Helpdesk.",
     "Tóm tắt những gì người dùng đã thử, thông tin còn thiếu, nguyên nhân có thể, rủi ro và một bản nháp phản hồi ngắn.",
-    "Không yêu cầu mật khẩu, OTP, token, secret; không đề xuất format, xóa dữ liệu, bypass bảo mật hoặc thay đổi phá hủy nếu không có Playbook được cung cấp.",
-    "Nếu không có Playbook phù hợp, vẫn được suy luận để định hướng chẩn đoán nội bộ nhưng phải giảm confidence và ghi rõ đó là suy luận AI.",
+    "Ưu tiên kiểm tra quan sát được, log, so sánh A/B, khoanh vùng phạm vi, thay đổi có thể hoàn tác và phương án ít ảnh hưởng trước.",
+    "Không yêu cầu mật khẩu, OTP, token, secret; không đề xuất format, xóa dữ liệu, bypass bảo mật hoặc thay đổi phá hủy. Với quyền admin, security, dữ liệu, server/network core hoặc tác động diện rộng, chỉ nêu hướng kiểm chứng và điều kiện chuyển cấp/phê duyệt.",
+    "Nếu không có Playbook phù hợp, phải giảm confidence tổng thể và ghi rõ đâu là giả thuyết AI cần Helpdesk xác minh.",
   ].join(" ");
   const payload = {
     channel: "staff_only_copilot",
@@ -241,7 +406,10 @@ export async function analyzeCopilot({ ticket, messages = [], attachments = [], 
     policy: {
       audience: "staff_only",
       directSendAllowed: false,
-      note: "Playbook là nguồn đã phê duyệt; kiến thức riêng của model chỉ là giả thuyết chẩn đoán cần kỹ thuật viên xác minh.",
+      independentReasoningRequired: true,
+      minimumIndependentHypotheses: 2,
+      minimumSolutionPaths: 2,
+      note: "Playbook là nguồn đã phê duyệt; phân tích riêng của model là giả thuyết chẩn đoán cần kỹ thuật viên xác minh, không phải chain-of-thought hay lệnh tự động.",
     },
   };
 
