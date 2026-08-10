@@ -62,7 +62,7 @@
 - [ ] Không cho model tự tạo command hoặc checklist kỹ thuật.
 - [ ] Kiểm tra confidence threshold bằng ticket thực tế.
 
-## AI Router V2 và RAG v5.9.1
+## AI Router V2, RAG và Copilot v5.11.0
 
 - [ ] `AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova`; Rules/HelpDesk là fallback cuối.
 - [ ] Máy backend không cần local model, local embedding service hoặc AI autostart task.
@@ -72,7 +72,11 @@
 - [ ] Tắt toàn bộ provider và xác nhận ticket vẫn tạo với priority Bình thường, `agent_unavailable` và attempt telemetry.
 - [ ] `PLAYBOOK_RETRIEVAL_MODE=lexical`, `PLAYBOOK_EMBED_PROVIDER=none` vẫn tìm đúng Top-K khi cloud AI tắt.
 - [ ] Chạy `npm run playbook:benchmark` và lưu kết quả cùng release validation.
-- [ ] Kiểm tra `/health` là `5.9.1`, Admin → AI Agent hiển thị order, quota/circuit và provider sẵn sàng.
+- [ ] Chạy `npm run db:migrate` và xác nhận schema version `9` trước khi restart backend.
+- [ ] Kiểm tra `/health` là `5.11.0`, có feature `copilot-model-selection`; Admin → AI Agent hiển thị order, quota/circuit và provider sẵn sàng.
+- [ ] Chọn **Tôi vẫn chưa xử lý được** và xác nhận AI Agent không phản hồi User thêm.
+- [ ] Admin → ticket → Copilot hiển thị nội dung nội bộ; User/Mini App không nhận bất kỳ suggestion Copilot nào.
+- [ ] Chạy Copilot với **Tự động** và ít nhất một model cụ thể; xác nhận run hiển thị đúng model yêu cầu và model thực tế.
 - [ ] Rollback: `AI_ROUTER_ENABLED=false`, `AI_PROVIDER=rules`, `AI_CLOUD_ENABLED=false`.
 
 ## Dữ liệu và backup

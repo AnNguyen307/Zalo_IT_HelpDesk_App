@@ -50,6 +50,7 @@ export const api = {
     });
   },
   resolve: (id: string, resolution: string) => request<{ ticket: Ticket }>(`/api/tickets/${encodeURIComponent(id)}/confirm-resolved`, { method: "POST", body: JSON.stringify({ resolution }) }),
+  requestHumanHelp: (id: string) => request<{ ticket: Ticket; messages: Message[]; humanHandoff: Ticket["humanHandoff"]; copilotQueued: boolean }>(`/api/tickets/${encodeURIComponent(id)}/request-human-help`, { method: "POST", body: JSON.stringify({}) }),
   reopen: (id: string, reason: string) => request<{ ticket: Ticket }>(`/api/tickets/${encodeURIComponent(id)}/reopen`, { method: "POST", body: JSON.stringify({ reason }) }),
   rate: (id: string, score: number, comment: string) => request<{ satisfaction: Satisfaction }>(`/api/tickets/${encodeURIComponent(id)}/rating`, { method: "POST", body: JSON.stringify({ score, comment }) }),
   uploadAttachment: async (ticketId: string, file: File) => {

@@ -2049,6 +2049,61 @@ body {
   width: calc(100% - 22px);
   margin: 0 11px 11px;
 }
+.guidance-outcome-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 8px;
+  margin: 10px 12px 0;
+}
+.guidance-outcome-actions .resolve-button {
+  width: 100%;
+  margin: 0;
+}
+.unresolved-button {
+  border: 1px solid #efc8c2;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff7f5;
+  color: #a1483c;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.unresolved-button:disabled {
+  opacity: 0.65;
+}
+.channel-handoff-banner {
+  margin: 10px 12px 0;
+  padding: 11px 12px;
+  border: 1px solid #d5e2f2;
+  border-radius: 14px;
+  background: #f3f7fc;
+  color: #31506f;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.channel-handoff-banner > svg {
+  flex: 0 0 auto;
+}
+.channel-handoff-banner span,
+.channel-handoff-banner strong,
+.channel-handoff-banner small {
+  display: block;
+}
+.channel-handoff-banner small {
+  margin-top: 2px;
+  color: #6e7f93;
+  font-size: 11px;
+  line-height: 1.4;
+}
+@media (max-width: 420px) {
+  .guidance-outcome-actions {
+    grid-template-columns: 1fr;
+  }
+}
 .conversation-thread {
   max-height: min(54vh, 560px);
   min-height: 220px;

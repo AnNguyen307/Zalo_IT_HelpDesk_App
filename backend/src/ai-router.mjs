@@ -149,6 +149,41 @@ function routeKeys() {
   });
 }
 
+export function resolveAiProviderSelection(value) {
+  const providerKey = String(value || "auto").trim().toLowerCase() || "auto";
+  if (providerKey === "auto") return { providerKey: "auto", model: null };
+  if (!PROVIDERS[providerKey] || providerKey === "rules") {
+    throw Object.assign(new Error("Model Copilot không hợp lệ"), { status: 400, code: "INVALID_COPILOT_MODEL" });
+  }
+  if (!routeKeys().includes(providerKey)) {
+    throw Object.assign(new Error("Model Copilot không nằm trong route đã được Admin cho phép"), { status: 400, code: "COPILOT_MODEL_NOT_ALLOWED" });
+  }
+  const settings = providerSettings(providerKey);
+  if (!providerConfigured(settings)) {
+    throw Object.assign(new Error("Model Copilot đã chọn chưa được cấu hình hoặc đang bị tắt"), { status: 409, code: "COPILOT_MODEL_NOT_CONFIGURED" });
+  }
+  return { providerKey, model: settings.model };
+}
+
+export async function getAiModelOptions() {
+  const options = await Promise.all(routeKeys().map(async (providerKey) => {
+    const status = await providerStatus(providerKey);
+    return {
+      providerKey,
+      provider: status.provider,
+      family: status.family,
+      model: status.model,
+      ready: status.ready,
+      configured: status.configured,
+      error: status.error || null,
+    };
+  }));
+  return {
+    defaultProviderKey: "auto",
+    options,
+  };
+}
+
 function baseStatus(settings) {
   const state = stateFor(settings.name);
   const configured = providerConfigured(settings);
@@ -263,7 +298,7 @@ async function requestGemini({ settings, system, payload, schema, signal }) {
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": settings.apiKey,
-      "x-goog-api-client": "zalo-helpdesk/5.9.1",
+      "x-goog-api-client": "zalo-helpdesk/5.11.0",
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
@@ -428,9 +463,11 @@ function attemptTelemetry(settings, detail = {}) {
   };
 }
 
-export async function requestAiProviderDecision({ system, payload, schema, validate }) {
+export async function requestAiProviderDecision({ system, payload, schema, validate, providerKey = "auto" }) {
   const attempts = [];
-  const candidates = routeKeys();
+  const selection = resolveAiProviderSelection(providerKey);
+  const candidates = selection.providerKey === "auto" ? routeKeys() : [selection.providerKey];
+  const routingPolicy = selection.providerKey === "auto" ? config.aiRoutingPolicy : "staff_selected";
   const rejectedFamilies = new Set();
   for (const name of candidates) {
     const settings = providerSettings(name);
@@ -491,7 +528,9 @@ export async function requestAiProviderDecision({ system, payload, schema, valid
           telemetry: {
             ...telemetry,
             router: config.aiRouterEnabled ? "ai-router-v2" : "single-provider",
-            routingPolicy: config.aiRoutingPolicy,
+            routingPolicy,
+            requestedProviderKey: selection.providerKey,
+            requestedModel: selection.model,
             attempts,
           },
         };
@@ -521,22 +560,30 @@ export async function requestAiProviderDecision({ system, payload, schema, valid
     }
   }
 
-  const singleSettings = config.aiRouterEnabled ? null : providerSettings(config.aiProvider);
+  const singleSettings = selection.providerKey !== "auto"
+    ? providerSettings(selection.providerKey)
+    : config.aiRouterEnabled ? null : providerSettings(config.aiProvider);
   const failureRedaction = redactSensitiveData(payload, {
     enabled: Boolean(singleSettings?.dataBoundary === "external" && config.aiRedactionEnabled),
   }).summary;
   const failure = new Error("Không có AI provider nào trả về quyết định hợp lệ");
   failure.reasonCode = "all_providers_unavailable";
   failure.providerTelemetry = {
-    provider: config.aiRouterEnabled ? "ai-router-v2" : providerSettings(config.aiProvider).id,
-    providerKey: config.aiRouterEnabled ? "router" : config.aiProvider,
+    provider: selection.providerKey !== "auto"
+      ? providerSettings(selection.providerKey).id
+      : config.aiRouterEnabled ? "ai-router-v2" : providerSettings(config.aiProvider).id,
+    providerKey: selection.providerKey !== "auto"
+      ? selection.providerKey
+      : config.aiRouterEnabled ? "router" : config.aiProvider,
     dataBoundary: singleSettings?.dataBoundary || "mixed",
     model: singleSettings?.model || null,
     latencyMs: attempts.reduce((sum, item) => sum + Number(item.latencyMs || 0), 0),
     redaction: attempts.findLast((item) => item.redaction)?.redaction || failureRedaction,
     usage: null,
     responseId: null,
-    routingPolicy: config.aiRoutingPolicy,
+    routingPolicy,
+    requestedProviderKey: selection.providerKey,
+    requestedModel: selection.model,
     attempts,
   };
   throw failure;

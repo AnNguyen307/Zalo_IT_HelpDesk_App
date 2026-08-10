@@ -8,6 +8,7 @@ export const EMPTY_DB = Object.freeze({
   attachments: [],
   notifications: [],
   ticketHistory: [],
+  aiCopilotRuns: [],
   knowledgeBase: [],
   auditLog: [],
 });

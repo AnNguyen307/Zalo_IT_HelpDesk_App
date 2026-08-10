@@ -4,6 +4,14 @@ const state = {
   token: sessionStorage.getItem("hd_admin") || "",
   user: null, tickets: [], stats: null, kb: [], agent: null, aiQuality: null, playbook: null, governance: null, procedures: [], staff: [], directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
 };
+const COPILOT_PROVIDER_STORAGE_KEY = "hd_copilot_provider";
+const copilotProviderLabels = { gemini: "Gemini", groq: "Groq", openrouter: "OpenRouter", sambanova: "SambaNova" };
+function savedCopilotProvider() {
+  try { return localStorage.getItem(COPILOT_PROVIDER_STORAGE_KEY) || "auto"; } catch { return "auto"; }
+}
+function saveCopilotProvider(value) {
+  try { localStorage.setItem(COPILOT_PROVIDER_STORAGE_KEY, value); } catch {}
+}
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const labels = {
@@ -457,14 +465,24 @@ function renderAiQuality() {
     const proposal = item.proposal || {}; const review = item.review;
     const result = review?.result === "correct" ? '<span class="badge guide">ĐÚNG</span>' : review?.result === "incorrect" ? '<span class="badge escalate">CẦN SỬA</span>' : '<span class="badge">CHƯA REVIEW</span>';
     return `<tr><td><button type="button" class="ai-ticket-link" data-ai-ticket="${esc(item.ticketId)}"><strong>${esc(item.ticketCode || item.ticketId)}</strong><small>${esc(item.ticketTitle || "")}</small></button></td><td><strong>${esc(item.provider || "—")}</strong></td><td>${esc(labels[proposal.category] || proposal.category || "—")} · ${esc(labels[proposal.priority] || proposal.priority || "—")}</td><td>${result}</td><td>${formatDate(item.generatedAt)}</td></tr>`;
-  }).join("") : '<tr><td colspan="5" class="muted">Chưa có quyết định AI v5.9.1 trong khoảng đã chọn.</td></tr>';
+  }).join("") : '<tr><td colspan="5" class="muted">Chưa có quyết định AI trong khoảng đã chọn.</td></tr>';
   $$('[data-ai-ticket]').forEach((button) => { button.onclick = () => openTicket(button.dataset.aiTicket).catch((error) => toast(error.message)); });
 }
 
 async function openTicket(ticketId) {
-  const { ticket, messages = [], requester, attachments = [], history = [] } = await api(`/api/tickets/${ticketId}`);
+  const [ticketBundle, copilotBundle] = await Promise.all([
+    api(`/api/tickets/${ticketId}`),
+    api(`/api/staff/tickets/${ticketId}/copilot`).catch((error) => ({ runs: [], error: error.message })),
+  ]);
+  const { ticket, messages = [], requester, attachments = [], history = [] } = ticketBundle;
+  const copilotRuns = Array.isArray(copilotBundle.runs) ? copilotBundle.runs : [];
+  const copilotModelOptions = Array.isArray(copilotBundle.modelOptions?.options) ? copilotBundle.modelOptions.options : [];
+  const savedProvider = savedCopilotProvider();
+  const selectedProvider = savedProvider === "auto" || copilotModelOptions.some((item) => item.providerKey === savedProvider && item.ready) ? savedProvider : "auto";
+  const latestCopilot = copilotRuns[0] || null;
   $("#dialogTicketCode").textContent = `${ticket.code} — ${ticket.title}`;
   const analysis = ticket.aiAnalysis || {}; const guided = Boolean(analysis.canAutoHandle); const escalatedByAi = Boolean(ticket.aiAnalysis && !guided);
+  const humanOnly = Boolean(ticket.humanHandoff?.locked);
   const sourceList = Array.isArray(analysis.playbookSources) ? analysis.playbookSources : [];
   const writable = ["admin", "technician"].includes(state.user?.role);
   const assigneeOptions = [...state.directory];
@@ -477,6 +495,30 @@ async function openTicket(ticketId) {
   const reviewSummary = review ? `<div class="ai-review-summary ${review.result}"><div><strong>${review.result === "correct" ? "✓ Admin xác nhận đúng" : "! Admin đánh dấu cần sửa"}</strong><small>${esc(review.reviewedByName || "Admin")} · ${formatDate(review.reviewedAt)}</small></div>${review.note ? `<p>${esc(review.note)}</p>` : ""}${Object.keys(review.corrections || {}).length ? `<p>Hiệu chỉnh: ${Object.entries(review.corrections).map(([key, value]) => `${esc(key)}=${esc(labels[value] || value)}`).join(" · ")}</p>` : ""}</div>` : '<div class="ai-review-pending">Chưa được Admin đánh giá.</div>';
   const reviewControls = state.user?.role === "admin" && quality.decisionId ? `<div class="ai-review-actions"><button id="aiReviewCorrectBtn" type="button" class="button ai-correct-button">✓ Đúng</button><button id="aiReviewIncorrectBtn" type="button" class="button subtle-button">Cần sửa</button></div><form id="aiReviewForm" class="ai-review-form hidden"><div class="two"><label>Danh mục<select id="aiReviewCategory">${["network", "printer", "windows", "office", "account", "software", "hardware", "other"].map((value) => `<option value="${value}" ${ticket.category === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label><label>Ưu tiên<select id="aiReviewPriority">${["low", "normal", "high", "urgent"].map((value) => `<option value="${value}" ${ticket.priority === value ? "selected" : ""}>${labels[value]}</option>`).join("")}</select></label><label>Rủi ro<select id="aiReviewRisk">${["low", "medium", "high"].map((value) => `<option value="${value}" ${ticket.risk === value ? "selected" : ""}>${value}</option>`).join("")}</select></label><label>Quyết định<select id="aiReviewOutcome">${[["guide_user", "Hướng dẫn"], ["escalate", "Chuyển kỹ thuật viên"], ["need_info", "Cần thêm thông tin"], ["likely_resolved", "Có thể đã xử lý"]].map(([value, label]) => `<option value="${value}" ${(proposal.outcome || analysis.outcome) === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><label>Ghi chú<textarea id="aiReviewNote" rows="2" placeholder="AI sai ở đâu hoặc thiếu tín hiệu nào?"></textarea></label><small>Danh mục, ưu tiên và rủi ro hiệu chỉnh sẽ được áp dụng vào ticket; trạng thái/handoff không tự thay đổi.</small><button type="submit" class="button primary-button">Lưu đánh giá</button></form>` : quality.decisionId ? "" : '<div class="ai-review-legacy">Ticket cũ chưa có decision record v5.8+.</div>';
   const reviewHtml = `<div class="ai-quality-ticket"><div class="ai-quality-head"><strong>Quality review</strong><span>${esc(quality.provider || analysis.source || "—")}</span></div>${reviewSummary}${reviewControls}</div>`;
+  const copilotSuggestion = latestCopilot?.suggestion || null;
+  const copilotList = (items, emptyText) => Array.isArray(items) && items.length ? `<ul>${items.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : `<p class="muted">${esc(emptyText)}</p>`;
+  const copilotStatusLabel = latestCopilot?.status === "completed" ? "Sẵn sàng" : latestCopilot?.status === "failed" ? "Thất bại" : latestCopilot?.status === "running" ? "Đang phân tích" : latestCopilot ? "Đang chờ" : "Chưa chạy";
+  const copilotModelOptionHtml = [
+    `<option value="auto" ${selectedProvider === "auto" ? "selected" : ""}>Tự động · route theo cấu hình</option>`,
+    ...copilotModelOptions.map((item) => {
+      const label = copilotProviderLabels[item.providerKey] || item.providerKey;
+      return `<option value="${esc(item.providerKey)}" ${selectedProvider === item.providerKey ? "selected" : ""} ${item.ready ? "" : "disabled"}>${esc(label)} · ${esc(item.model || "chưa cấu hình")}${item.ready ? "" : " · không sẵn sàng"}</option>`;
+    }),
+  ].join("");
+  const copilotModelPicker = writable ? `<div class="copilot-model-picker"><label for="copilotModelSelect"><span>Model hỗ trợ lần phân tích tiếp theo</span><select id="copilotModelSelect">${copilotModelOptionHtml}</select></label><small>“Tự động” dùng failover cloud. Chọn model cụ thể sẽ chỉ gọi model đó; nếu lỗi, Copilot dùng Rules/Playbook an toàn.</small></div>` : "";
+  const causesHtml = copilotSuggestion?.likelyCauses?.length ? `<div class="copilot-causes">${copilotSuggestion.likelyCauses.map((item) => `<div><span class="copilot-basis ${item.basis}">${item.basis === "playbook" ? `PLAYBOOK ${esc(item.playbookId || "")}` : "GIẢ THUYẾT AI"}</span><strong>${esc(item.description)}</strong><small>Độ tin cậy ${Math.round((item.confidence || 0) * 100)}%</small></div>`).join("")}</div>` : '<p class="muted">Chưa có giả thuyết nguyên nhân.</p>';
+  const playbookActionsHtml = copilotSuggestion?.playbookActions?.length ? `<ol class="copilot-actions">${copilotSuggestion.playbookActions.map((item) => `<li><b>${item.stepNumber || "•"}</b><span><strong>${esc(item.text)}</strong><small>${esc(item.playbookId)} · ${esc(item.playbookTitle || "Playbook")}</small></span></li>`).join("")}</ol>` : '<p class="muted">Không có bước Playbook nào được chọn.</p>';
+  const copilotHtml = latestCopilot ? `<div class="copilot-run ${latestCopilot.status}">
+    <div class="copilot-run-head"><div><span class="copilot-status-dot"></span><strong>${copilotStatusLabel}</strong><small>Yêu cầu: ${latestCopilot.requestedProviderKey && latestCopilot.requestedProviderKey !== "auto" ? `${esc(copilotProviderLabels[latestCopilot.requestedProviderKey] || latestCopilot.requestedProviderKey)}${latestCopilot.requestedModel ? ` · ${esc(latestCopilot.requestedModel)}` : ""}` : "Tự động"}</small><small>Thực tế: ${esc(latestCopilot.provider || "Đang chọn provider")}${latestCopilot.model ? ` · ${esc(latestCopilot.model)}` : ""} · ${formatDate(latestCopilot.createdAt)}</small></div><span class="badge">${Math.round((latestCopilot.confidence || 0) * 100)}%</span></div>
+    ${latestCopilot.error ? `<div class="agent-error">${esc(latestCopilot.error)}</div>` : ""}
+    ${copilotSuggestion ? `<div class="copilot-section"><h4>Tóm tắt nội bộ</h4><p>${esc(copilotSuggestion.summary || "")}</p></div>
+      <div class="copilot-section"><h4>Nguyên nhân có thể</h4>${causesHtml}</div>
+      <div class="copilot-section"><h4>Bước theo Playbook</h4>${playbookActionsHtml}</div>
+      <div class="copilot-section inference"><h4>Gợi ý chẩn đoán của AI</h4>${copilotList(copilotSuggestion.diagnosticSuggestions, "Không có gợi ý bổ sung.")}</div>
+      <div class="copilot-section"><h4>Thông tin còn thiếu</h4>${copilotList(copilotSuggestion.missingInformation, "Không ghi nhận.")}</div>
+      <div class="copilot-section risk"><h4>Rủi ro / điều không nên làm</h4>${copilotList(copilotSuggestion.risks, "Không ghi nhận cảnh báo riêng.")}</div>
+      <div class="copilot-draft"><h4>Bản nháp phản hồi</h4><p>${esc(copilotSuggestion.draftReply || "")}</p>${writable && copilotSuggestion.draftReply ? '<button id="useCopilotDraftBtn" type="button" class="button subtle-button">Dùng làm bản nháp</button>' : ""}</div>` : '<div class="copilot-loading">Copilot đang đối chiếu hội thoại, Playbook và route cloud. Nhấn Làm mới sau ít phút.</div>'}
+  </div>` : `<div class="copilot-empty"><strong>Chưa có phân tích Copilot</strong><p>${esc(copilotBundle.error || "Copilot sẽ tự chạy sau khi ticket bàn giao, hoặc kỹ thuật viên có thể yêu cầu phân tích ngay.")}</p></div>`;
   const messageHtml = messages.length ? messages.map((message) => { const linked = attachments.filter((attachment) => attachment.messageId === message.id); const linkedHtml = linked.length ? `<div class="message-attachments">${linked.map((attachment) => `<button data-preview-attachment="${attachment.id}" ${isPreviewableAttachment(attachment) ? "" : "disabled"}>▧ <span>${esc(attachment.fileName)}</span></button><button class="message-download" data-download-attachment="${attachment.id}">↓</button>`).join("")}</div>` : ""; const body = escalatedByAi && message.role === "assistant" ? "Đã chuyển yêu cầu cho kỹ thuật viên." : message.body; return `<article class="message ${message.role}"><div class="message-meta"><strong>${esc(message.authorName)}</strong><time>${formatDate(message.createdAt)}</time></div><div class="message-body">${esc(body)}</div>${linkedHtml}</article>`; }).join("") : '<div class="conversation-admin-empty">Chưa có trao đổi trong ticket này.</div>';
   $("#ticketDetail").innerHTML = `<div class="ticket-workbench">
     <div class="workbench-main">
@@ -492,6 +534,7 @@ async function openTicket(ticketId) {
         <div class="ticket-context-tabs" role="tablist" aria-label="Nhóm thông tin ticket">
           <button type="button" class="active" role="tab" aria-selected="true" aria-controls="ticketContextOverview" data-ticket-context-tab="overview"><span>Tổng quan</span></button>
           <button type="button" role="tab" aria-selected="false" aria-controls="ticketContextAi" data-ticket-context-tab="ai"><span>AI</span><em class="context-dot ${guided ? "guide" : "escalate"}"></em></button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="ticketContextCopilot" data-ticket-context-tab="copilot"><span>Copilot</span><em>${copilotRuns.length}</em></button>
           <button type="button" role="tab" aria-selected="false" aria-controls="ticketContextFiles" data-ticket-context-tab="files"><span>File</span><em>${attachments.length}</em></button>
           <button type="button" role="tab" aria-selected="false" aria-controls="ticketContextHistory" data-ticket-context-tab="history"><span>Lịch sử</span><em>${history.length}</em></button>
         </div>
@@ -503,8 +546,9 @@ async function openTicket(ticketId) {
             <div class="context-section"><div class="context-section-title">Đánh giá hài lòng</div>${satisfactionHtml}</div>
           </section>
           <section id="ticketContextAi" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="ai" hidden>
-            <div class="decision-panel ${guided ? "" : "escalated"}"><div class="decision-head"><span class="decision-symbol">${guided ? "✓" : "↗"}</span><div><strong>${guided ? "Hướng dẫn theo Playbook" : "Đã chuyển kỹ thuật viên"}</strong><small>${guided ? "Đủ điều kiện an toàn" : esc(escalationLabels[analysis.escalationCode] || "Không đủ điều kiện tự động xử lý")}</small></div><span class="badge ${guided ? "guide" : "escalate"}">${guided ? "GUIDE" : "ESCALATE"}</span></div><div class="decision-copy"><strong>${esc(analysis.summary || "Chưa có đánh giá.")}</strong>\n\n${esc(analysis.reason || "")}</div><div class="decision-meta"><span class="badge">${esc(analysis.source || "—")}</span><span class="badge">${esc(analysis.model || "Rules")}</span><span class="badge">${Math.round((analysis.confidence || 0) * 100)}%</span></div>${sourceHtml}</div>${reviewHtml}
+            <div class="decision-panel ${guided && !humanOnly ? "" : "escalated"}"><div class="decision-head"><span class="decision-symbol">${guided && !humanOnly ? "✓" : "↗"}</span><div><strong>${humanOnly ? "AI không phản hồi trực tiếp người dùng" : guided ? "Hướng dẫn theo Playbook" : "Đã chuyển kỹ thuật viên"}</strong><small>${humanOnly ? "Copilot vẫn hỗ trợ nội bộ cho HelpDesk" : guided ? "Đủ điều kiện an toàn" : esc(escalationLabels[analysis.escalationCode] || "Không đủ điều kiện tự động xử lý")}</small></div><span class="badge ${guided && !humanOnly ? "guide" : "escalate"}">${humanOnly ? "STAFF ONLY" : guided ? "GUIDE" : "ESCALATE"}</span></div><div class="decision-copy"><strong>${esc(analysis.summary || "Chưa có đánh giá.")}</strong>\n\n${esc(analysis.reason || "")}</div><div class="decision-meta"><span class="badge">${esc(analysis.source || "—")}</span><span class="badge">${esc(analysis.model || "Rules")}</span><span class="badge">${Math.round((analysis.confidence || 0) * 100)}%</span></div>${sourceHtml}</div>${reviewHtml}
           </section>
+          <section id="ticketContextCopilot" class="ticket-context-panel copilot-panel" role="tabpanel" data-ticket-context-panel="copilot" hidden><div class="copilot-privacy-note"><strong>Chỉ dành cho HelpDesk</strong><span>Copilot không có quyền tự gửi hoặc đóng ticket. Nội dung suy luận phải được kỹ thuật viên xác minh.</span></div>${copilotModelPicker}${copilotHtml}<div class="copilot-toolbar"><button id="refreshCopilotBtn" type="button" class="button subtle-button">Làm mới</button>${writable ? '<button id="reanalyzeCopilotBtn" type="button" class="button primary-button">Phân tích bằng model đã chọn</button>' : ""}</div></section>
           <section id="ticketContextFiles" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="files" hidden><div class="attachment-admin-list">${attachmentHtml}</div>${writable ? '<label class="admin-upload">＋ Tải thêm file<input id="adminFiles" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" /></label>' : ""}</section>
           <section id="ticketContextHistory" class="ticket-context-panel" role="tabpanel" data-ticket-context-panel="history" hidden><div class="history-admin">${historyHtml}</div></section>
         </div>
@@ -527,6 +571,30 @@ async function openTicket(ticketId) {
     tab.onkeydown = (event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const direction = event.key === "ArrowRight" ? 1 : -1; const next = contextTabs[(index + direction + contextTabs.length) % contextTabs.length]; activateContextTab(next.dataset.ticketContextTab); next.focus(); };
   });
   activateContextTab("overview");
+
+  if ($("#refreshCopilotBtn")) $("#refreshCopilotBtn").onclick = async () => {
+    try { await openTicket(ticket.id); } catch (error) { toast(error.message); }
+  };
+  if ($("#copilotModelSelect")) $("#copilotModelSelect").onchange = (event) => {
+    saveCopilotProvider(event.target.value);
+  };
+  if ($("#reanalyzeCopilotBtn")) $("#reanalyzeCopilotBtn").onclick = async () => {
+    const button = $("#reanalyzeCopilotBtn"); button.disabled = true; button.textContent = "Đang xếp hàng…";
+    try {
+      const providerKey = $("#copilotModelSelect")?.value || "auto";
+      saveCopilotProvider(providerKey);
+      await api(`/api/staff/tickets/${ticket.id}/copilot/runs`, { method: "POST", body: JSON.stringify({ providerKey }) });
+      const providerLabel = providerKey === "auto" ? "route tự động" : (copilotProviderLabels[providerKey] || providerKey);
+      toast(`Copilot đang phân tích bằng ${providerLabel}.`);
+      await openTicket(ticket.id);
+    } catch (error) { toast(error.message); button.disabled = false; button.textContent = "Phân tích bằng model đã chọn"; }
+  };
+  if ($("#useCopilotDraftBtn")) $("#useCopilotDraftBtn").onclick = () => {
+    const editor = $("#adminReply");
+    editor.value = copilotSuggestion?.draftReply || "";
+    editor.focus();
+    toast("Đã đưa gợi ý vào ô nháp; hãy kiểm tra trước khi gửi");
+  };
 
   const saveAiReview = async (payload) => {
     await api(`/api/admin/tickets/${ticket.id}/ai-review`, { method: "POST", body: JSON.stringify({ decisionId: quality.decisionId, ...payload }) });

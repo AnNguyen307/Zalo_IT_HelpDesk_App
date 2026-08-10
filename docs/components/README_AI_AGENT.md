@@ -1,6 +1,8 @@
-# AI HelpDesk Agent v5.9.1
+# AI HelpDesk Agent + Staff Copilot v5.11.0
 
 AI Agent dùng Router V2 chỉ với cloud provider, BM25 Playbook retrieval và telemetry theo từng attempt. Không có local model hoặc local embedding service trong đường chạy.
+
+Sau khi handoff, AI Agent không còn phản hồi trực tiếp User. Staff AI Copilot hoạt động trên API và storage riêng, chỉ gợi ý nội bộ để kỹ thuật viên duyệt.
 
 ## Luồng quyết định
 
@@ -17,9 +19,9 @@ Model chỉ được chọn các bước tồn tại trong Playbook đã duyệt
 ```env
 AI_ROUTER_ENABLED=true
 AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova
-AI_ROUTING_POLICY=capability_then_free_quota
+AI_ROUTING_POLICY=fixed
 AI_CLOUD_ENABLED=true
-AI_REDACTION_ENABLED=false
+AI_REDACTION_ENABLED=true
 GEMINI_API_KEY=
 GROQ_API_KEY=
 OPENROUTER_API_KEY=
@@ -56,9 +58,17 @@ cd backend
 npm run playbook:benchmark
 ```
 
+## Staff AI Copilot
+
+Copilot tự xếp hàng khi AI Agent escalation, User xác nhận chưa xử lý được hoặc staff tiếp nhận ticket. Tab Copilot phân biệt bước Playbook nguyên văn với giả thuyết AI, đồng thời tạo bản nháp không tự gửi.
+
+Helpdesk có thể chọn **Tự động**, Gemini, Groq, OpenRouter hoặc SambaNova cho lần phân tích tiếp theo. Chỉ các model nằm trong route server và đã cấu hình mới được chọn. Chọn model cụ thể không failover sang cloud model khác; nếu provider lỗi, Copilot dùng Rules/Playbook an toàn và lưu cả model yêu cầu lẫn model thực tế vào run audit.
+
+Nội dung Copilot chỉ xuất hiện qua `/api/staff/tickets/:ticketId/copilot`; public ticket và Mini App không có trường Copilot.
+
 ## Health và rollback
 
-`GET /health` trả `version: 5.9.1`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
+`GET /health` trả `version: 5.11.0`, feature `copilot-model-selection`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
 
 Rollback không dùng model:
 

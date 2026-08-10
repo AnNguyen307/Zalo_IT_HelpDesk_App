@@ -31,6 +31,6 @@ test("zero-value ticket and review badges stay out of the sidebar", async () => 
 test("Admin asset URLs are cache-busted for the sidebar release", async () => {
   const html = await readFile(publicFile("admin.html"), "utf8");
 
-  assert.match(html, /\/admin\.css\?v=5\.9\.1/);
-  assert.match(html, /\/admin\.js\?v=5\.9\.1/);
+  assert.match(html, /\/admin\.css\?v=5\.11\.0/);
+  assert.match(html, /\/admin\.js\?v=5\.11\.0/);
 });

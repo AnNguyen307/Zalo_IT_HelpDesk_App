@@ -220,6 +220,29 @@ function mapHistory(row) {
   };
 }
 
+function mapCopilotRun(row) {
+  return {
+    id: row.id,
+    ticketId: row.ticket_id,
+    trigger: row.trigger_name || "manual",
+    requestedProviderKey: row.requested_provider_key || "auto",
+    requestedModel: row.requested_model || null,
+    provider: row.provider || "",
+    model: row.model || null,
+    suggestion: parseJson(row.suggestion_json, null),
+    playbookIds: parseJson(row.playbook_ids_json, []),
+    confidence: row.confidence === null || row.confidence === undefined ? null : Number(row.confidence),
+    telemetry: parseJson(row.telemetry_json, null),
+    status: row.status || "queued",
+    error: row.error_message || "",
+    requestedBy: row.requested_by || "system",
+    requestedByName: row.requested_by_name || "Hệ thống HelpDesk",
+    createdAt: toIso(row.created_at),
+    startedAt: toIso(row.started_at),
+    completedAt: toIso(row.completed_at),
+  };
+}
+
 function mapKnowledgeBase(row) {
   return {
     id: row.id,
@@ -258,6 +281,7 @@ async function readDbFrom(executor) {
   const attachments = await queryAll(executor, "SELECT * FROM helpdesk.attachments ORDER BY created_at, id");
   const notifications = await queryAll(executor, "SELECT * FROM helpdesk.notifications ORDER BY created_at, id");
   const ticketHistory = await queryAll(executor, "SELECT * FROM helpdesk.ticket_history ORDER BY created_at, id");
+  const aiCopilotRuns = await queryAll(executor, "SELECT * FROM helpdesk.ai_copilot_runs ORDER BY created_at, id");
   const knowledgeBase = await queryAll(executor, "SELECT * FROM helpdesk.knowledge_base ORDER BY created_at, id");
   const auditLog = await queryAll(executor, "SELECT * FROM helpdesk.audit_log ORDER BY created_at, id");
 
@@ -269,6 +293,7 @@ async function readDbFrom(executor) {
     attachments: attachments.map(mapAttachment),
     notifications: notifications.map(mapNotification),
     ticketHistory: ticketHistory.map(mapHistory),
+    aiCopilotRuns: aiCopilotRuns.map(mapCopilotRun),
     knowledgeBase: knowledgeBase.map(mapKnowledgeBase),
     auditLog: auditLog.map(mapAudit),
   });
@@ -470,6 +495,35 @@ async function upsertHistory(executor, item) {
   `);
 }
 
+async function upsertCopilotRun(executor, item) {
+  const req = request(executor);
+  req.input("id", sql.NVarChar(64), item.id)
+    .input("ticket_id", sql.NVarChar(64), item.ticketId)
+    .input("trigger_name", sql.NVarChar(80), item.trigger || "manual")
+    .input("requested_provider_key", sql.NVarChar(30), item.requestedProviderKey || "auto")
+    .input("requested_model", sql.NVarChar(200), item.requestedModel || null)
+    .input("provider", sql.NVarChar(100), item.provider || "")
+    .input("model", sql.NVarChar(200), item.model || null)
+    .input("suggestion_json", sql.NVarChar(sql.MAX), jsonString(item.suggestion))
+    .input("playbook_ids_json", sql.NVarChar(sql.MAX), jsonString(item.playbookIds || []))
+    .input("confidence", sql.Decimal(6, 5), item.confidence === null || item.confidence === undefined ? null : Number(item.confidence))
+    .input("telemetry_json", sql.NVarChar(sql.MAX), jsonString(item.telemetry))
+    .input("status", sql.NVarChar(30), item.status || "queued")
+    .input("error_message", sql.NVarChar(1000), item.error || "")
+    .input("requested_by", sql.NVarChar(64), item.requestedBy || "system")
+    .input("requested_by_name", sql.NVarChar(200), item.requestedByName || "Hệ thống HelpDesk")
+    .input("created_at", sql.DateTime2(3), toDate(item.createdAt) || new Date())
+    .input("started_at", sql.DateTime2(3), toDate(item.startedAt))
+    .input("completed_at", sql.DateTime2(3), toDate(item.completedAt));
+  await req.query(`
+    MERGE helpdesk.ai_copilot_runs WITH (HOLDLOCK) AS target
+    USING (SELECT @id AS id) AS source ON target.id=source.id
+    WHEN MATCHED THEN UPDATE SET ticket_id=@ticket_id,trigger_name=@trigger_name,requested_provider_key=@requested_provider_key,requested_model=@requested_model,provider=@provider,model=@model,suggestion_json=@suggestion_json,playbook_ids_json=@playbook_ids_json,confidence=@confidence,telemetry_json=@telemetry_json,status=@status,error_message=@error_message,requested_by=@requested_by,requested_by_name=@requested_by_name,created_at=@created_at,started_at=@started_at,completed_at=@completed_at
+    WHEN NOT MATCHED THEN INSERT (id,ticket_id,trigger_name,requested_provider_key,requested_model,provider,model,suggestion_json,playbook_ids_json,confidence,telemetry_json,status,error_message,requested_by,requested_by_name,created_at,started_at,completed_at)
+      VALUES (@id,@ticket_id,@trigger_name,@requested_provider_key,@requested_model,@provider,@model,@suggestion_json,@playbook_ids_json,@confidence,@telemetry_json,@status,@error_message,@requested_by,@requested_by_name,@created_at,@started_at,@completed_at);
+  `);
+}
+
 async function upsertKnowledgeBase(executor, item) {
   const req = request(executor);
   req.input("id", sql.NVarChar(64), item.id)
@@ -519,6 +573,7 @@ const COLLECTIONS = [
   ["attachments", "attachments", upsertAttachment],
   ["notifications", "notifications", upsertNotification],
   ["ticketHistory", "ticket_history", upsertHistory],
+  ["aiCopilotRuns", "ai_copilot_runs", upsertCopilotRun],
   ["knowledgeBase", "knowledge_base", upsertKnowledgeBase],
   ["auditLog", "audit_log", upsertAudit],
 ];
@@ -616,6 +671,7 @@ export async function getStoreStatus() {
         (SELECT COUNT_BIG(*) FROM helpdesk.attachments) AS attachments,
         (SELECT COUNT_BIG(*) FROM helpdesk.notifications) AS notifications,
         (SELECT COUNT_BIG(*) FROM helpdesk.ticket_history) AS ticketHistory,
+        (SELECT COUNT_BIG(*) FROM helpdesk.ai_copilot_runs) AS aiCopilotRuns,
         (SELECT COUNT_BIG(*) FROM helpdesk.knowledge_base) AS knowledgeBase,
         (SELECT COUNT_BIG(*) FROM helpdesk.audit_log) AS auditLog;
     `);

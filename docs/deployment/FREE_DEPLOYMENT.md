@@ -119,7 +119,7 @@ AGENT_MODE=rules
 
 ### Cloud AI free tier tùy chọn
 
-Router v5.9.1 có thể dùng Gemini, Groq, OpenRouter và SambaNova khi provider được bật, có API key phía server và `AI_CLOUD_ENABLED=true`. Không cần cài model hoặc AI service trên máy backend.
+Router v5.11.0 có thể dùng Gemini, Groq, OpenRouter và SambaNova cho AI Agent và Staff Copilot khi provider được bật, có API key phía server và `AI_CLOUD_ENABLED=true`. Helpdesk có thể dùng route tự động hoặc chọn một model đã cấu hình cho từng lần phân tích. Không cần cài model hoặc AI service trên máy backend.
 
 Nếu không có key hoặc toàn bộ provider lỗi, backend tự dùng Rules/HelpDesk fallback nên ticket vẫn hoạt động.
 
