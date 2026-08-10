@@ -13,10 +13,10 @@ const schema = {
 function configureRouter(context) {
   const keys = [
     "aiRouterEnabled", "aiCloudEnabled", "aiProviderOrder", "aiRoutingPolicy", "aiProviderRetries",
-    "geminiEnabled", "geminiApiKey", "geminiModel", "geminiTimeoutMs",
-    "groqEnabled", "groqApiKey", "groqModel", "groqTimeoutMs",
-    "openrouterEnabled", "openrouterApiKey", "openrouterModel", "openrouterTimeoutMs",
-    "sambanovaEnabled", "sambanovaApiKey", "sambanovaModel", "sambanovaTimeoutMs",
+    "geminiEnabled", "geminiApiKey", "geminiModel", "geminiTimeoutMs", "geminiDailyRequestLimit", "geminiDailyTokenLimit",
+    "groqEnabled", "groqApiKey", "groqModel", "groqTimeoutMs", "groqDailyRequestLimit", "groqDailyTokenLimit",
+    "openrouterEnabled", "openrouterApiKey", "openrouterModel", "openrouterTimeoutMs", "openrouterDailyRequestLimit", "openrouterDailyTokenLimit",
+    "sambanovaEnabled", "sambanovaApiKey", "sambanovaModel", "sambanovaTimeoutMs", "sambanovaDailyRequestLimit", "sambanovaDailyTokenLimit",
   ];
   const original = Object.fromEntries(keys.map((key) => [key, config[key]]));
   const originalFetch = globalThis.fetch;
@@ -35,10 +35,14 @@ function configureRouter(context) {
     geminiApiKey: "gemini-test-key",
     geminiModel: "gemini-test",
     geminiTimeoutMs: 1000,
+    geminiDailyRequestLimit: 0,
+    geminiDailyTokenLimit: 0,
     groqEnabled: true,
     groqApiKey: "groq-test-key",
     groqModel: "groq-test",
     groqTimeoutMs: 1000,
+    groqDailyRequestLimit: 1000,
+    groqDailyTokenLimit: 200000,
     openrouterEnabled: false,
     sambanovaEnabled: false,
   });
@@ -120,6 +124,93 @@ test("model options expose readiness but never provider credentials", async (con
   assert.equal("apiKey" in gemini, false);
   assert.equal("baseUrl" in gemini, false);
   assert.doesNotMatch(JSON.stringify(result), /gemini-test-key|groq-test-key/);
+});
+
+test("missing Gemini quota headers mean unknown quota instead of zero remaining", async (context) => {
+  configureRouter(context);
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    responseId: "gemini-no-quota-headers",
+    modelVersion: "gemini-test",
+    candidates: [{ content: { parts: [{ text: JSON.stringify({ provider: "gemini", confidence: 0.95 }) }] } }],
+    usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 4, totalTokenCount: 12 },
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+  await requestAiProviderDecision({
+    system: "test",
+    payload: {},
+    schema,
+    providerKey: "gemini",
+    validate: (content) => JSON.parse(content),
+  });
+  const options = await getAiModelOptions();
+  const gemini = options.options.find((item) => item.providerKey === "gemini");
+  assert.equal(gemini.ready, true);
+  assert.equal(gemini.reasonCode, "eligible");
+  assert.equal(gemini.quota.tokensUsed, 12);
+  assert.equal(gemini.quota.tokens, null);
+  assert.equal(gemini.quota.requests, null);
+  assert.equal(gemini.quota.providerReported, null);
+});
+
+test("model options expose provider quota periods and app-observed token usage", async (context) => {
+  configureRouter(context);
+  config.geminiEnabled = false;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    id: "response-groq-quota",
+    model: "groq-test",
+    choices: [{ message: { content: JSON.stringify({ provider: "groq", confidence: 0.95 }) } }],
+    usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+  }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "x-ratelimit-limit-requests": "1000",
+      "x-ratelimit-remaining-requests": "997",
+      "x-ratelimit-reset-requests": "10h",
+      "x-ratelimit-limit-tokens": "8000",
+      "x-ratelimit-remaining-tokens": "7900",
+      "x-ratelimit-reset-tokens": "7s",
+    },
+  });
+
+  await requestAiProviderDecision({
+    system: "test",
+    payload: {},
+    schema,
+    providerKey: "groq",
+    validate: (content) => JSON.parse(content),
+  });
+  const options = await getAiModelOptions();
+  const groq = options.options.find((item) => item.providerKey === "groq");
+  assert.equal(groq.quota.tokensUsed, 15);
+  assert.equal(groq.quota.appBudget.tokens.remaining, 199985);
+  assert.deepEqual(groq.quota.providerReported.tokens, { limit: 8000, remaining: 7900, reset: "7s", period: "minute" });
+  assert.deepEqual(groq.quota.providerReported.requests, { limit: 1000, remaining: 997, reset: "10h", period: "day" });
+  assert.equal(groq.reasonCode, "eligible");
+  assert.equal("apiKey" in groq, false);
+});
+
+test("quota failure explains why a configured model is temporarily unavailable", async (context) => {
+  configureRouter(context);
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: { message: "quota exceeded" } }), {
+    status: 429,
+    headers: { "Content-Type": "application/json", "retry-after": "60" },
+  });
+
+  await assert.rejects(
+    requestAiProviderDecision({ system: "test", payload: {}, schema, providerKey: "gemini" }),
+    /Không có AI provider nào trả về quyết định hợp lệ/,
+  );
+  const options = await getAiModelOptions();
+  const gemini = options.options.find((item) => item.providerKey === "gemini");
+  assert.equal(gemini.configured, true);
+  assert.equal(gemini.ready, false);
+  assert.equal(gemini.reasonCode, "circuit_open");
+  assert.equal(gemini.lastErrorCode, "quota_or_rate_limit");
+  assert.equal(gemini.lastHttpStatus, 429);
+  assert.equal(gemini.lastError, "quota exceeded");
+  assert.equal(gemini.circuit.open, true);
+  assert.equal("apiKey" in gemini, false);
 });
 
 test("failed staff-selected model does not silently call another cloud provider", async (context) => {
