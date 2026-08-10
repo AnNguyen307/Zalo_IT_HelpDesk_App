@@ -44,4 +44,4 @@ The complete existing Admin/Technician and Zalo Mini App surfaces now share one 
 
 ## Release state
 
-Approved for publication as a draft review branch. UI/UX review is still required before merge.
+UI/UX approved after Admin and Client review. Approved for merge to `main`.
