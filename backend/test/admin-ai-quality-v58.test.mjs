@@ -13,16 +13,20 @@ test("Admin AI workspace exposes quality metrics, provider routing and review co
   assert.match(html, /AI CONTROL PLANE/);
   assert.match(html, /id="aiQualityMetrics"/);
   assert.match(html, /id="aiProviderQuality"/);
+  assert.match(html, /id="agentProviderStatus"/);
+  assert.match(html, /QUOTA &amp; READINESS/);
   assert.match(html, /id="aiReviewRows"/);
   assert.match(script, /\/api\/admin\/ai-quality\?days=/);
   assert.match(script, /\/api\/admin\/tickets\/\$\{ticket\.id\}\/ai-review/);
   assert.match(script, /id="aiReviewCorrectBtn"/);
   assert.match(script, /result: "incorrect"/);
+  assert.match(script, /Provider không công bố token còn lại qua API/);
+  assert.match(script, /providerReasonLabels/);
 });
 
-test("v5.12.0 Admin assets are cache-busted", async () => {
+test("v5.13.0 Admin assets are cache-busted", async () => {
   const html = await readFile(publicFile("admin.html"), "utf8");
-  assert.match(html, /\/admin\.css\?v=5\.12\.0/);
-  assert.match(html, /\/admin\.js\?v=5\.12\.0/);
-  assert.match(html, /<span>v5\.12\.0<\/span>/);
+  assert.match(html, /\/admin\.css\?v=5\.13\.0/);
+  assert.match(html, /\/admin\.js\?v=5\.13\.0/);
+  assert.match(html, /<span>v5\.13\.0<\/span>/);
 });

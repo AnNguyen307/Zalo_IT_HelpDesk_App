@@ -1,4 +1,4 @@
-# Zalo IT HelpDesk v5.12.0 - Independent Reasoning for Staff AI Copilot
+# Zalo IT HelpDesk v5.13.0 - Provider Quota Observability
 
 Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App. AI Agent hướng dẫn User theo Playbook; sau bàn giao, Staff AI Copilot vừa đối chiếu Playbook vừa bắt buộc phân tích độc lập, kể cả khi không có procedure phù hợp.
 
@@ -13,6 +13,7 @@
 - **Staff AI Copilot** đánh giá độ khớp Playbook, tạo nhiều giả thuyết có cách kiểm chứng và nhiều hướng giải quyết có tín hiệu thành công/điều kiện dừng.
 - **AI-led khi ngoài Playbook** vẫn hỗ trợ Helpdesk bằng kiến thức của model, nhưng luôn gắn nhãn suy luận AI và không tự thực thi.
 - **Chọn model cho Copilot** cho phép Helpdesk dùng route tự động hoặc chọn chính xác Gemini, Groq, OpenRouter hay SambaNova đã được Admin cấu hình.
+- **Quota & readiness observability** phân biệt quota chưa được provider báo với quota bằng 0, hiển thị token Helpdesk đã quan sát, ngân sách app, circuit và lỗi gần nhất mà không lộ API key.
 - **Kênh AI tách biệt** bảo đảm Copilot không tự gửi nội dung hoặc xuất hiện trong Mini App của User.
 - **Enterprise Playbook RAG** dùng BM25 lexical mặc định; Gemini embedding là tùy chọn.
 - **Không phụ thuộc local AI** trong router, retrieval hoặc quy trình khởi động Windows.

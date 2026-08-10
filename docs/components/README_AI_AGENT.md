@@ -1,4 +1,4 @@
-# AI HelpDesk Agent + Staff Copilot v5.12.0
+# AI HelpDesk Agent + Staff Copilot v5.13.0
 
 AI Agent dùng Router V2 chỉ với cloud provider, BM25 Playbook retrieval và telemetry theo từng attempt. Không có local model hoặc local embedding service trong đường chạy.
 
@@ -73,11 +73,13 @@ Phân tích độc lập là bản tóm tắt lập luận chẩn đoán có th�
 
 Helpdesk có thể chọn **Tự động**, Gemini, Groq, OpenRouter hoặc SambaNova cho lần phân tích tiếp theo. Chỉ các model nằm trong route server và đã cấu hình mới được chọn. Chọn model cụ thể không failover sang cloud model khác; nếu provider lỗi, Copilot dùng Rules/Playbook an toàn và lưu cả model yêu cầu lẫn model thực tế vào run audit.
 
+Admin → **AI Agent** hiển thị riêng cho từng provider: eligibility/readiness, model, token và request Helpdesk đã quan sát trong phiên backend, ngân sách app còn lại, quota do response header báo, lỗi gần nhất và thời điểm circuit cho phép thử lại. Giá trị header không tồn tại là `unknown`, không được suy diễn thành `0`. Gemini cung cấp token đã dùng qua `usageMetadata`, nhưng quota còn lại của project phải xem trong Google AI Studio khi response không có header tương ứng.
+
 Nội dung Copilot chỉ xuất hiện qua `/api/staff/tickets/:ticketId/copilot`; public ticket và Mini App không có trường Copilot.
 
 ## Health và rollback
 
-`GET /health` trả `version: 5.12.0`, các feature `copilot-independent-reasoning`, `copilot-no-playbook-analysis`, `copilot-multi-path-solutions`, `copilot-model-selection`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
+`GET /health` trả `version: 5.13.0`, các feature `provider-quota-observability`, `quota-header-null-safety`, `provider-readiness-diagnostics`, `copilot-independent-reasoning`, `copilot-model-selection`, `agent.provider: ai-router-v2`, thứ tự router, provider đang sẵn sàng, quota/circuit state và trạng thái BM25/embedding.
 
 Rollback không dùng model:
 
@@ -89,4 +91,4 @@ PLAYBOOK_RETRIEVAL_MODE=lexical
 PLAYBOOK_EMBED_PROVIDER=none
 ```
 
-Admin → **AI Agent** hiển thị thứ tự provider, provider sẵn sàng, retrieval mode, quality metrics và review Đúng/Cần sửa.
+Admin → **AI Agent** hiển thị thứ tự provider, readiness/quota từng provider, retrieval mode, quality metrics và review Đúng/Cần sửa.

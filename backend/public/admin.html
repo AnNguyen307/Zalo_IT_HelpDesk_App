@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0b1830" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.12.0" />
+  <link rel="stylesheet" href="/admin.css?v=5.13.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -61,7 +61,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.12.0</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.13.0</span></div>
     </aside>
 
     <div class="admin-main">
@@ -159,6 +159,7 @@
           </div>
           <article class="strict-agent-banner"><div class="strict-orb">✦</div><div><strong>Không trả lời mông lung</strong><p>Không có Playbook phù hợp, procedure không auto-eligible, confidence thấp hoặc AI provider không sẵn sàng đều dẫn đến escalation ngay.</p></div><span>ZERO GUESSING</span></article>
           <div id="agentStatus" class="health-grid"></div>
+          <article class="provider-observability-panel"><div class="report-card-head"><div><span class="card-kicker">QUOTA &amp; READINESS</span><h3>Trạng thái từng AI provider</h3><p>Token đã dùng do Helpdesk quan sát; quota còn lại chỉ hiển thị khi provider hoặc ngân sách app có số liệu.</p></div><span class="provider-scope-chip">PHIÊN BACKEND · UTC DAY</span></div><div id="agentProviderStatus" class="provider-observability-grid"></div></article>
           <div class="split-workspace">
             <form id="agentTestForm" class="workspace-card query-card">
               <span class="card-kicker">AGENT SANDBOX</span><h3>Kiểm thử quyết định</h3><p>Test phản hồi và xem Agent hướng dẫn hay chuyển kỹ thuật viên.</p>
@@ -241,6 +242,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.12.0"></script>
+  <script type="module" src="/admin.js?v=5.13.0"></script>
 </body>
 </html>

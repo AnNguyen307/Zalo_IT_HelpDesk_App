@@ -28,9 +28,12 @@ function stateFor(name) {
       tokensUsed: 0,
       reportedRemainingRequests: null,
       reportedRemainingTokens: null,
+      providerQuota: null,
       consecutiveFailures: 0,
       openUntil: 0,
       lastError: null,
+      lastErrorCode: null,
+      lastHttpStatus: null,
       lastSuccessAt: null,
     };
     runtimeState.set(name, state);
@@ -126,6 +129,32 @@ function remainingBudget(settings, state = stateFor(settings.name)) {
   };
 }
 
+function budgetCounter(limit, used, remaining) {
+  return {
+    limit: limit > 0 ? limit : null,
+    used,
+    remaining: limit > 0 ? remaining : null,
+  };
+}
+
+function quotaSnapshot(settings, state) {
+  const remaining = remainingBudget(settings, state);
+  return {
+    scope: "backend-process-utc-day",
+    dailyRequestLimit: settings.dailyRequestLimit || null,
+    dailyTokenLimit: settings.dailyTokenLimit || null,
+    requests: remaining.requests,
+    tokens: remaining.tokens,
+    requestsUsed: state.requestsUsed,
+    tokensUsed: state.tokensUsed,
+    appBudget: {
+      requests: budgetCounter(settings.dailyRequestLimit, state.requestsUsed, remaining.requests),
+      tokens: budgetCounter(settings.dailyTokenLimit, state.tokensUsed, remaining.tokens),
+    },
+    providerReported: state.providerQuota,
+  };
+}
+
 function budgetExhausted(settings, state = stateFor(settings.name)) {
   const remaining = remainingBudget(settings, state);
   return remaining.requests === 0 || remaining.tokens === 0;
@@ -176,6 +205,13 @@ export async function getAiModelOptions() {
       ready: status.ready,
       configured: status.configured,
       error: status.error || null,
+      reasonCode: status.reasonCode || null,
+      quota: status.quota,
+      circuit: status.circuit,
+      lastError: status.lastError || null,
+      lastErrorCode: status.lastErrorCode || null,
+      lastHttpStatus: status.lastHttpStatus || null,
+      lastSuccessAt: status.lastSuccessAt || null,
     };
   }));
   return {
@@ -203,20 +239,17 @@ function baseStatus(settings) {
     ready: settings.name === "rules",
     cloudEnabled: config.aiCloudEnabled,
     redactionEnabled: settings.dataBoundary === "external" && config.aiRedactionEnabled,
-    quota: {
-      dailyRequestLimit: settings.dailyRequestLimit || null,
-      dailyTokenLimit: settings.dailyTokenLimit || null,
-      ...remainingBudget(settings, state),
-      requestsUsed: state.requestsUsed,
-      tokensUsed: state.tokensUsed,
-    },
+    quota: quotaSnapshot(settings, state),
     circuit: {
       open: state.openUntil > Date.now(),
       openUntil: state.openUntil > Date.now() ? new Date(state.openUntil).toISOString() : null,
       consecutiveFailures: state.consecutiveFailures,
     },
     lastError: state.lastError,
+    lastErrorCode: state.lastErrorCode,
+    lastHttpStatus: state.lastHttpStatus,
     lastSuccessAt: state.lastSuccessAt,
+    reasonCode: settings.name === "rules" ? "rules_ready" : null,
     error: null,
     checkedAt: nowIso(),
   };
@@ -228,11 +261,11 @@ async function providerStatus(name) {
   if (name === "rules") return base;
   if (!base.configured) {
     const feature = settings.enabled ? "thiếu API key/model hoặc AI_CLOUD_ENABLED=false" : "feature flag đang tắt";
-    return { ...base, ready: false, error: `${settings.id}: ${feature}.` };
+    return { ...base, ready: false, reasonCode: settings.enabled ? "not_configured" : "feature_disabled", error: `${settings.id}: ${feature}.` };
   }
-  if (budgetExhausted(settings)) return { ...base, ready: false, error: "Đã chạm ngân sách miễn phí cấu hình trong ngày." };
-  if (base.circuit.open) return { ...base, ready: false, error: `Circuit đang tạm mở đến ${base.circuit.openUntil}.` };
-  return { ...base, reachable: true, modelInstalled: true, ready: true };
+  if (budgetExhausted(settings)) return { ...base, ready: false, reasonCode: "daily_budget_exhausted", error: "Đã chạm ngân sách miễn phí cấu hình trong ngày." };
+  if (base.circuit.open) return { ...base, ready: false, reasonCode: "circuit_open", error: `Circuit đang tạm mở đến ${base.circuit.openUntil}.` };
+  return { ...base, reachable: true, modelInstalled: true, ready: true, reasonCode: "eligible" };
 }
 
 export function getAiRoute() {
@@ -298,7 +331,7 @@ async function requestGemini({ settings, system, payload, schema, signal }) {
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": settings.apiKey,
-      "x-goog-api-client": "zalo-helpdesk/5.12.0",
+      "x-goog-api-client": "zalo-helpdesk/5.13.0",
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
@@ -394,29 +427,85 @@ function providerHttpError(settings, response, body) {
   const error = providerError(String(message), response.status === 429 ? "quota_or_rate_limit" : `http_${response.status}`, response.status === 429 || response.status >= 500);
   error.httpStatus = response.status;
   error.retryAfter = response.headers.get("retry-after") || null;
+  error.headers = response.headers;
   return error;
 }
 
 function numericHeader(headers, names) {
   for (const name of names) {
-    const value = Number(headers?.get?.(name));
+    const raw = headers?.get?.(name);
+    if (raw == null || String(raw).trim() === "") continue;
+    const value = Number(raw);
     if (Number.isFinite(value) && value >= 0) return value;
   }
   return null;
 }
 
-function recordHeaders(state, headers) {
-  const remainingRequests = numericHeader(headers, [
-    "x-ratelimit-remaining-requests-day",
-    "x-ratelimit-remaining-requests",
-    "x-rate-limit-remaining",
-  ]);
-  const remainingTokens = numericHeader(headers, [
-    "x-ratelimit-remaining-tokens-day",
-    "x-ratelimit-remaining-tokens",
-  ]);
-  if (remainingRequests != null) state.reportedRemainingRequests = remainingRequests;
-  if (remainingTokens != null) state.reportedRemainingTokens = remainingTokens;
+function textHeader(headers, names) {
+  for (const name of names) {
+    const value = headers?.get?.(name);
+    if (value != null && String(value).trim()) return String(value).trim();
+  }
+  return null;
+}
+
+function quotaCounter({ limit = null, remaining = null, reset = null, period = null } = {}) {
+  if (limit == null && remaining == null && reset == null) return null;
+  return { limit, remaining, reset, period };
+}
+
+function providerQuotaFromHeaders(settings, headers) {
+  if (!headers?.get) return null;
+  const dailyRequests = quotaCounter({
+    limit: numericHeader(headers, ["x-ratelimit-limit-requests-day"]),
+    remaining: numericHeader(headers, ["x-ratelimit-remaining-requests-day"]),
+    reset: textHeader(headers, ["x-ratelimit-reset-requests-day"]),
+    period: "day",
+  });
+  const dailyTokens = quotaCounter({
+    limit: numericHeader(headers, ["x-ratelimit-limit-tokens-day"]),
+    remaining: numericHeader(headers, ["x-ratelimit-remaining-tokens-day"]),
+    reset: textHeader(headers, ["x-ratelimit-reset-tokens-day"]),
+    period: "day",
+  });
+  const genericRequests = quotaCounter({
+    limit: numericHeader(headers, ["x-ratelimit-limit-requests", "x-rate-limit-limit"]),
+    remaining: numericHeader(headers, ["x-ratelimit-remaining-requests", "x-rate-limit-remaining"]),
+    reset: textHeader(headers, ["x-ratelimit-reset-requests", "x-rate-limit-reset"]),
+    period: settings.name === "groq" ? "day" : "minute",
+  });
+  const genericTokens = quotaCounter({
+    limit: numericHeader(headers, ["x-ratelimit-limit-tokens"]),
+    remaining: numericHeader(headers, ["x-ratelimit-remaining-tokens"]),
+    reset: textHeader(headers, ["x-ratelimit-reset-tokens"]),
+    period: "minute",
+  });
+  const platform = quotaCounter({
+    limit: numericHeader(headers, ["x-ratelimit-limit"]),
+    remaining: numericHeader(headers, ["x-ratelimit-remaining"]),
+    reset: textHeader(headers, ["x-ratelimit-reset"]),
+    period: "provider-defined",
+  });
+  if (!dailyRequests && !dailyTokens && !genericRequests && !genericTokens && !platform) return null;
+  return {
+    source: "response-headers",
+    observedAt: nowIso(),
+    requests: dailyRequests || genericRequests,
+    tokens: dailyTokens || genericTokens,
+    platform,
+  };
+}
+
+function recordHeaders(settings, state, headers) {
+  const snapshot = providerQuotaFromHeaders(settings, headers);
+  if (!snapshot) return;
+  state.providerQuota = snapshot;
+  if (snapshot.requests?.period === "day" && snapshot.requests.remaining != null) {
+    state.reportedRemainingRequests = snapshot.requests.remaining;
+  }
+  if (snapshot.tokens?.period === "day" && snapshot.tokens.remaining != null) {
+    state.reportedRemainingTokens = snapshot.tokens.remaining;
+  }
 }
 
 function markSuccess(settings, result) {
@@ -424,15 +513,21 @@ function markSuccess(settings, result) {
   state.consecutiveFailures = 0;
   state.openUntil = 0;
   state.lastError = null;
+  state.lastErrorCode = null;
+  state.lastHttpStatus = null;
   state.lastSuccessAt = nowIso();
   state.tokensUsed += Number(result?.usage?.totalTokens || 0);
-  recordHeaders(state, result?.headers);
+  recordHeaders(settings, state, result?.headers);
 }
 
 function markFailure(settings, error) {
   const state = stateFor(settings.name);
+  recordHeaders(settings, state, error?.headers);
   state.consecutiveFailures += 1;
-  state.lastError = String(error?.message || error);
+  const rawMessage = String(error?.message || error);
+  state.lastError = (settings.apiKey ? rawMessage.split(settings.apiKey).join("<REDACTED>") : rawMessage).slice(0, 700);
+  state.lastErrorCode = error?.reasonCode || "provider_error";
+  state.lastHttpStatus = Number(error?.httpStatus || 0) || null;
   if (error?.httpStatus === 429 || state.consecutiveFailures >= config.aiCircuitFailureThreshold) {
     const retrySeconds = Number(error?.retryAfter);
     state.openUntil = Date.now() + (Number.isFinite(retrySeconds) ? retrySeconds * 1000 : config.aiCircuitCooldownMs);

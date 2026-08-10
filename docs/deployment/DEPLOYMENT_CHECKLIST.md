@@ -62,7 +62,7 @@
 - [ ] AI Agent kênh User không tự tạo command/checklist ngoài Playbook; Staff Copilot chỉ đưa phương án nội bộ có nhãn AI, mức rủi ro và điều kiện dừng.
 - [ ] Kiểm tra confidence threshold bằng ticket thực tế.
 
-## AI Router V2, RAG và Copilot v5.12.0
+## AI Router V2, RAG và Copilot v5.13.0
 
 - [ ] `AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova`; Rules/HelpDesk là fallback cuối.
 - [ ] Máy backend không cần local model, local embedding service hoặc AI autostart task.
@@ -73,7 +73,9 @@
 - [ ] `PLAYBOOK_RETRIEVAL_MODE=lexical`, `PLAYBOOK_EMBED_PROVIDER=none` vẫn tìm đúng Top-K khi cloud AI tắt.
 - [ ] Chạy `npm run playbook:benchmark` và lưu kết quả cùng release validation.
 - [ ] Chạy `npm run db:migrate` và xác nhận schema version `9` trước khi restart backend.
-- [ ] Kiểm tra `/health` là `5.12.0`, có `copilot-independent-reasoning`, `copilot-no-playbook-analysis`, `copilot-multi-path-solutions`, `copilot-model-selection`.
+- [ ] Kiểm tra `/health` là `5.13.0`, có `provider-quota-observability`, `quota-header-null-safety`, `provider-readiness-diagnostics`, `copilot-independent-reasoning`, `copilot-model-selection`.
+- [ ] Gọi Gemini thành công khi response không có quota header; xác nhận Gemini vẫn sẵn sàng và quota token hiển thị “Không xác định”, không phải `0`.
+- [ ] Admin → AI Agent hiển thị token/request đã quan sát, ngân sách app, quota provider, lỗi gần nhất và circuit mà không lộ API key.
 - [ ] Chọn **Tôi vẫn chưa xử lý được** và xác nhận AI Agent không phản hồi User thêm.
 - [ ] Admin → ticket → Copilot hiển thị nội dung nội bộ; User/Mini App không nhận bất kỳ suggestion Copilot nào.
 - [ ] Chạy Copilot với **Tự động** và ít nhất một model cụ thể; xác nhận run hiển thị đúng model yêu cầu và model thực tế.

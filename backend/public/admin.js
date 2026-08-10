@@ -40,6 +40,7 @@ const statIcons = ["▦", "◉", "↻", "!", "✓", "★"];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 const formatDate = (value) => value ? new Date(value).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" }) : "—";
 const formatSize = (bytes = 0) => bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1048576).toFixed(1)} MB`;
+const formatCount = (value) => Number.isFinite(Number(value)) ? new Intl.NumberFormat("vi-VN").format(Number(value)) : "—";
 const timeLeft = (iso) => {
   if (!iso) return "Chưa xác định";
   const diff = new Date(iso).getTime() - Date.now();
@@ -440,9 +441,58 @@ function renderAgent() {
     ["Strict escalation", policy.strictEscalation ? "Đang bật" : "Đang tắt", policy.strictEscalation ? "ready" : "not-ready"],
     ["Ngưỡng tin cậy", policy.minimumConfidence != null ? `${Math.round(policy.minimumConfidence * 100)}%` : "—", ""],
   ];
-  const providerDetail = Array.isArray(agent.providers) ? `<div class="agent-error">${agent.providers.map((item) => `${esc(item.providerKey)}: ${item.ready ? "ready" : esc(item.error || "skipped")}`).join(" · ")}</div>` : "";
-  $("#agentStatus").innerHTML = items.map(([label, value, style]) => healthCard(label, value, style)).join("") + providerDetail + (agent.error ? `<div class="agent-error">${esc(agent.error)}</div>` : "");
+  $("#agentStatus").innerHTML = items.map(([label, value, style]) => healthCard(label, value, style)).join("") + (agent.error ? `<div class="agent-error">${esc(agent.error)}</div>` : "");
+  renderProviderObservability(agent.providers || []);
   setHealth("#topAgentState", "#topAgentText", Boolean(agent.ready), agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Đang dùng handoff an toàn");
+}
+
+const providerReasonLabels = {
+  eligible: "Đủ điều kiện route",
+  not_configured: "Thiếu cấu hình cloud/API key/model",
+  feature_disabled: "Provider đang tắt",
+  daily_budget_exhausted: "Hết ngân sách ngày của Helpdesk",
+  circuit_open: "Circuit tạm khóa sau lỗi",
+};
+const quotaPeriodLabels = { day: "ngày", minute: "phút", "provider-defined": "chu kỳ provider" };
+function quotaCounterText(counter, noun) {
+  if (!counter || counter.remaining == null) return "";
+  const period = quotaPeriodLabels[counter.period] || counter.period || "chu kỳ";
+  return `${formatCount(counter.remaining)} ${noun} còn lại/${period}`;
+}
+function providerTokenBalance(item) {
+  const quota = item?.quota || {};
+  const reported = quota.providerReported?.tokens;
+  if (reported?.remaining != null) return { value: quotaCounterText(reported, "token"), source: "Provider báo qua response header" };
+  const app = quota.appBudget?.tokens;
+  if (app?.limit != null) return { value: `${formatCount(app.remaining)} / ${formatCount(app.limit)} token`, source: "Ngân sách ngày cấu hình trong Helpdesk" };
+  return { value: "Không xác định", source: "Provider không công bố token còn lại qua API" };
+}
+function providerRequestBalance(item) {
+  const quota = item?.quota || {};
+  const reported = quota.providerReported?.requests;
+  if (reported?.remaining != null) return quotaCounterText(reported, "request");
+  const app = quota.appBudget?.requests;
+  if (app?.limit != null) return `${formatCount(app.remaining)} / ${formatCount(app.limit)} request/ngày`;
+  return "Không đặt giới hạn trong app";
+}
+function providerOptionQuotaLabel(item) {
+  const balance = providerTokenBalance(item);
+  if (balance.value !== "Không xác định") return balance.value;
+  const used = Number(item?.quota?.tokensUsed || 0);
+  return used > 0 ? `${formatCount(used)} token đã dùng` : "quota token chưa có số liệu";
+}
+function renderProviderObservability(providers) {
+  const host = $("#agentProviderStatus");
+  if (!host) return;
+  host.innerHTML = providers.length ? providers.map((item) => {
+    const token = providerTokenBalance(item);
+    const reason = providerReasonLabels[item.reasonCode] || (item.ready ? "Đủ điều kiện route" : "Không sẵn sàng");
+    const lastFailure = item.lastError
+      ? `<div class="provider-last-error"><b>Lỗi gần nhất${item.lastHttpStatus ? ` · HTTP ${esc(item.lastHttpStatus)}` : ""}</b><span>${esc(item.lastError)}</span></div>`
+      : "";
+    const cooldown = item.circuit?.openUntil ? `<small>Thử lại sau: ${formatDate(item.circuit.openUntil)}</small>` : "";
+    return `<article class="provider-observability-card ${item.ready ? "ready" : "not-ready"}"><header><div><span class="provider-readiness-dot"></span><strong>${esc(copilotProviderLabels[item.providerKey] || item.providerKey)}</strong><small>${esc(item.model || "Chưa cấu hình")}</small></div><b>${item.ready ? "SẴN SÀNG" : "TẠM KHÓA"}</b></header><div class="provider-quota-metrics"><p><span>Token đã dùng</span><strong>${formatCount(item.quota?.tokensUsed || 0)}</strong><small>Helpdesk quan sát trong phiên</small></p><p><span>Token còn lại</span><strong>${esc(token.value)}</strong><small>${esc(token.source)}</small></p><p><span>Request còn lại</span><strong>${esc(providerRequestBalance(item))}</strong><small>${formatCount(item.quota?.requestsUsed || 0)} request đã gọi trong phiên</small></p></div><footer><span>${esc(reason)}</span>${cooldown}</footer>${lastFailure}</article>`;
+  }).join("") : '<div class="empty-state compact-empty"><h3>Chưa có provider trong route</h3><p>Kiểm tra AI_PROVIDER_ORDER và feature flag của từng provider.</p></div>';
 }
 
 function renderAiQuality() {
@@ -502,7 +552,8 @@ async function openTicket(ticketId) {
     `<option value="auto" ${selectedProvider === "auto" ? "selected" : ""}>Tự động · route theo cấu hình</option>`,
     ...copilotModelOptions.map((item) => {
       const label = copilotProviderLabels[item.providerKey] || item.providerKey;
-      return `<option value="${esc(item.providerKey)}" ${selectedProvider === item.providerKey ? "selected" : ""} ${item.ready ? "" : "disabled"}>${esc(label)} · ${esc(item.model || "chưa cấu hình")}${item.ready ? "" : " · không sẵn sàng"}</option>`;
+      const readiness = item.ready ? "" : ` · ${providerReasonLabels[item.reasonCode] || "không sẵn sàng"}`;
+      return `<option value="${esc(item.providerKey)}" ${selectedProvider === item.providerKey ? "selected" : ""} ${item.ready ? "" : "disabled"}>${esc(label)} · ${esc(item.model || "chưa cấu hình")}${esc(readiness)} · ${esc(providerOptionQuotaLabel(item))}</option>`;
     }),
   ].join("");
   const copilotModelPicker = writable ? `<div class="copilot-model-picker"><label for="copilotModelSelect"><span>Model hỗ trợ lần phân tích tiếp theo</span><select id="copilotModelSelect">${copilotModelOptionHtml}</select></label><small>“Tự động” dùng failover cloud. Chọn model cụ thể sẽ chỉ gọi model đó; nếu lỗi, Copilot dùng Rules/Playbook an toàn.</small></div>` : "";
