@@ -9,6 +9,7 @@ The complete existing Admin/Technician and Zalo Mini App surfaces now share one 
 - Reorganized navigation into Operations, Knowledge and Administration.
 - Replaced the blue SaaS visual layer with the Warm Industrial token system.
 - Flattened KPI cards into a compact service metric strip.
+- Replaced the black active quick-filter state with a softer Signal Blue selection treatment.
 - Added action owner and next action to queue rows.
 - Rebuilt Ticket Workspace as three zones: queue, conversation and context/dispatch.
 - Added a four-part signal strip for status, assignee, next step and action owner.

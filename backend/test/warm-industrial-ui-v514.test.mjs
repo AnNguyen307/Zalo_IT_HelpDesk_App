@@ -15,6 +15,7 @@ test("Admin uses Warm Industrial tokens and a three-zone ticket workspace", asyn
   assert.match(html, /IT SERVICE WORKSHOP/);
   assert.match(html, /Playbook là căn cứ, không phải giới hạn/);
   assert.match(css, /--canvas:#f7f5f0/);
+  assert.match(css, /\.smart-queue\.active\{[\s\S]*background:#eaf1ff;[\s\S]*color:var\(--brand2\);[\s\S]*box-shadow:inset 0 -3px 0 var\(--brand\)/);
   assert.match(css, /grid-template-columns:245px minmax\(420px,1fr\) 370px/);
   assert.match(script, /class="workbench-queue"/);
   assert.match(script, /class="workbench-signal-strip"/);
