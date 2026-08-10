@@ -32,4 +32,4 @@ The Zalo Client home hero now remains readable and collision-free on narrow Mini
 
 ## Review state
 
-UI/UX review required. Do not merge or deploy before the project owner approves the Client home screen.
+The project owner approved the Client home screen on 2026-08-10 and authorized the source merge. Publishing the Mini App to Zalo still requires a separate explicit deployment request.
