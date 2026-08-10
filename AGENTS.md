@@ -90,7 +90,7 @@ If a gate cannot run, state exactly why and do not claim it passed.
 - Add meaningful health feature flags for major capabilities so the deployed runtime can be verified without inference.
 - Keep release notes under `docs/releases/<version>/`.
 - Never add a database migration for a UI-only release.
-- Current approved UI release: `v5.14.0`.
+- Current approved UI release: `v5.14.1` (Mini App component release; backend remains `v5.14.0`).
 - Current database schema at that release: `9`.
 
 ## 6. Product and UI principles
