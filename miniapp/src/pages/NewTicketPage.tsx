@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Icon } from "../components/Icon";
 import { useApp } from "../context";
 import { api } from "../lib/api";
@@ -48,6 +48,14 @@ export function NewTicketPage() {
       `Tôi đang gặp sự cố: ${i.title}.\n\nThời điểm bắt đầu: ...\nThông báo/mã lỗi: ...\nNhững bước đã thử: ...\nPhạm vi ảnh hưởng: chỉ máy của tôi / nhiều người.`,
     );
   }
+  useEffect(() => {
+    const saved = sessionStorage.getItem("hd_new_ticket_template");
+    if (!saved) return;
+    sessionStorage.removeItem("hd_new_ticket_template");
+    const selected = quick.find((item) => item.title === saved);
+    if (selected) template(selected);
+    else setTitle(saved);
+  }, []);
   function choose(e: ChangeEvent<HTMLInputElement>) {
     const a = [...(e.target.files || [])];
     const big = a.find((f) => f.size > MAX);
@@ -97,9 +105,9 @@ export function NewTicketPage() {
         <Icon name="arrow-left" /> Trang chủ
       </button>
       <section className="page-title">
-        <span className="eyebrow">TICKET MỚI</span>
+        <span className="eyebrow">PHIẾU HỖ TRỢ MỚI</span>
         <h1>Bạn cần hỗ trợ gì?</h1>
-        <p>Chọn nhóm lỗi, mô tả ngắn và thêm ảnh nếu có.</p>
+        <p>Mô tả trước; nhóm gợi ý chỉ giúp bạn bắt đầu nhanh hơn.</p>
       </section>
       <section className="new-ticket-visual">
         <img

@@ -7,6 +7,16 @@ export function HomePage() {
     waiting = tickets.filter((t) => t.status === "waiting_user").length,
     overdue = tickets.filter((t) => t.sla?.overdue).length,
     latest = tickets.slice(0, 3);
+  const shortcuts = [
+    ["printer", "Máy in", "Máy in Ricoh Offline hoặc không in"],
+    ["network", "Mạng", "Máy tính không truy cập được Internet"],
+    ["windows", "Windows", "Máy tính Windows chạy chậm"],
+    ["account", "Tài khoản", "Tài khoản hoặc quyền truy cập gặp lỗi"],
+  ] as const;
+  const startFromShortcut = (title: string) => {
+    sessionStorage.setItem("hd_new_ticket_template", title);
+    navigate("new");
+  };
   return (
     <>
       <section className="hero">
@@ -15,14 +25,15 @@ export function HomePage() {
             Xin chào,{" "}
             {user?.name?.split(" ").slice(-1)[0] || "bạn"}
           </span>
-          <h1>IT gặp sự cố? Mình xử lý cùng bạn.</h1>
-          <p>Gửi ảnh lỗi, theo dõi tiến độ và trao đổi ngay trong Zalo.</p>
+          <span className="service-plate">IT SERVICE WORKSHOP · ĐANG TRỰC</span>
+          <h1>Có sự cố, luôn biết ai đang xử lý.</h1>
+          <p>Tạo yêu cầu, theo dõi SLA và xem rõ bước tiếp theo ngay trong Zalo.</p>
           <div className="hero-actions">
             <button className="primary" onClick={() => navigate("new")}>
-              <Icon name="plus" /> Tạo yêu cầu
+              <Icon name="plus" /> Tạo yêu cầu hỗ trợ
             </button>
             <button className="secondary" onClick={() => navigate("tickets")}>
-              Xem ticket
+              Xem yêu cầu
             </button>
           </div>
         </div>
@@ -108,6 +119,22 @@ export function HomePage() {
             </button>
           </div>
         )}
+      </div>
+      <section className="section-heading shortcut-heading">
+        <div>
+          <span className="eyebrow">GỬI NHANH</span>
+          <h2>Sự cố phổ biến</h2>
+        </div>
+        <small>Chọn để điền mẫu</small>
+      </section>
+      <div className="quick-signal-grid">
+        {shortcuts.map(([icon, label, title]) => (
+          <button key={label} onClick={() => startFromShortcut(title)}>
+            <span><Icon name={icon} /></span>
+            <strong>{label}</strong>
+            <Icon name="arrow-right" size={16} />
+          </button>
+        ))}
       </div>
       <section className="process-card">
         <div className="process-copy">

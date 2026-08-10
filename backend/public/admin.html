@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#0b1830" />
+  <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.13.0" />
+  <link rel="stylesheet" href="/admin.css?v=5.14.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -15,9 +15,9 @@
     <section class="login-showcase" aria-hidden="true">
       <div class="showcase-brand"><span class="brand-symbol">IT</span><span>Enterprise HelpDesk</span></div>
       <div class="showcase-copy">
-        <span class="overline">HELPDESK OPERATIONS</span>
-        <h1>Nắm tình hình.<br/>Xử lý đúng việc.</h1>
-        <p>Ticket, SLA, Playbook và AI trong một workspace thống nhất.</p>
+        <span class="overline">IT SERVICE WORKSHOP</span>
+        <h1>Đúng tín hiệu.<br/>Đúng người xử lý.</h1>
+        <p>Một bàn điều phối rõ trạng thái, owner, SLA và bước tiếp theo cho từng yêu cầu.</p>
         <div class="showcase-points">
           <div><span>01</span><strong>Đúng Playbook</strong></div>
           <div><span>02</span><strong>Rõ SLA</strong></div>
@@ -45,28 +45,29 @@
 
   <section id="appView" class="admin-layout hidden">
     <aside class="sidebar">
-      <div class="sidebar-brand"><span class="brand-symbol">IT</span><div><strong>HelpDesk</strong><small>Control Center</small></div></div>
+      <div class="sidebar-brand"><span class="brand-symbol">IT</span><div><strong>HelpDesk</strong><small>Service workshop</small></div></div>
       <nav class="sidebar-nav" aria-label="Điều hướng quản trị">
         <span class="nav-label">VẬN HÀNH</span>
-        <button class="tab active" data-tab="tickets"><span class="nav-icon">▦</span><span>Yêu cầu</span><b id="openTicketBadge" class="hidden" aria-hidden="true"></b></button>
+        <button class="tab active" data-tab="tickets"><span class="nav-icon">▦</span><span>Tổng quan</span><b id="openTicketBadge" class="hidden" aria-hidden="true"></b></button>
         <button class="tab" data-tab="operations"><span class="nav-icon">◩</span><span>Báo cáo</span></button>
-        <button class="tab admin-only" data-tab="staff"><span class="nav-icon">◎</span><span>Nhân sự</span></button>
-        <button class="tab" data-tab="knowledge"><span class="nav-icon">◇</span><span>Kho kiến thức</span></button>
-        <span class="nav-label">HỆ THỐNG</span>
+        <span class="nav-label">TRI THỨC</span>
         <button class="tab" data-tab="governance"><span class="nav-icon">◫</span><span>Quy trình</span><b id="reviewBadge" class="hidden" aria-hidden="true"></b></button>
         <button class="tab" data-tab="playbook"><span class="nav-icon">▤</span><span>Playbook</span></button>
-        <button class="tab" data-tab="agent"><span class="nav-icon">✦</span><span>AI Agent</span></button>
+        <button class="tab" data-tab="knowledge"><span class="nav-icon">◇</span><span>Kiến thức</span></button>
+        <span class="nav-label">QUẢN TRỊ</span>
+        <button class="tab admin-only" data-tab="staff"><span class="nav-icon">◎</span><span>Nhân sự</span></button>
+        <button class="tab" data-tab="agent"><span class="nav-icon">✦</span><span>Hệ thống &amp; AI</span></button>
       </nav>
       <div class="sidebar-health">
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.13.0</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.14.0</span></div>
     </aside>
 
     <div class="admin-main">
       <header class="main-header">
-        <div class="header-copy"><span class="overline">IT OPERATIONS</span><h1 id="activeSectionTitle">Tổng quan Ticket</h1><p id="activeSectionDescription">Theo dõi yêu cầu, SLA và quyết định xử lý theo thời gian thực.</p></div>
+        <div class="header-copy"><span class="overline">IT SERVICE OPERATIONS</span><h1 id="activeSectionTitle">Tổng quan vận hành</h1><p id="activeSectionDescription">Trạng thái, owner, SLA và bước tiếp theo theo thời gian thực.</p></div>
         <div class="header-actions"><button id="refreshBtn" class="button icon-button" title="Làm mới"><span>↻</span></button><button id="logoutBtn" class="button subtle-button"><span>Đăng xuất</span><b>↗</b></button></div>
       </header>
 
@@ -75,8 +76,8 @@
           <div id="stats" class="stats-grid"></div>
           <article class="policy-banner">
             <img src="/assets/admin-operations-1280.webp" alt="" width="1280" height="720" />
-            <div><span class="overline">VẬN HÀNH AN TOÀN</span><strong>Playbook-first đang bật</strong><p>Không đủ căn cứ, AI chuyển kỹ thuật viên.</p></div>
-            <div class="policy-tags"><span>Đúng quy trình</span><span>Không suy đoán</span><span>Theo dõi SLA</span></div>
+            <div><span class="overline">VẬN HÀNH CÓ KIỂM SOÁT</span><strong>Playbook là căn cứ, không phải giới hạn</strong><p>AI mở rộng giả thuyết có kiểm chứng; quyết định rủi ro vẫn do HelpDesk.</p></div>
+            <div class="policy-tags"><span>Căn cứ rõ</span><span>Kiểm chứng được</span><span>Theo dõi SLA</span></div>
           </article>
           <div id="smartQueues" class="smart-queues" aria-label="Hàng đợi thông minh"></div>
           <div class="filter-panel">
@@ -242,6 +243,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.13.0"></script>
+  <script type="module" src="/admin.js?v=5.14.0"></script>
 </body>
 </html>

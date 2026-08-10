@@ -20,6 +20,10 @@ import {
   formatDate,
   priorityLabel,
   statusLabel,
+  ticketActionSignal,
+  ticketNextStep,
+  ticketOwner,
+  ticketStageIndex,
 } from "../lib/ui";
 import type { Attachment, Message, Ticket, TicketHistory } from "../types";
 
@@ -39,6 +43,7 @@ const MAX_FILE = 30 * 1024 * 1024;
 const MAX_REPLY_BYTES = 120 * 1024 * 1024;
 const MAX_REPLY_FILES = 4;
 const ACCEPTED = "image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip";
+const signalStages = ["Đã nhận", "Đối chiếu", "IT xử lý", "Hoàn tất"];
 
 function timeLeft(iso: string) {
   const diff = new Date(iso).getTime() - Date.now();
@@ -268,6 +273,10 @@ export function TicketDetailPage() {
   const escalatedByAi = Boolean(ai && !ai.canAutoHandle);
   const humanOnly = Boolean(ticket.humanHandoff?.locked);
   const icon = categoryIcon[ticket.category] || "other";
+  const owner = ticketOwner(ticket);
+  const nextStep = ticketNextStep(ticket);
+  const actionSignal = ticketActionSignal(ticket);
+  const activeStage = ticketStageIndex(ticket);
   return (
     <div
       className={`ticket-detail-page ${finished ? "" : "has-sticky-composer"}`}
@@ -334,6 +343,22 @@ export function TicketDetailPage() {
         </div>
       </section>
 
+      <section className="ticket-signal-board" aria-label="Tín hiệu xử lý yêu cầu">
+        <div className="ticket-signal-facts">
+          <span><small>Trạng thái</small><strong>{statusLabel[ticket.status]}</strong></span>
+          <span><small>Phụ trách</small><strong>{owner}</strong></span>
+          <span><small>Bước tiếp theo</small><strong>{nextStep}</strong></span>
+          <span className={`signal-action ${actionSignal.tone}`}><small>Hành động</small><strong>{actionSignal.label}</strong></span>
+        </div>
+        <ol className="ticket-stage-tracker">
+          {signalStages.map((label, index) => (
+            <li key={label} className={index < activeStage ? "done" : index === activeStage ? "current" : "future"}>
+              <span>{index < activeStage ? "✓" : index + 1}</span><b>{label}</b>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       <section className="conversation conversation-card">
         <div className="conversation-head">
           <div>
@@ -388,10 +413,9 @@ export function TicketDetailPage() {
           <div className="channel-handoff-banner">
             <Icon name="shield" />
             <span>
-              <strong>HelpDesk đang tiếp nhận</strong>
+              <strong>Đã chuyển kỹ thuật viên · {owner}</strong>
               <small>
-                AI không còn phản hồi trực tiếp. Tin nhắn mới sẽ được chuyển cho
-                kỹ thuật viên.
+                Dự kiến phản hồi theo SLA ở phía trên. Tin nhắn mới sẽ được chuyển trực tiếp cho HelpDesk.
               </small>
             </span>
           </div>
@@ -605,15 +629,8 @@ export function TicketDetailPage() {
                     </b>
                   </div>
                   <p>{ai.summary}</p>
-                  <div className="agent-runtime">
-                    <span>
-                      <Icon name="bot" size={15} />{" "}
-                      {ai.source.includes("playbook")
-                        ? "Enterprise Playbook"
-                        : ai.source}
-                    </span>
-                    {ai.model && <span>{ai.model}</span>}
-                    <span>{Math.round(ai.confidence * 100)}%</span>
+                  <div className="agent-runtime employee-safe-runtime">
+                    <span><Icon name="sparkles" size={15} /> Đã đối chiếu quy trình được phê duyệt</span>
                   </div>
                   {(!guided || humanOnly) && (
                     <div className="handoff-note">
