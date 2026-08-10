@@ -5,9 +5,11 @@ import {
   analysisRequiresHumanHandoff,
   isHumanHandoffLocked,
   lockHumanHandoff,
+  messageRequestsHumanHandoff,
   publicHumanHandoff,
   shouldAgentParticipate,
   statusAfterHumanReply,
+  statusAfterUserHandoff,
 } from "../src/handoff.mjs";
 
 test("AI escalation permanently locks the ticket for human-only conversation", () => {
@@ -54,12 +56,28 @@ test("human-only user reply returns waiting_user ticket to staff queue", () => {
   assert.equal(statusAfterHumanReply("in_progress"), "in_progress");
 });
 
+test("explicit unresolved language hands off without another AI reply", () => {
+  for (const message of [
+    "Tôi vẫn chưa xử lý được",
+    "Đã thử các bước nhưng vẫn không được",
+    "Chuyển hẳn cho HelpDesk giúp tôi",
+    "Cần kỹ thuật viên kiểm tra",
+  ]) assert.equal(messageRequestsHumanHandoff(message), true, message);
+
+  for (const message of [
+    "Tôi đã xử lý được",
+    "Không được tắt máy trong lúc cập nhật",
+    "Cho tôi biết bước tiếp theo",
+  ]) assert.equal(messageRequestsHumanHandoff(message), false, message);
+  assert.equal(statusAfterUserHandoff("waiting_user"), "open");
+});
+
 test("server contains pre-analysis and in-transaction race guards", async () => {
   const source = await readFile(new URL("../src/server.mjs", import.meta.url), "utf8");
   assert.match(source, /isHumanHandoffLocked\(bundle\.ticket, bundle\.messages\)/);
   assert.match(source, /currentMessages = db\.messages\.filter/);
   assert.match(source, /agentAccepted: false/);
-  assert.match(source, /AI bị khóa vĩnh viễn khỏi hội thoại ticket này/);
+  assert.match(source, /AI Agent không phản hồi trực tiếp, Copilot chỉ hỗ trợ nội bộ/);
 });
 
 test("SQL migration persists and backfills immutable handoff state", async () => {

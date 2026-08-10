@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { config } from "../src/config.mjs";
-import { requestAiProviderDecision, resetAiRouterStateForTest } from "../src/ai-router.mjs";
+import { getAiModelOptions, requestAiProviderDecision, resetAiRouterStateForTest } from "../src/ai-router.mjs";
 
 const schema = {
   type: "object",
@@ -82,6 +82,68 @@ test("Router V2 falls through quota failure to the next cloud provider", async (
     ["groq", "success"],
   ]);
   assert.equal(called.length, 2);
+});
+
+test("staff-selected model is honored without cloud failover", async (context) => {
+  configureRouter(context);
+  const called = [];
+  globalThis.fetch = async (url) => {
+    called.push(String(url));
+    if (String(url).includes("api.groq.com")) return okOpenAi("groq");
+    throw new Error(`Không được gọi provider ngoài model đã chọn: ${url}`);
+  };
+
+  const result = await requestAiProviderDecision({
+    system: "test",
+    payload: { ticket: "mock" },
+    schema,
+    providerKey: "groq",
+    validate: (content) => JSON.parse(content),
+  });
+
+  assert.equal(result.validated.provider, "groq");
+  assert.equal(result.telemetry.routingPolicy, "staff_selected");
+  assert.equal(result.telemetry.requestedProviderKey, "groq");
+  assert.equal(result.telemetry.requestedModel, "groq-test");
+  assert.deepEqual(result.telemetry.attempts.map((item) => item.providerKey), ["groq"]);
+  assert.equal(called.length, 1);
+  assert.match(called[0], /api\.groq\.com/);
+});
+
+test("model options expose readiness but never provider credentials", async (context) => {
+  configureRouter(context);
+  const result = await getAiModelOptions();
+  const gemini = result.options.find((item) => item.providerKey === "gemini");
+  assert.equal(result.defaultProviderKey, "auto");
+  assert.equal(gemini.model, "gemini-test");
+  assert.equal(gemini.ready, true);
+  assert.equal("apiKey" in gemini, false);
+  assert.equal("baseUrl" in gemini, false);
+  assert.doesNotMatch(JSON.stringify(result), /gemini-test-key|groq-test-key/);
+});
+
+test("failed staff-selected model does not silently call another cloud provider", async (context) => {
+  configureRouter(context);
+  const called = [];
+  globalThis.fetch = async (url) => {
+    called.push(String(url));
+    return new Response(JSON.stringify({ error: { message: "selected provider unavailable" } }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await assert.rejects(
+    requestAiProviderDecision({ system: "test", payload: {}, schema, providerKey: "groq" }),
+    (error) => {
+      assert.equal(error.reasonCode, "all_providers_unavailable");
+      assert.equal(error.providerTelemetry.requestedProviderKey, "groq");
+      assert.deepEqual(error.providerTelemetry.attempts.map((item) => item.providerKey), ["groq"]);
+      return true;
+    },
+  );
+  assert.equal(called.length, 1);
+  assert.match(called[0], /api\.groq\.com/);
 });
 
 test("Router V2 rejects low-confidence output and tries a different model family", async (context) => {

@@ -95,6 +95,7 @@ export function TicketDetailPage() {
   const [ratingComment, setRatingComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [handoffSending, setHandoffSending] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const messageEndRef = useRef<HTMLDivElement>(null);
 
@@ -189,6 +190,29 @@ export function TicketDetailPage() {
       toast(
         error instanceof Error ? error.message : "Không thể cập nhật ticket",
       );
+    }
+  }
+
+  async function requestHumanHelp() {
+    if (!ticket || handoffSending) return;
+    const confirmed = window.confirm(
+      "Chuyển ticket sang HelpDesk? AI sẽ không phản hồi trực tiếp thêm trong ticket này.",
+    );
+    if (!confirmed) return;
+    setHandoffSending(true);
+    try {
+      await api.requestHumanHelp(ticket.id);
+      await load();
+      await refreshTickets();
+      toast("Đã chuyển yêu cầu cho kỹ thuật viên");
+    } catch (error) {
+      toast(
+        error instanceof Error
+          ? error.message
+          : "Không thể chuyển yêu cầu cho kỹ thuật viên",
+      );
+    } finally {
+      setHandoffSending(false);
     }
   }
 
@@ -341,12 +365,36 @@ export function TicketDetailPage() {
                 ))}
               </ol>
             </div>
-            {!humanOnly && (
-              <button className="resolve-button" onClick={resolve}>
-                <Icon name="check" /> Tôi đã xử lý được
-              </button>
-            )}
           </details>
+        )}
+
+        {guided && !humanOnly && !finished && (
+          <div className="guidance-outcome-actions">
+            <button className="resolve-button" onClick={resolve}>
+              <Icon name="check" /> Tôi đã xử lý được
+            </button>
+            <button
+              className="unresolved-button"
+              onClick={requestHumanHelp}
+              disabled={handoffSending}
+            >
+              <Icon name="alert" />
+              {handoffSending ? "Đang chuyển…" : "Tôi vẫn chưa xử lý được"}
+            </button>
+          </div>
+        )}
+
+        {humanOnly && !finished && (
+          <div className="channel-handoff-banner">
+            <Icon name="shield" />
+            <span>
+              <strong>HelpDesk đang tiếp nhận</strong>
+              <small>
+                AI không còn phản hồi trực tiếp. Tin nhắn mới sẽ được chuyển cho
+                kỹ thuật viên.
+              </small>
+            </span>
+          </div>
         )}
 
         <div className="conversation-thread">
@@ -545,12 +593,16 @@ export function TicketDetailPage() {
                     <div>
                       <span className="eyebrow">QUYẾT ĐỊNH TỰ ĐỘNG</span>
                       <h3>
-                        {guided
+                        {humanOnly
+                          ? "Đang do kỹ thuật viên xử lý"
+                          : guided
                           ? "Có Playbook phù hợp"
                           : "Đã chuyển kỹ thuật viên"}
                       </h3>
                     </div>
-                    <b>{guided ? "Hướng dẫn" : "Escalated"}</b>
+                    <b>
+                      {humanOnly ? "HelpDesk" : guided ? "Hướng dẫn" : "Escalated"}
+                    </b>
                   </div>
                   <p>{ai.summary}</p>
                   <div className="agent-runtime">
@@ -563,12 +615,13 @@ export function TicketDetailPage() {
                     {ai.model && <span>{ai.model}</span>}
                     <span>{Math.round(ai.confidence * 100)}%</span>
                   </div>
-                  {!guided && (
+                  {(!guided || humanOnly) && (
                     <div className="handoff-note">
                       <Icon name="shield" />
                       <span>
-                        Không đưa gợi ý suy đoán. Ticket đã được chuyển để
-                        HelpDesk kiểm tra trực tiếp.
+                        AI không còn phản hồi trực tiếp người dùng. Ticket đang
+                        được HelpDesk kiểm tra; Copilot chỉ hỗ trợ nội bộ cho kỹ
+                        thuật viên.
                       </span>
                     </div>
                   )}

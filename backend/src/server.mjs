@@ -3,13 +3,14 @@ import path from "node:path";
 import { URL } from "node:url";
 import { config } from "./config.mjs";
 import { analyzeTicket, formatAgentReply, getAgentStatus } from "./ai-agent.mjs";
+import { getCopilotModelOptions, listCopilotRuns, queueCopilotRun, recoverCopilotQueue } from "./ai-copilot.mjs";
 import { aiDecisionAuditDetail, buildAiQualityReport, validateAiReview } from "./ai-quality.mjs";
 import { loginAdmin, loginStaff, loginWithZalo, requireAuth, sessionUser } from "./auth.mjs";
 import { canPreviewAttachment, publicAttachment, readAttachmentFile, removeAttachmentFile, saveAttachment } from "./attachments.mjs";
 import { isMultipartRequest, readMultipartAttachments } from "./multipart.mjs";
 import { corsHeaders, notFound, routeMatch, serveStatic } from "./http.mjs";
 import { appError, publicHttpError } from "./errors.mjs";
-import { analysisRequiresHumanHandoff, isHumanHandoffLocked, lockHumanHandoff, publicHumanHandoff, statusAfterHumanReply } from "./handoff.mjs";
+import { analysisRequiresHumanHandoff, isHumanHandoffLocked, lockHumanHandoff, messageRequestsHumanHandoff, publicHumanHandoff, statusAfterHumanReply, statusAfterUserHandoff } from "./handoff.mjs";
 import { KB_SEED } from "./kb.mjs";
 import { buildOperationsReport, matchesSmartQueue, smartQueueCounts, ticketsCsv } from "./operations.mjs";
 import { buildPlaybookIndex, getPlaybookStatus, loadPlaybook, queuePlaybookReindex, searchPlaybook } from "./playbook.mjs";
@@ -38,6 +39,7 @@ import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs"
 
 await initializeStore();
 await seedKnowledgeBase(KB_SEED);
+await recoverCopilotQueue();
 
 const STATUSES = ["open", "waiting_user", "in_progress", "resolved", "closed"];
 const PRIORITIES = ["low", "normal", "high", "urgent"];
@@ -231,13 +233,22 @@ ${input.description}`, createdAt,
         type: "ai_handoff",
         from: "ai_active",
         to: "human_only",
-        note: `AI đã bàn giao và rời hội thoại: ${ticket.aiHandoffReason}`,
+        note: `AI Agent đã rời kênh User; Copilot chỉ hỗ trợ nội bộ: ${ticket.aiHandoffReason}`,
       });
     }
   });
   await audit(session.sub, "create", "ticket", ticket.id, { code: ticket.code, source: analysis.source, model: analysis.model || null });
   const decisionDetail = aiDecisionAuditDetail(analysis);
   if (decisionDetail) await audit("ai-agent", "ai_decision", "ticket", ticket.id, decisionDetail);
+  if (ticket.aiHandoffLocked) {
+    await queueCopilotRun({
+      ticketId: ticket.id,
+      trigger: "automatic_ai_handoff",
+      requestedBy: "ai-agent",
+      requestedByName: "AI HelpDesk Agent",
+      deduplicate: true,
+    });
+  }
   return { ticket, messages: [userMessage, agentMessage] };
 }
 
@@ -280,13 +291,22 @@ async function appendMessage(session, ticketId, body, options = {}) {
       syncSlaForStatus(ticket, oldStatus, createdAt, { id: session.sub, name: session.name });
       ticket.updatedAt = createdAt;
       recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Kỹ thuật viên đã phản hồi");
-      if (newlyLocked) pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "ai_handoff", from: "ai_active", to: "human_only", note: "Kỹ thuật viên đã tham gia; AI bị khóa vĩnh viễn khỏi hội thoại ticket này" });
+      if (newlyLocked) pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "ai_handoff", from: "ai_active", to: "human_only", note: "Kỹ thuật viên đã tham gia; AI Agent không phản hồi trực tiếp, Copilot chỉ hỗ trợ nội bộ" });
       pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "message", note: attachments.length ? `Kỹ thuật viên gửi phản hồi kèm ${attachments.length} file` : "Kỹ thuật viên gửi phản hồi mới" });
       if (attachments.length) pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "attachment", note: attachmentNames });
       notifyRequester(db, ticket, "reply", `Có phản hồi mới cho ${ticket.code}`, (text || `Đã gửi ${attachments.length} file: ${attachmentNames}`).slice(0, 240));
-      return ticket;
+      return { ticket, newlyLocked };
     });
-    return { messages: [message], attachments: attachments.map(publicAttachment), humanHandoff: publicHumanHandoff(result) };
+    if (result.newlyLocked) {
+      await queueCopilotRun({
+        ticketId,
+        trigger: "staff_joined_conversation",
+        requestedBy: session.sub,
+        requestedByName: session.name,
+        deduplicate: true,
+      });
+    }
+    return { messages: [message], attachments: attachments.map(publicAttachment), humanHandoff: publicHumanHandoff(result.ticket) };
   }
 
   const persistHumanOnlyReply = async (reason = "existing_human_handoff") => {
@@ -319,6 +339,55 @@ async function appendMessage(session, ticketId, body, options = {}) {
   }
 
   const latestUserMessage = text || `[Người dùng gửi ${attachments.length} file đính kèm: ${attachmentNames}]`;
+  if (messageRequestsHumanHandoff(latestUserMessage)) {
+    const handoff = await updateDb((db) => {
+      db.messages.push(message);
+      if (attachments.length) db.attachments.push(...attachments);
+      const ticket = db.tickets.find((item) => item.id === ticketId);
+      const currentMessages = db.messages.filter((item) => item.ticketId === ticketId);
+      if (isHumanHandoffLocked(ticket, currentMessages.filter((item) => item.id !== message.id))) {
+        const oldStatus = ticket.status;
+        ticket.status = statusAfterHumanReply(ticket.status);
+        syncSlaForStatus(ticket, oldStatus, createdAt, { id: session.sub, name: session.name });
+        ticket.updatedAt = createdAt;
+        pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "message", note: "Người dùng gửi phản hồi; chỉ chuyển cho kỹ thuật viên" });
+        return { ticket, systemMessage: null, newlyLocked: false };
+      }
+      const oldStatus = ticket.status;
+      const newlyLocked = lockHumanHandoff(ticket, {
+        at: createdAt,
+        reason: "user_unresolved_message",
+        actorId: session.sub,
+        actorName: session.name,
+      });
+      ticket.status = statusAfterUserHandoff(ticket.status);
+      syncSlaForStatus(ticket, oldStatus, createdAt, { id: session.sub, name: session.name });
+      ticket.updatedAt = createdAt;
+      const confirmationAt = new Date(new Date(createdAt).getTime() + 1).toISOString();
+      const systemMessage = addSystemMessage(db, ticketId, "Đã chuyển yêu cầu cho kỹ thuật viên.", confirmationAt);
+      recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Người dùng xác nhận chưa xử lý được");
+      pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "ai_handoff", from: "ai_active", to: "human_only", note: "Người dùng xác nhận hướng dẫn chưa giải quyết được sự cố; AI không phản hồi trực tiếp thêm" });
+      pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "message", note: attachments.length ? `Người dùng báo chưa xử lý được kèm ${attachments.length} file` : "Người dùng báo chưa xử lý được" });
+      if (attachments.length) pushHistory(db, { ticketId, actorId: session.sub, actorName: session.name, type: "attachment", note: attachmentNames });
+      return { ticket, systemMessage, newlyLocked };
+    });
+    if (handoff.newlyLocked) {
+      await queueCopilotRun({
+        ticketId,
+        trigger: "user_unresolved_message",
+        requestedBy: session.sub,
+        requestedByName: session.name,
+        deduplicate: true,
+      });
+      await audit(session.sub, "request_human_help", "ticket", ticketId, { trigger: "message_intent" });
+    }
+    return {
+      messages: [message, ...(handoff.systemMessage ? [handoff.systemMessage] : [])],
+      attachments: attachments.map(publicAttachment),
+      analysis: null,
+      humanHandoff: publicHumanHandoff(handoff.ticket),
+    };
+  }
   const combined = {
     title: bundle.ticket.title,
     description: `${bundle.ticket.description}\n\nPhản hồi mới của người dùng: ${latestUserMessage}`,
@@ -379,7 +448,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
         actorId: "ai-agent",
         actorName: agentDisplayName(analysis),
       });
-      if (newlyLocked) pushHistory(db, { ticketId, actorId: "ai-agent", actorName: agentDisplayName(analysis), type: "ai_handoff", from: "ai_active", to: "human_only", note: `AI đã bàn giao và rời hội thoại: ${ticket.aiHandoffReason}` });
+      if (newlyLocked) pushHistory(db, { ticketId, actorId: "ai-agent", actorName: agentDisplayName(analysis), type: "ai_handoff", from: "ai_active", to: "human_only", note: `AI Agent đã rời kênh User; Copilot chỉ hỗ trợ nội bộ: ${ticket.aiHandoffReason}` });
     }
     recalculateSla(ticket, nextPriority);
     syncSlaForStatus(ticket, oldStatus, nowIso(), { id: "ai-agent", name: agentDisplayName(analysis) });
@@ -409,6 +478,57 @@ async function appendMessage(session, ticketId, body, options = {}) {
   const decisionDetail = aiDecisionAuditDetail(analysis);
   if (decisionDetail) await audit("ai-agent", "ai_decision", "ticket", ticketId, decisionDetail);
   return { messages: [message, agentMessage], attachments: attachments.map(publicAttachment), analysis, humanHandoff: publicHumanHandoff(persisted.ticket) };
+}
+
+async function requestHumanHelp(session, ticketId) {
+  if (["admin", "technician", "viewer"].includes(session.role)) {
+    throw Object.assign(new Error("Endpoint này chỉ dành cho người tạo ticket"), { status: 403 });
+  }
+  const bundle = await getTicketBundle(ticketId);
+  if (!canAccessTicket(session, bundle.ticket)) throw Object.assign(new Error("Bạn không có quyền truy cập ticket này"), { status: 403 });
+  if (["resolved", "closed"].includes(bundle.ticket.status)) {
+    throw Object.assign(new Error("Ticket đã kết thúc; hãy mở lại ticket nếu sự cố vẫn còn"), { status: 409 });
+  }
+  const at = nowIso();
+  const result = await updateDb((db) => {
+    const ticket = db.tickets.find((item) => item.id === ticketId);
+    const messages = db.messages.filter((item) => item.ticketId === ticketId);
+    if (isHumanHandoffLocked(ticket, messages)) return { ticket, systemMessage: null, newlyLocked: false };
+    const oldStatus = ticket.status;
+    const newlyLocked = lockHumanHandoff(ticket, {
+      at,
+      reason: "user_unresolved_button",
+      actorId: session.sub,
+      actorName: session.name,
+    });
+    ticket.status = statusAfterUserHandoff(ticket.status);
+    syncSlaForStatus(ticket, oldStatus, at, { id: session.sub, name: session.name });
+    ticket.updatedAt = at;
+    const confirmationAt = new Date(new Date(at).getTime() + 1).toISOString();
+    const systemMessage = addSystemMessage(db, ticketId, "Đã chuyển yêu cầu cho kỹ thuật viên.", confirmationAt);
+    recordStatusChange(db, ticket, oldStatus, ticket.status, session.sub, session.name, "Người dùng chọn Tôi vẫn chưa xử lý được");
+    pushHistory(db, {
+      ticketId,
+      actorId: session.sub,
+      actorName: session.name,
+      type: "ai_handoff",
+      from: "ai_active",
+      to: "human_only",
+      note: "Người dùng xác nhận hướng dẫn chưa giải quyết được sự cố; AI không phản hồi trực tiếp thêm",
+    });
+    return { ticket, systemMessage, newlyLocked };
+  });
+  if (result.newlyLocked) {
+    await queueCopilotRun({
+      ticketId,
+      trigger: "user_unresolved_button",
+      requestedBy: session.sub,
+      requestedByName: session.name,
+      deduplicate: true,
+    });
+    await audit(session.sub, "request_human_help", "ticket", ticketId, { trigger: "explicit_button" });
+  }
+  return result;
 }
 
 async function processOverdueTickets() {
@@ -466,9 +586,9 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.9.1",
+      version: "5.11.0",
       time: nowIso(),
-      features: ["ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      features: ["copilot-model-selection", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
       agent: { ...agent, paidApiRequired: Boolean(agent.dataBoundary === "external" && agent.configured) },
       playbook,
       playbookGovernance,
@@ -623,6 +743,18 @@ async function handleApi(req, res, url, headers) {
     const session = await requireAuth(req);
     if (session.role === "viewer") requireWritableStaffSession(session);
     return json(res, 201, await appendMessage(session, params.ticketId, await readJson(req)), headers);
+  }
+
+  params = routeMatch(pathname, "/api/tickets/:ticketId/request-human-help");
+  if (req.method === "POST" && params) {
+    const session = await requireAuth(req);
+    const result = await requestHumanHelp(session, params.ticketId);
+    return json(res, 200, {
+      ticket: publicTicket(result.ticket),
+      messages: result.systemMessage ? [result.systemMessage] : [],
+      humanHandoff: publicHumanHandoff(result.ticket),
+      copilotQueued: result.newlyLocked,
+    }, headers);
   }
 
   params = routeMatch(pathname, "/api/tickets/:ticketId/attachments");
@@ -944,6 +1076,35 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, { report: buildOperationsReport(db, { days }) }, headers);
   }
 
+  params = routeMatch(pathname, "/api/staff/tickets/:ticketId/copilot");
+  if (req.method === "GET" && params) {
+    await requireAuth(req, { staff: true });
+    const [runs, modelOptions] = await Promise.all([
+      listCopilotRuns(params.ticketId),
+      getCopilotModelOptions(),
+    ]);
+    return json(res, 200, { runs, modelOptions }, headers);
+  }
+
+  params = routeMatch(pathname, "/api/staff/tickets/:ticketId/copilot/runs");
+  if (req.method === "POST" && params) {
+    const session = await requireAuth(req, { roles: STAFF_WRITE_ROLES });
+    const body = await readJson(req);
+    const run = await queueCopilotRun({
+      ticketId: params.ticketId,
+      trigger: "staff_manual_reanalysis",
+      requestedBy: session.sub,
+      requestedByName: session.name,
+      providerKey: body.providerKey || "auto",
+    });
+    await audit(session.sub, "copilot_reanalyze", "ticket", params.ticketId, {
+      runId: run.id,
+      requestedProviderKey: run.requestedProviderKey,
+      requestedModel: run.requestedModel,
+    });
+    return json(res, 202, { run }, headers);
+  }
+
   if (req.method === "GET" && pathname === "/api/admin/reports/tickets.csv") {
     await requireAuth(req, { staff: true });
     const db = await readDb();
@@ -1043,14 +1204,15 @@ async function handleApi(req, res, url, headers) {
       }
       if (body.resolution !== undefined) ticket.resolution = String(body.resolution).trim().slice(0, 1000);
       const humanTakeoverRequested = Boolean(ticket.assignedTo) || ticket.status === "in_progress";
+      let newlyLocked = false;
       if (humanTakeoverRequested) {
-        const newlyLocked = lockHumanHandoff(ticket, {
+        newlyLocked = lockHumanHandoff(ticket, {
           at,
           reason: Boolean(ticket.assignedTo) ? "assigned_to_staff" : "staff_in_progress",
           actorId: session.sub,
           actorName: session.name,
         });
-        if (newlyLocked) pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "ai_handoff", from: "ai_active", to: "human_only", note: "Ticket đã được kỹ thuật viên tiếp nhận; AI bị khóa khỏi hội thoại" });
+        if (newlyLocked) pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "ai_handoff", from: "ai_active", to: "human_only", note: "Ticket đã được kỹ thuật viên tiếp nhận; AI Agent không phản hồi trực tiếp, Copilot chỉ hỗ trợ nội bộ" });
       }
       if (oldPriority !== ticket.priority) {
         recalculateSla(ticket, ticket.priority, at);
@@ -1066,10 +1228,19 @@ async function handleApi(req, res, url, headers) {
       if (["resolved", "closed"].includes(ticket.status) && !ticket.resolvedAt) ticket.resolvedAt = at;
       if (!["resolved", "closed"].includes(ticket.status)) ticket.resolvedAt = null;
       ticket.updatedAt = at;
-      return ticket;
+      return { ticket, newlyLocked };
     });
     await audit(session.sub, "update", "ticket", params.ticketId, body);
-    return json(res, 200, { ticket: publicTicket(updated) }, headers);
+    if (updated.newlyLocked) {
+      await queueCopilotRun({
+        ticketId: params.ticketId,
+        trigger: "staff_takeover",
+        requestedBy: session.sub,
+        requestedByName: session.name,
+        deduplicate: true,
+      });
+    }
+    return json(res, 200, { ticket: publicTicket(updated.ticket) }, headers);
   }
 
   if (req.method === "GET" && pathname === "/api/staff/playbook/governance/status") {

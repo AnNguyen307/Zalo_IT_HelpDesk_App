@@ -579,5 +579,5 @@ export function formatAgentReply(analysis) {
   const sources = Array.isArray(analysis.playbookSources) && analysis.playbookSources.length
     ? `\n\nNguồn Playbook: ${analysis.playbookSources.map((item) => `${item.id}${item.version ? ` v${item.version}` : ""}`).join(", ")}`
     : "";
-  return `${reply}${steps}${sources}\n\nSau khi thử, hãy gửi kết quả hoặc chọn “Đã xử lý được”.`.trim();
+  return `${reply}${steps}${sources}\n\nSau khi thử, hãy chọn “Tôi đã xử lý được” hoặc “Tôi vẫn chưa xử lý được”.`.trim();
 }

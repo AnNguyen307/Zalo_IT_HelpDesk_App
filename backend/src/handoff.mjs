@@ -6,6 +6,14 @@ function compact(value, limit) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, limit);
 }
 
+function normalizeIntentText(value) {
+  return compact(value, 2000)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d");
+}
+
 export function analysisRequiresHumanHandoff(analysis) {
   if (!analysis || typeof analysis !== "object") return false;
   return analysis.escalated === true
@@ -27,6 +35,19 @@ export function isHumanHandoffLocked(ticket, messages = []) {
 
 export function shouldAgentParticipate(ticket, messages = []) {
   return !isHumanHandoffLocked(ticket, messages);
+}
+
+export function messageRequestsHumanHandoff(message) {
+  const text = normalizeIntentText(message);
+  if (!text) return false;
+  return [
+    /\b(khong|chua) (xu ly|khac phuc|lam) duoc\b/,
+    /\bvan (khong|chua) (duoc|het loi|xu ly duoc|khac phuc duoc)\b/,
+    /\bda thu.{0,120}\bnhung (van )?(khong|chua) (duoc|thanh cong|het loi)\b/,
+    /\b(khong|chua) thanh cong\b/,
+    /\b(chuyen|gui) (han )?(cho |sang )?(helpdesk|ky thuat vien|nhan vien ky thuat)\b/,
+    /\b(can|nho) (helpdesk|ky thuat vien|nhan vien ky thuat) (ho tro|kiem tra|xu ly)\b/,
+  ].some((pattern) => pattern.test(text));
 }
 
 export function lockHumanHandoff(ticket, {
@@ -60,4 +81,8 @@ export function publicHumanHandoff(ticket, messages = []) {
 
 export function statusAfterHumanReply(status) {
   return status === "waiting_user" ? "in_progress" : status;
+}
+
+export function statusAfterUserHandoff(status) {
+  return status === "waiting_user" ? "open" : status;
 }
