@@ -8,19 +8,19 @@
 |---|---|
 | Repository | `AnNguyen307/Zalo_IT_HelpDesk_App` |
 | Nhánh chuẩn | `main` |
-| Baseline release | v5.9.1, commit `7fb3404` |
-| Phiên bản phát hành | `5.11.0` |
-| Mục tiêu | Cho Helpdesk chọn model Staff AI Copilot theo từng lần phân tích |
-| Nhánh phát triển | `main` (workspace chưa commit) |
-| Baseline | `origin/main` tại `7fb3404` |
-| Trạng thái | Mã nguồn và validation hoàn tất; chưa deploy Windows |
-| Database migration | `009_copilot_model_selection.sql`, schema version `9` |
-| Validation | Syntax đạt; `82/82` test đạt; benchmark đạt; Mini App build đạt |
+| Baseline release | v5.11.0, merge commit `599227a` |
+| Phiên bản phát hành | `5.12.0` |
+| Mục tiêu | Staff Copilot phân tích độc lập và đưa nhiều hướng giải quyết kể cả khi không khớp Playbook |
+| Nhánh phát triển | `agent/copilot-independent-reasoning` |
+| Baseline | Cây mã v5.11.0 đã phát hành qua PR #15 |
+| Trạng thái | Mã nguồn và validation hoàn tất; chờ review/merge vào `main`; chưa deploy Windows |
+| Database migration | Không có migration mới; giữ schema version `9` |
+| Validation | Syntax đạt; `84/84` test đạt; benchmark đạt; Mini App build đạt |
 | Cập nhật lần cuối | 2026-08-10 (Asia/Ho_Chi_Minh) |
 
-v5.9.0 đã được merge nhưng chưa có bằng chứng deploy backend v5.9 lên máy Windows. Endpoint ngrok được ghi ở handoff cũ chỉ là endpoint tạm; không ghi cứng URL vào mã nghiệp vụ.
+Máy Windows đã pull merge commit v5.11.0; lần khởi động được ghi nhận ban đầu còn thiếu migrations 008–009. Chưa có output tiếp theo xác nhận schema version `9` và health v5.11.0. Endpoint ngrok cũ chỉ là endpoint tạm; không ghi cứng URL vào mã nghiệp vụ.
 
-## 2. Quyết định kiến trúc v5.11.0
+## 2. Quyết định kiến trúc v5.12.0
 
 Khóa `human_only` chỉ chặn AI Agent khỏi kênh User; nó không tắt Staff AI Copilot:
 
@@ -29,6 +29,11 @@ Khóa `human_only` chỉ chặn AI Agent khỏi kênh User; nó không tắt Sta
 - Handoff rõ ràng đổi `waiting_user → open`, tiếp tục SLA và xếp Copilot run nền.
 - Copilot chỉ dùng endpoint `/api/staff/...`, lưu ở `ai_copilot_runs` và không được đưa vào public ticket/messages.
 - Bước Playbook được ánh xạ nguyên văn; kiến thức riêng của model luôn gắn nhãn `ai_inference`.
+- Playbook là căn cứ nhưng không còn là giới hạn của Staff Copilot: mỗi cloud run hợp lệ bắt buộc có tối thiểu hai giả thuyết và hai hướng giải quyết độc lập.
+- Copilot đánh giá Playbook `matched | partial | none`; khi `none`, nó chuyển `ai_led`, không tạo bước Playbook giả và vẫn hỗ trợ Helpdesk.
+- Mỗi giả thuyết có rationale, confidence và cách kiểm chứng; mỗi hướng có các bước, tín hiệu thành công, điều kiện dừng/chuyển cấp và mức rủi ro.
+- Backend từ chối output trực tiếp yêu cầu credential, lệnh phá hủy hoặc vô hiệu hóa bảo mật; provider khác được thử theo router trước khi fallback Rules.
+- Phân tích hiển thị là reasoning summary có thể kiểm chứng, không xuất chain-of-thought.
 - Bản nháp chỉ được chép vào ô reply; kỹ thuật viên vẫn phải duyệt và bấm gửi.
 - Helpdesk chọn `auto|gemini|groq|openrouter|sambanova`; chỉ provider nằm trong route và đã cấu hình mới hợp lệ.
 - `auto` giữ failover cloud. Model cụ thể chỉ gọi đúng provider đã chọn và fallback Rules/Playbook nếu provider đó lỗi.
@@ -59,7 +64,9 @@ Ticket / message
   → decision record + attempt telemetry + Audit Log
   → Playbook guidance hoặc Rules/HelpDesk handoff
   → sau handoff: Staff AI Copilot nền
-      → Playbook evidence + labeled AI inference
+      → đánh giá độ khớp Playbook
+      → hybrid hoặc AI-led independent analysis
+      → nhiều giả thuyết + nhiều solution path có guardrail
       → auto route hoặc model Helpdesk chọn
       → kỹ thuật viên duyệt bản nháp
   → Admin Đúng/Cần sửa + quality dashboard
@@ -125,7 +132,7 @@ Nếu embedding/index lỗi, search tự quay về BM25. Script `scripts/windows
 2. Priority mặc định là `normal` (**Bình thường**).
 3. AI chỉ đổi priority khi `priorityDetermined=true`, confidence đạt ngưỡng và giá trị hợp lệ.
 4. Không có Playbook phù hợp, confidence thấp, provider lỗi hoặc rủi ro cao phải handoff kỹ thuật viên.
-5. AI không tự đóng ticket, không thực thi lệnh và không sinh checklist ngoài Playbook đã duyệt.
+5. AI Agent kênh User không sinh checklist ngoài Playbook; Staff Copilot được đề xuất hướng ngoài Playbook nhưng không tự thực thi và phải gắn nhãn AI/risk/stop condition.
 6. Admin review không tự gỡ human handoff.
 7. Copilot không được xuất hiện trong public ticket, Mini App API hoặc conversation messages.
 8. Copilot không có quyền tự gửi reply, tự đổi trạng thái hoặc tự đóng ticket.
@@ -133,7 +140,7 @@ Nếu embedding/index lỗi, search tự quay về BM25. Script `scripts/windows
 
 ## 7. API và compatibility
 
-- `GET /health` trả `version: 5.11.0` và feature `copilot-model-selection`, `staff-ai-copilot`, `copilot-channel-isolation`.
+- `GET /health` trả `version: 5.12.0` và feature `copilot-independent-reasoning`, `copilot-no-playbook-analysis`, `copilot-multi-path-solutions`, `copilot-model-selection`.
 - Router status chỉ liệt kê Gemini, Groq, OpenRouter và SambaNova.
 - `POST /api/tickets/:ticketId/request-human-help` chỉ dành cho User sở hữu ticket.
 - `GET/POST /api/staff/tickets/:ticketId/copilot[/runs]` yêu cầu staff session; POST chỉ Admin/Technician và nhận provider từ allowlist.
@@ -165,15 +172,16 @@ Release gate:
 
 ## 9. Deploy và rollback
 
-Sau khi v5.11.0 được merge:
+Sau khi v5.12.0 được merge:
 
 1. Pull `main` trên máy Windows.
 2. Sao lưu theo quy trình vận hành hiện hành và giữ nguyên `backend/.env`.
-3. Chạy `cd backend; npm ci; npm run db:migrate` và xác nhận schema version `9`.
-4. Restart backend và kiểm tra local/ngrok `/health` đều là `5.11.0`.
-5. Build/deploy lại Mini App để có hai nút kết quả hướng dẫn.
-6. Smoke test handoff, dropdown model, run Tự động/model cụ thể, Dùng làm bản nháp và kiểm tra không rò sang User.
-7. Tắt toàn bộ cloud provider và xác nhận Copilot/Agent đều fallback an toàn.
+3. Không có migration mới; xác nhận database vẫn ở schema version `9`.
+4. Restart backend và kiểm tra local/ngrok `/health` đều là `5.12.0`.
+5. Hard refresh Admin; không bắt buộc deploy lại Mini App cho riêng thay đổi Copilot này.
+6. Smoke test ticket có Playbook (`hybrid`) và không khớp Playbook (`ai_led`), mỗi run có tối thiểu hai giả thuyết/hướng.
+7. Smoke test dropdown model, Dùng làm bản nháp, guardrail output và kiểm tra không rò sang User.
+8. Tắt toàn bộ cloud provider và xác nhận Copilot/Agent đều fallback an toàn.
 
 Rollback an toàn không dùng AI model:
 
@@ -197,11 +205,11 @@ Nợ kiến trúc: quota/circuit state vẫn nằm trong process memory; attachm
 ## 11. Kết quả validation và việc tiếp theo
 
 - `npm run check`: đạt.
-- `npm test`: `82/82` đạt.
+- `npm test`: `84/84` đạt.
 - `npm run playbook:benchmark`: Hit@1 `0.90`, Hit@5 `1.00`, MRR `0.95`.
 - `miniapp npm run build`: đạt; asset mới `index.g5nlUXhh.module.js`, `index.WPkxLTZQ.css`.
 - `git diff --check`: đạt.
 - Không phát hiện secret hoặc runtime reference local AI trong diff.
 - Workspace Linux không có `pwsh`, vì vậy chưa chạy PowerShell AST parser; script Windows cần smoke test trên máy deploy.
 
-Bước vận hành tiếp theo sau khi mã được phát hành: chạy migrations 008–009, restart backend v5.11.0, deploy lại Mini App và smoke test lựa chọn model/cách ly Copilot trên máy Windows.
+Bước tiếp theo: review/merge draft PR v5.12.0, pull `main` trên Windows, restart backend và smoke test `hybrid`/`ai_led`/`rules_fallback` trong Admin.

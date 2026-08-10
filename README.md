@@ -1,6 +1,6 @@
-# Zalo IT HelpDesk v5.11.0 - Staff-selectable AI Copilot Models
+# Zalo IT HelpDesk v5.12.0 - Independent Reasoning for Staff AI Copilot
 
-Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App. AI Agent hướng dẫn User theo Playbook; sau bàn giao, Staff AI Copilot dùng Playbook và suy luận có gắn nhãn để hỗ trợ kỹ thuật viên trên kênh nội bộ riêng.
+Ứng dụng HelpDesk nội bộ chạy trên Zalo Mini App. AI Agent hướng dẫn User theo Playbook; sau bàn giao, Staff AI Copilot vừa đối chiếu Playbook vừa bắt buộc phân tích độc lập, kể cả khi không có procedure phù hợp.
 
 Để tiếp tục phát triển hoặc bàn giao giữa các agent, đọc và cập nhật [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) trước tiên.
 
@@ -10,7 +10,8 @@
 - **Backend Node.js 20** gọi provider bằng native `fetch`, không thêm AI SDK.
 - **AI Router V2** điều phối Gemini, Groq, OpenRouter và SambaNova.
 - **AI Quality Control** lưu decision record, telemetry và phản hồi Đúng/Cần sửa của Admin.
-- **Staff AI Copilot** tạo tóm tắt, câu hỏi còn thiếu, bước Playbook, giả thuyết và bản nháp nội bộ sau handoff.
+- **Staff AI Copilot** đánh giá độ khớp Playbook, tạo nhiều giả thuyết có cách kiểm chứng và nhiều hướng giải quyết có tín hiệu thành công/điều kiện dừng.
+- **AI-led khi ngoài Playbook** vẫn hỗ trợ Helpdesk bằng kiến thức của model, nhưng luôn gắn nhãn suy luận AI và không tự thực thi.
 - **Chọn model cho Copilot** cho phép Helpdesk dùng route tự động hoặc chọn chính xác Gemini, Groq, OpenRouter hay SambaNova đã được Admin cấu hình.
 - **Kênh AI tách biệt** bảo đảm Copilot không tự gửi nội dung hoặc xuất hiện trong Mini App của User.
 - **Enterprise Playbook RAG** dùng BM25 lexical mặc định; Gemini embedding là tùy chọn.
@@ -68,7 +69,7 @@ Node.js API chạy tại doanh nghiệp
    ├── AI Router V2 → Gemini / Groq / OpenRouter / SambaNova
    ├── BM25 Playbook Retrieval → optional Gemini embeddings
    ├── Decision telemetry + Admin quality review
-   ├── Staff-only AI Copilot → Playbook evidence + labeled AI inference
+   ├── Staff-only AI Copilot → Playbook evidence + independent multi-path analysis
    └── Admin dashboard
 ```
 

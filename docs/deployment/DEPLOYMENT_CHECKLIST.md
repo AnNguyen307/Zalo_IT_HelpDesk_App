@@ -59,10 +59,10 @@
 - [ ] IT senior review toàn bộ Knowledge Base.
 - [ ] Chỉ bật `autoEligible` cho quy trình rủi ro thấp, có thể hoàn tác.
 - [ ] Account, security, data loss, BSOD, hardware và infrastructure luôn escalation.
-- [ ] Không cho model tự tạo command hoặc checklist kỹ thuật.
+- [ ] AI Agent kênh User không tự tạo command/checklist ngoài Playbook; Staff Copilot chỉ đưa phương án nội bộ có nhãn AI, mức rủi ro và điều kiện dừng.
 - [ ] Kiểm tra confidence threshold bằng ticket thực tế.
 
-## AI Router V2, RAG và Copilot v5.11.0
+## AI Router V2, RAG và Copilot v5.12.0
 
 - [ ] `AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova`; Rules/HelpDesk là fallback cuối.
 - [ ] Máy backend không cần local model, local embedding service hoặc AI autostart task.
@@ -73,10 +73,13 @@
 - [ ] `PLAYBOOK_RETRIEVAL_MODE=lexical`, `PLAYBOOK_EMBED_PROVIDER=none` vẫn tìm đúng Top-K khi cloud AI tắt.
 - [ ] Chạy `npm run playbook:benchmark` và lưu kết quả cùng release validation.
 - [ ] Chạy `npm run db:migrate` và xác nhận schema version `9` trước khi restart backend.
-- [ ] Kiểm tra `/health` là `5.11.0`, có feature `copilot-model-selection`; Admin → AI Agent hiển thị order, quota/circuit và provider sẵn sàng.
+- [ ] Kiểm tra `/health` là `5.12.0`, có `copilot-independent-reasoning`, `copilot-no-playbook-analysis`, `copilot-multi-path-solutions`, `copilot-model-selection`.
 - [ ] Chọn **Tôi vẫn chưa xử lý được** và xác nhận AI Agent không phản hồi User thêm.
 - [ ] Admin → ticket → Copilot hiển thị nội dung nội bộ; User/Mini App không nhận bất kỳ suggestion Copilot nào.
 - [ ] Chạy Copilot với **Tự động** và ít nhất một model cụ thể; xác nhận run hiển thị đúng model yêu cầu và model thực tế.
+- [ ] Test ticket có Playbook: Copilot hiển thị cả bước Playbook và tối thiểu hai giả thuyết/hướng AI độc lập.
+- [ ] Test ticket không khớp Playbook: `fit=none`, không có bước Playbook giả, chế độ `AI-led` vẫn có tối thiểu hai hướng giải quyết.
+- [ ] Mỗi hướng AI có cách kiểm chứng, tín hiệu thành công, điều kiện dừng/chuyển cấp và mức rủi ro; không có credential hoặc thao tác phá hủy.
 - [ ] Rollback: `AI_ROUTER_ENABLED=false`, `AI_PROVIDER=rules`, `AI_CLOUD_ENABLED=false`.
 
 ## Dữ liệu và backup
