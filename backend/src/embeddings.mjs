@@ -35,7 +35,7 @@ async function geminiEmbed(inputs, settings, signal) {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${config.geminiApiKey}`,
-      "x-goog-api-client": "zalo-helpdesk-rag/5.13.0",
+      "x-goog-api-client": "zalo-helpdesk-rag/5.14.0",
     },
     body: JSON.stringify({ model: settings.model, input: inputs }),
     signal,

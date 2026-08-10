@@ -4,12 +4,14 @@ import test from "node:test";
 
 const publicFile = (name) => new URL(`../public/${name}`, import.meta.url);
 
-test("Admin sidebar uses concise system navigation labels", async () => {
+test("Admin sidebar groups operations, knowledge and administration", async () => {
   const html = await readFile(publicFile("admin.html"), "utf8");
 
-  assert.match(html, /<span class="nav-label">HỆ THỐNG<\/span>/);
+  assert.match(html, /<span class="nav-label">VẬN HÀNH<\/span>/);
+  assert.match(html, /<span class="nav-label">TRI THỨC<\/span>/);
+  assert.match(html, /<span class="nav-label">QUẢN TRỊ<\/span>/);
   assert.match(html, /data-tab="governance"[^>]*>[\s\S]*?<span>Quy trình<\/span>/);
-  assert.doesNotMatch(html, /TRÍ TUỆ HỆ THỐNG/);
+  assert.match(html, /data-tab="agent"[^>]*>[\s\S]*?<span>Hệ thống &amp; AI<\/span>/);
   assert.doesNotMatch(html, /<span>Vòng đời<\/span>/);
 });
 
@@ -28,9 +30,9 @@ test("zero-value ticket and review badges stay out of the sidebar", async () => 
   assert.match(script, /badge\.setAttribute\("aria-hidden", count === 0 \? "true" : "false"\)/);
 });
 
-test("Admin asset URLs are cache-busted for the sidebar release", async () => {
+test("Admin asset URLs are cache-busted for v5.14", async () => {
   const html = await readFile(publicFile("admin.html"), "utf8");
 
-  assert.match(html, /\/admin\.css\?v=5\.13\.0/);
-  assert.match(html, /\/admin\.js\?v=5\.13\.0/);
+  assert.match(html, /\/admin\.css\?v=5\.14\.0/);
+  assert.match(html, /\/admin\.js\?v=5\.14\.0/);
 });

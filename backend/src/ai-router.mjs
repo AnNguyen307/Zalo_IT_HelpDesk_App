@@ -331,7 +331,7 @@ async function requestGemini({ settings, system, payload, schema, signal }) {
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": settings.apiKey,
-      "x-goog-api-client": "zalo-helpdesk/5.13.0",
+      "x-goog-api-client": "zalo-helpdesk/5.14.0",
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },

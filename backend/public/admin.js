@@ -50,6 +50,19 @@ const timeLeft = (iso) => {
   return `${diff < 0 ? "Quá hạn" : "Còn"} ${hours}h ${minutes}m`;
 };
 const initials = (name = "U") => name.split(/\s+/).filter(Boolean).slice(-2).map((part) => part[0]).join("").toUpperCase();
+function ticketNextAction(ticket) {
+  if (ticket.status === "waiting_user") return "Chờ người dùng bổ sung thông tin";
+  if (ticket.status === "resolved") return "Chờ người dùng xác nhận kết quả";
+  if (ticket.status === "closed") return "Không còn hành động";
+  if (!ticket.assignedTo) return "Phân công kỹ thuật viên";
+  if (ticket.sla?.overdue) return "Cập nhật người dùng và xử lý SLA";
+  return "Tiếp tục chẩn đoán và cập nhật";
+}
+function ticketActionOwner(ticket) {
+  if (["waiting_user", "resolved"].includes(ticket.status)) return "NGƯỜI DÙNG";
+  if (ticket.status === "closed") return "HOÀN TẤT";
+  return "HELPDESK";
+}
 
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -303,12 +316,13 @@ function renderTickets() {
     const slaNote = ticket.sla?.paused ? '<div class="sla-paused">Tạm dừng · Chờ Client</div>' : ticket.sla?.overdue ? '<div class="sla-danger">Quá thời hạn SLA</div>' : ticket.sla?.state === "at_risk" ? '<div class="sla-risk">Sắp đến hạn SLA</div>' : "";
     const decisionTitle = humanOnly ? "Chỉ hội thoại con người" : guided ? "Hướng dẫn theo Playbook" : "Đã chuyển kỹ thuật viên";
     const decisionReason = humanOnly ? "AI đã rời ticket và không phản hồi thêm" : guided ? `${Math.round((analysis.confidence || 0) * 100)}% · ${(analysis.playbookIds || []).join(", ") || analysis.source || "Playbook"}` : escalationLabels[analysis.escalationCode] || analysis.reason || "Không đủ điều kiện tự hướng dẫn";
+    const nextAction = ticketNextAction(ticket); const actionOwner = ticketActionOwner(ticket);
     return `<tr class="${ticket.sla?.overdue ? "overdue-row" : ""}">
-      <td><div class="ticket-link" data-ticket="${ticket.id}">${esc(ticket.code)}</div><div class="ticket-title-cell">${esc(ticket.title)}</div><div class="ticket-subline"><span>${formatDate(ticket.createdAt)}</span>${ticket.attachmentCount ? `<span>▧ ${ticket.attachmentCount}</span>` : ""}</div></td>
+      <td><button type="button" class="ticket-link" data-ticket="${ticket.id}">${esc(ticket.code)}</button><div class="ticket-title-cell">${esc(ticket.title)}</div><div class="ticket-subline"><span>${formatDate(ticket.createdAt)}</span>${ticket.attachmentCount ? `<span>▧ ${ticket.attachmentCount}</span>` : ""}</div></td>
       <td><span class="badge">${esc(labels[ticket.category] || ticket.category)}</span> <span class="badge ${ticket.priority}">${esc(labels[ticket.priority] || ticket.priority)}</span></td>
       <td><span class="badge ${ticket.status}">${esc(labels[ticket.status] || ticket.status)}</span>${slaNote}</td>
       <td class="decision-cell"><span class="badge ${humanOnly ? "escalate" : guided ? "guide" : "escalate"}">${humanOnly ? "HUMAN ONLY" : guided ? "✓ PLAYBOOK" : "↗ ESCALATE"}</span><strong>${esc(decisionTitle)}</strong><small>${esc(decisionReason)}</small></td>
-      <td><strong class="ticket-updated">${formatDate(ticket.updatedAt)}</strong><div class="muted">${esc(ticket.assignedTo || "Chưa phân công")}</div></td>
+      <td><span class="badge ${actionOwner === "NGƯỜI DÙNG" ? "normal" : actionOwner === "HOÀN TẤT" ? "guide" : "in_progress"}">${esc(actionOwner)}</span><strong class="ticket-next-action">${esc(nextAction)}</strong><div class="muted">${esc(ticket.assignedTo || "Chưa phân công")} · ${formatDate(ticket.updatedAt)}</div></td>
     </tr>`;
   }).join("");
   $("#emptyTickets").classList.toggle("hidden", tickets.length > 0);
@@ -588,8 +602,21 @@ async function openTicket(ticketId) {
       <div class="copilot-draft"><h4>Bản nháp phản hồi</h4><p>${esc(copilotSuggestion.draftReply || "")}</p>${writable && copilotSuggestion.draftReply ? '<button id="useCopilotDraftBtn" type="button" class="button subtle-button">Dùng làm bản nháp</button>' : ""}</div>` : '<div class="copilot-loading">Copilot đang đối chiếu hội thoại, Playbook và route cloud. Nhấn Làm mới sau ít phút.</div>'}
   </div>` : `<div class="copilot-empty"><strong>Chưa có phân tích Copilot</strong><p>${esc(copilotBundle.error || "Copilot sẽ tự chạy sau khi ticket bàn giao, hoặc kỹ thuật viên có thể yêu cầu phân tích ngay.")}</p></div>`;
   const messageHtml = messages.length ? messages.map((message) => { const linked = attachments.filter((attachment) => attachment.messageId === message.id); const linkedHtml = linked.length ? `<div class="message-attachments">${linked.map((attachment) => `<button data-preview-attachment="${attachment.id}" ${isPreviewableAttachment(attachment) ? "" : "disabled"}>▧ <span>${esc(attachment.fileName)}</span></button><button class="message-download" data-download-attachment="${attachment.id}">↓</button>`).join("")}</div>` : ""; const body = escalatedByAi && message.role === "assistant" ? "Đã chuyển yêu cầu cho kỹ thuật viên." : message.body; return `<article class="message ${message.role}"><div class="message-meta"><strong>${esc(message.authorName)}</strong><time>${formatDate(message.createdAt)}</time></div><div class="message-body">${esc(body)}</div>${linkedHtml}</article>`; }).join("") : '<div class="conversation-admin-empty">Chưa có trao đổi trong ticket này.</div>';
+  const workbenchQueue = state.tickets.slice(0, 14).map((item) => `<button type="button" class="workbench-queue-item ${item.id === ticket.id ? "active" : ""} ${item.sla?.overdue ? "overdue" : ""}" data-workbench-ticket="${esc(item.id)}"><span><b>${esc(item.code)}</b><em>${formatDate(item.updatedAt)}</em></span><strong>${esc(item.title)}</strong><small><span class="badge ${item.status}">${esc(labels[item.status] || item.status)}</span><span>${esc(item.assignedTo || "Chưa phân công")}</span></small></button>`).join("");
+  const nextAction = ticketNextAction(ticket);
+  const actionOwner = ticketActionOwner(ticket);
   $("#ticketDetail").innerHTML = `<div class="ticket-workbench">
+    <aside class="workbench-queue" aria-label="Hàng đợi ticket trong workspace">
+      <div class="workbench-queue-head"><span class="card-kicker">HÀNG ĐỢI</span><strong>${state.tickets.length} yêu cầu</strong><small>Chọn ticket để chuyển ngữ cảnh</small></div>
+      <div class="workbench-queue-list">${workbenchQueue || '<div class="muted">Hàng đợi đang trống.</div>'}</div>
+    </aside>
     <div class="workbench-main">
+      <section class="workbench-signal-strip" aria-label="Tín hiệu xử lý ticket">
+        <div><span>TRẠNG THÁI</span><strong>${esc(labels[ticket.status] || ticket.status)}</strong></div>
+        <div><span>PHỤ TRÁCH</span><strong>${esc(ticket.assignedTo || "Chưa phân công")}</strong></div>
+        <div><span>BƯỚC TIẾP THEO</span><strong>${esc(nextAction)}</strong></div>
+        <div class="action-owner ${actionOwner === "NGƯỜI DÙNG" ? "waiting" : actionOwner === "HOÀN TẤT" ? "complete" : "active"}"><span>HÀNH ĐỘNG</span><strong>${actionOwner}</strong></div>
+      </section>
       <article class="detail-card admin-conversation-card">
         <div class="card-head conversation-admin-head"><div><span class="overline">TRAO ĐỔI TRỰC TIẾP</span><h3>Hội thoại với ${esc(requester?.name || "người dùng")}</h3><p>Phản hồi mới nhất luôn nằm ở cuối hội thoại.</p></div><span class="badge">${messages.length} tin nhắn</span></div>
         <div id="adminMessages" class="messages">${messageHtml}</div>
@@ -627,6 +654,8 @@ async function openTicket(ticketId) {
   </div>`;
 
   const adminMessages = $("#adminMessages");
+
+  $$('[data-workbench-ticket]').forEach((element) => { element.onclick = () => openTicket(element.dataset.workbenchTicket).catch((error) => toast(error.message)); });
 
   const contextTabs = $$('[data-ticket-context-tab]');
   const contextPanels = $$('[data-ticket-context-panel]');

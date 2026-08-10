@@ -3,15 +3,14 @@ import { TicketCard } from "../components/TicketCard";
 import { Icon } from "../components/Icon";
 import { useApp } from "../context";
 const filters = [
-  ["active", "Đang mở"],
-  ["waiting_user", "Chờ tôi"],
-  ["overdue", "Quá SLA"],
-  ["resolved", "Đã xong"],
   ["all", "Tất cả"],
+  ["active", "Đang xử lý"],
+  ["waiting_user", "Chờ tôi"],
+  ["resolved", "Hoàn tất"],
 ] as const;
 export function TicketsPage() {
   const { tickets, navigate } = useApp();
-  const [filter, setFilter] = useState("active"),
+  const [filter, setFilter] = useState("all"),
     [query, setQuery] = useState("");
   const visible = useMemo(
     () =>
@@ -36,9 +35,9 @@ export function TicketsPage() {
     <>
       <section className="page-title page-title-row">
         <div>
-          <span className="eyebrow">THEO DÕI YÊU CẦU</span>
-          <h1>Ticket của tôi</h1>
-          <p>Trạng thái và phản hồi mới nhất.</p>
+          <span className="eyebrow">PHIẾU CÔNG VIỆC</span>
+          <h1>Yêu cầu của tôi</h1>
+          <p>Rõ trạng thái, người phụ trách và bước tiếp theo.</p>
         </div>
         <button className="compact-create" onClick={() => navigate("new")}>
           <Icon name="plus" /> Tạo mới
@@ -66,7 +65,7 @@ export function TicketsPage() {
         ))}
       </div>
       <div className="list-summary">
-        <strong>{visible.length} ticket</strong>
+        <strong>{visible.length} yêu cầu</strong>
         <span>Cập nhật mới nhất</span>
       </div>
       <div className="ticket-list">
