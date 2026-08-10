@@ -40,5 +40,6 @@ test("Mini App exposes Signal System without internal AI provider details", asyn
   assert.doesNotMatch(detail, /ai\.model/);
   assert.doesNotMatch(detail, /ai\.confidence/);
   assert.match(styles, /--warm-ivory: #f7f5f0/);
+  assert.match(styles, /\.filter-chips button\.active \{[\s\S]*background: #eaf1ff;[\s\S]*color: var\(--deep-blue\);[\s\S]*box-shadow: inset 0 -3px 0 var\(--signal-blue\)/);
   assert.match(styles, /\.ticket-stage-tracker/);
 });
