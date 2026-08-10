@@ -21,11 +21,14 @@ export function HomePage() {
     <>
       <section className="hero">
         <div className="hero-copy">
-          <span className="hero-kicker">
-            Xin chào,{" "}
-            {user?.name?.split(" ").slice(-1)[0] || "bạn"}
-          </span>
-          <span className="service-plate">IT SERVICE WORKSHOP · ĐANG TRỰC</span>
+          <div className="hero-meta">
+            <span className="hero-kicker">
+              Xin chào,{" "}
+              <strong>{user?.name?.split(" ").slice(-1)[0] || "bạn"}</strong>
+            </span>
+            <span className="service-status"><i aria-hidden="true" />Đang trực</span>
+          </div>
+          <span className="service-plate">IT SERVICE WORKSHOP / 01</span>
           <h1>Có sự cố, luôn biết ai đang xử lý.</h1>
           <p>Tạo yêu cầu, theo dõi SLA và xem rõ bước tiếp theo ngay trong Zalo.</p>
           <div className="hero-actions">
@@ -53,7 +56,6 @@ export function HomePage() {
         <div className="hero-trust" aria-label="Cam kết hỗ trợ">
           <span>Đúng Playbook</span>
           <span>Theo dõi SLA</span>
-          <span>Có kỹ thuật viên</span>
         </div>
       </section>
       {unreadCount > 0 && (
