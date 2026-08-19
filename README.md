@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.15.0 — Deployment Foundation
+# Zalo IT HelpDesk v5.15.1 — Storage Retention
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.15.0 giữ nguyên UI **Warm Industrial + Signal System** đã duyệt và bổ sung hai profile triển khai trên cùng một codebase:
+v5.15.1 giữ nguyên thiết kế **Warm Industrial + Signal System** đã duyệt, kế thừa hai profile triển khai v5.15.0 và bổ sung giới hạn lưu trữ an toàn cho free tier:
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,8 +14,8 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend: `5.15.0`
-- Mini App metadata: `5.15.0`
+- Backend: `5.15.1`
+- Mini App metadata: `5.15.1`
 - UI/UX: không thay đổi so với bản v5.14.1 đã duyệt
 - SQL Server: schema `9`, không có migration mới
 - PostgreSQL pilot: state schema `1`, cần khởi tạo lần đầu
@@ -40,7 +40,9 @@ Các bất biến vẫn được giữ:
 - Khi handoff cho kỹ thuật viên, AI User bị khóa; Staff Copilot vẫn là kênh nội bộ độc lập.
 - Toàn bộ cloud provider lỗi vẫn phải tạo được ticket.
 - Copilot/provider/confidence/internal routing không xuất hiện trên Client.
-- Mỗi file tối đa 30 MB; file không nằm trong database.
+- Toàn hệ thống lưu tối đa 30 ticket; khi tạo ticket mới ở ngưỡng này, ticket `resolved`/`closed` cũ nhất được xóa.
+- Không xóa ticket đang hoạt động; nếu cả 30 ticket đều đang hoạt động, ticket mới bị từ chối rõ ràng.
+- Tổng ảnh/file tối đa 10 MB cho mỗi ticket, tính cộng dồn qua mọi lần upload/reply; file nằm ở private object storage/filesystem, không nằm trong database.
 
 ## Chạy local
 
@@ -88,7 +90,7 @@ Backend tạo `appsecret_proof` HMAC-SHA256, gọi `https://graph.zalo.me/v2.0/m
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
-- Release/rollback: [docs/releases/v5.15.0/CHANGES_V5_15_0_DEPLOYMENT_FOUNDATION.md](docs/releases/v5.15.0/CHANGES_V5_15_0_DEPLOYMENT_FOUNDATION.md)
+- Release/rollback: [docs/releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md](docs/releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md)
 - Working agreement cho Agent: [AGENTS.md](AGENTS.md)
 
 `render.yaml` để `autoDeployTrigger: off`: merge GitHub không tự ý phát hành. `deploy/nas/compose.yaml` chỉ bind backend vào `127.0.0.1:8080`; HTTPS cần named tunnel/reverse proxy riêng.

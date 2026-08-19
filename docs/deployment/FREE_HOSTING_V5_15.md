@@ -1,4 +1,4 @@
-# v5.15.0 — Free-hosting pilot (Render + Supabase)
+# v5.15.1 — Free-hosting pilot (Render + Supabase)
 
 ## Phạm vi
 
@@ -8,7 +8,7 @@ Profile này dùng để thử backend public trước khi có NAS. Nó không p
 - Supabase Free hiện gồm 500 MB database, 1 GB file storage, tối đa 50 MB/file và có thể pause sau một tuần ít hoạt động. [Supabase pricing](https://supabase.com/pricing), [Storage file limits](https://supabase.com/docs/guides/storage/uploads/file-limits), [Project pausing](https://supabase.com/docs/guides/platform/free-project-pausing)
 - Project Free không có downloadable managed database backup. [Supabase production checklist](https://supabase.com/docs/guides/deployment/going-into-prod)
 
-Giới hạn ứng dụng vẫn là 30 MB/file, thấp hơn giới hạn Free 50 MB.
+Ứng dụng chủ động giới hạn 30 ticket toàn hệ thống và tổng 10 MB ảnh/file cho mỗi ticket. Khi cần chỗ cho ticket thứ 31, backend xóa ticket `resolved`/`closed` cũ nhất và dọn file private tương ứng; ticket đang hoạt động không bao giờ bị xóa.
 
 ## Kiến trúc
 
@@ -27,7 +27,7 @@ Database lưu state nghiệp vụ trong một hàng JSONB có `SELECT ... FOR UP
 2. Chọn region gần Render Singapore nếu có.
 3. Trong Storage, tạo bucket `helpdesk-attachments`:
    - private;
-   - file size limit `30 MB`;
+   - file size limit `10 MB`;
    - không tạo public policy.
 4. Trong Settings → API Keys, tạo/copy một backend Secret Key dạng `sb_secret_...`. Secret keys bypass RLS nên chỉ lưu ở Render; không đưa vào Mini App, GitHub hoặc ảnh chụp. [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)
 5. Trong Connect, lấy PostgreSQL pooler connection string. Mật khẩu phải URL-encode nếu chứa ký tự đặc biệt.
@@ -47,7 +47,7 @@ Lấy App Secret của đúng Zalo Mini App đang dùng. Backend sẽ:
 
 ## 3. Tạo Render Blueprint
 
-1. Kết nối Render với repository GitHub Private.
+1. Kết nối Render với repository GitHub này.
 2. Chọn **New → Blueprint** và repository này.
 3. Render đọc `render.yaml`; xác nhận:
    - service `zalo-it-helpdesk-pilot`;
@@ -87,14 +87,16 @@ Kỳ vọng:
 
 ```text
 ok = true
-version = 5.15.0
+version = 5.15.1
 deployment.profile = free-hosting
 deployment.attachments.provider = supabase
+deployment.retention.maxStoredTickets = 30
+deployment.retention.maxTicketAttachmentBytes = 10485760
 database.provider = postgres
 database.stateSchema = 1
 ```
 
-Các feature phải có `free-hosting-pilot`, `postgres-state-store`, `supabase-private-attachments`, `direct-zalo-token-verification` và `bounded-request-rate-limiting`.
+Các feature phải có `free-hosting-pilot`, `postgres-state-store`, `supabase-private-attachments`, `direct-zalo-token-verification`, `30-ticket-retention-cap`, `terminal-ticket-auto-eviction`, `durable-attachment-gc` và `10mb-ticket-attachment-budget`.
 
 Sau cold start đầu tiên có thể mất khoảng một phút theo giới hạn Render Free.
 
@@ -118,7 +120,7 @@ Chỉ sau khi health, Admin, Zalo login, ticket và upload đều đạt:
 VITE_API_BASE_URL=https://<render-service>.onrender.com
 ```
 
-Sau đó build/deploy Mini App v5.15.0. URL API được đóng vào bundle nên đổi backend URL luôn yêu cầu deploy lại Mini App.
+Sau đó build/deploy Mini App v5.15.1. URL API được đóng vào bundle nên đổi backend URL luôn yêu cầu deploy lại Mini App.
 
 ## 7. Smoke test bắt buộc
 
@@ -126,6 +128,9 @@ Sau đó build/deploy Mini App v5.15.0. URL API được đóng vào bundle nên
 - Tạo ticket được khi AI cloud tắt/toàn bộ provider lỗi.
 - User chỉ thấy ticket của mình.
 - Reply, upload, download/preview file hoạt động.
+- Tổng attachment đúng 10 MB được chấp nhận; lớn hơn 10 MB bị từ chối với `TICKET_ATTACHMENT_BUDGET_EXCEEDED`.
+- Khi đủ 30 ticket có ít nhất một ticket hoàn tất, ticket hoàn tất cũ nhất cùng file được dọn khi tạo ticket mới.
+- Khi cả 30 ticket đều đang hoạt động, ticket mới bị từ chối với `TICKET_CAPACITY_REACHED`; không ticket đang hoạt động nào bị xóa.
 - Restart Render không mất ticket/file.
 - Handoff khóa AI User; Copilot không xuất hiện ở Client.
 - Request vượt rate limit trả `429` và `Retry-After`.
@@ -133,7 +138,8 @@ Sau đó build/deploy Mini App v5.15.0. URL API được đóng vào bundle nên
 
 ## Giới hạn và rollback
 
-- Dataset cloud mặc định rỗng; v5.15.0 không tự upload dữ liệu/file local.
+- Dataset cloud mặc định rỗng; v5.15.1 không tự upload dữ liệu/file local.
 - Playbook lifecycle governance dùng SQL Server không hoạt động trên Postgres pilot; file Playbook + Rules/RAG vẫn hoạt động.
+- Rollback về v5.15.0 không khôi phục ticket/file đã bị retention xóa và sẽ bỏ giới hạn tăng trưởng mới.
 - Tắt Render service hoặc đổi Mini App về backend/ngrok cũ để rollback. Dữ liệu local không bị sửa.
 - Trước dữ liệu pilot quan trọng, xuất PostgreSQL bằng công cụ chuẩn và copy Storage bằng Supabase CLI/S3; Free plan không cung cấp downloadable managed backup.

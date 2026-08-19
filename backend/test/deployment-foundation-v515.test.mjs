@@ -47,6 +47,13 @@ test("hosted profiles reject wildcard CORS, development identity and ephemeral s
   assert.equal(runtimeConfigIssues(validHostedConfig()).filter((item) => item.severity === "error").length, 0);
 });
 
+test("v5.15.1 retention defaults enforce the approved global and attachment caps", () => {
+  assert.equal(config.maxStoredTickets, 30);
+  assert.equal(config.maxTicketAttachmentBytes, 10 * 1024 * 1024);
+  assert.ok(config.maxAttachmentBytes <= config.maxTicketAttachmentBytes);
+  assert.ok(config.maxReplyUploadBytes <= config.maxTicketAttachmentBytes);
+});
+
 test("write rate limiter is bounded by client and returns a retry window", () => {
   const original = {
     enabled: config.rateLimitEnabled,
@@ -184,6 +191,8 @@ test("deployment manifests are non-secret, persistent and opt-in", async () => {
   assert.doesNotMatch(dockerfile, /COPY data/);
   assert.match(render, /plan: free/);
   assert.match(render, /autoDeployTrigger: off/);
+  assert.match(render, /key: MAX_STORED_TICKETS\n\s+value: "30"/);
+  assert.match(render, /key: MAX_TICKET_ATTACHMENT_MB\n\s+value: "10"/);
   for (const key of ["POSTGRES_URL", "SUPABASE_SECRET_KEY", "ZALO_APP_SECRET", "ADMIN_PASSWORD"]) {
     assert.match(render, new RegExp(`key: ${key}\\n\\s+sync: false`));
   }

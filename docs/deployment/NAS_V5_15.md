@@ -1,4 +1,4 @@
-# v5.15.0 — NAS deployment profile
+# v5.15.1 — NAS deployment profile
 
 Profile NAS dùng cùng image backend nhưng giữ SQL Server schema `9` và filesystem volume. Chưa có hành động deploy NAS trong release này.
 
@@ -42,10 +42,11 @@ http://127.0.0.1:8080/health
 
 Kỳ vọng:
 
-- version `5.15.0`;
+- version `5.15.1`;
 - deployment profile `nas`;
 - database provider `sqlserver`;
 - attachment provider `filesystem`;
+- retention tối đa `30` ticket và `10485760` byte attachment/ticket;
 - SQL Server schema vẫn `9`.
 
 Không chạy `npm run db:migrate` nếu database đã ở schema `9`.
@@ -64,6 +65,6 @@ Không coi volume trên cùng NAS là bản backup duy nhất.
 
 ## Chuyển từ free-hosting sang NAS
 
-Hai profile không dùng chung database schema. Cần một kế hoạch migration state + attachment có đối soát trước khi chuyển dữ liệu pilot. v5.15.0 cố ý không tự động copy/overwrite dữ liệu giữa hai profile.
+Hai profile không dùng chung database schema. Cần một kế hoạch migration state + attachment có đối soát trước khi chuyển dữ liệu pilot. v5.15.1 cố ý không tự động copy/overwrite dữ liệu giữa hai profile.
 
 Sau khi có URL HTTPS NAS cố định, đổi `VITE_API_BASE_URL`, build và deploy lại Mini App. Rollback bằng cách trỏ Mini App về backend trước đó; không xóa database/volume cũ cho tới khi đối soát hoàn tất.

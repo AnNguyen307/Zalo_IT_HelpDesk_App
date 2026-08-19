@@ -53,7 +53,7 @@ export function createFilesystemAttachmentStorage({ backendRoot, uploadsDir }) {
   }
 
   const read = (storagePath) => fs.readFile(absolutePath(storagePath));
-  const remove = async (storagePath) => fs.rm(absolutePath(storagePath), { force: true }).catch(() => undefined);
+  const remove = (storagePath) => fs.rm(absolutePath(storagePath), { force: true });
   const status = () => ({ provider: "filesystem", configured: true, persistent: true });
 
   return { buildStoragePath, putBuffer, putFile, read, remove, status };

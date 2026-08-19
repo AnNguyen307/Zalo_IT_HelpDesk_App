@@ -6,7 +6,7 @@ import { analyzeTicket, formatAgentReply, getAgentStatus } from "./ai-agent.mjs"
 import { getCopilotModelOptions, listCopilotRuns, queueCopilotRun, recoverCopilotQueue } from "./ai-copilot.mjs";
 import { aiDecisionAuditDetail, buildAiQualityReport, validateAiReview } from "./ai-quality.mjs";
 import { loginAdmin, loginStaff, loginWithZalo, requireAuth, sessionUser } from "./auth.mjs";
-import { canPreviewAttachment, getAttachmentStorageStatus, publicAttachment, readAttachmentFile, removeAttachmentFile, saveAttachment } from "./attachments.mjs";
+import { canPreviewAttachment, getAttachmentStorageStatus, publicAttachment, readAttachmentFile, removeAttachmentFile, removeAttachmentFileStrict, saveAttachment } from "./attachments.mjs";
 import { isMultipartRequest, readMultipartAttachments } from "./multipart.mjs";
 import { corsHeaders, notFound, routeMatch, serveStatic } from "./http.mjs";
 import { appError, publicHttpError } from "./errors.mjs";
@@ -16,6 +16,7 @@ import { buildOperationsReport, matchesSmartQueue, smartQueueCounts, ticketsCsv 
 import { buildPlaybookIndex, getPlaybookStatus, loadPlaybook, queuePlaybookReindex, searchPlaybook } from "./playbook.mjs";
 import { publicNotification, pushNotification } from "./notifications.mjs";
 import { enforceRequestRateLimit } from "./rate-limit.mjs";
+import { assertTicketAttachmentBudget, assertTicketSlotAvailable, processRetentionCleanups, remainingTicketAttachmentBytes, reserveTicketSlot, TERMINAL_TICKET_STATUSES } from "./retention.mjs";
 import {
   createPlaybookDraft,
   createPlaybookVersion,
@@ -38,11 +39,27 @@ import { plainSystemText } from "./system-text.mjs";
 import { DEFAULT_TICKET_PRIORITY, priorityFromAgentAnalysis } from "./ticket-priority.mjs";
 import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
 
+let retentionCleanupQueue = Promise.resolve();
+
+function flushRetentionStorageCleanup() {
+  const task = retentionCleanupQueue.then(() => processRetentionCleanups({
+    readDb,
+    updateDb,
+    removeAttachment: removeAttachmentFileStrict,
+  }));
+  retentionCleanupQueue = task.catch(() => undefined);
+  return task;
+}
+
 assertRuntimeConfig();
 for (const warning of runtimeConfigIssues().filter((item) => item.severity === "warning")) {
   console.warn(`[CONFIG] ${warning.message}`);
 }
 await initializeStore();
+const recoveredRetention = await flushRetentionStorageCleanup();
+for (const failure of recoveredRetention.failed) {
+  console.warn(`[RETENTION] Pending attachment cleanup ${failure.cleanupId} will be retried: ${failure.error}`);
+}
 await seedKnowledgeBase(KB_SEED);
 await recoverCopilotQueue();
 
@@ -145,6 +162,12 @@ function addSystemMessage(db, ticketId, body, createdAt = nowIso()) {
   return message;
 }
 
+function persistTicketAttachments(db, ticketId, attachments) {
+  if (!attachments.length) return;
+  assertTicketAttachmentBudget(db, ticketId, attachments, config.maxTicketAttachmentBytes);
+  db.attachments.push(...attachments);
+}
+
 function notifyRequester(db, ticket, type, title, body) {
   return pushNotification(db, { userId: ticket.userId, ticketId: ticket.id, type, title, body });
 }
@@ -163,6 +186,7 @@ function agentDisplayName(analysis) {
 async function createTicket(session, body) {
   const input = validateTicketInput(body);
   const db = await readDb();
+  assertTicketSlotAvailable(db, config.maxStoredTickets);
   const createdAt = nowIso();
   const userMessage = {
     id: id("msg"), ticketId: "pending", authorId: session.sub,
@@ -220,7 +244,8 @@ ${input.description}`, createdAt,
     authorName: agentDisplayName(analysis), role: "assistant",
     body: formatAgentReply(analysis), createdAt: nowIso(),
   };
-  await updateDb((target) => {
+  const retention = await updateDb((target) => {
+    const reserved = reserveTicketSlot(target, { maxTickets: config.maxStoredTickets, at: createdAt });
     target.tickets.push(ticket);
     target.messages.push(userMessage, agentMessage);
     pushHistory(target, {
@@ -241,7 +266,19 @@ ${input.description}`, createdAt,
         note: `AI Agent đã rời kênh User; Copilot chỉ hỗ trợ nội bộ: ${ticket.aiHandoffReason}`,
       });
     }
+    return reserved;
   });
+  if (retention.evicted.length) {
+    console.info(`[RETENTION] Evicted terminal ticket(s): ${retention.evicted.map((item) => item.ticketCode || item.ticketId).join(", ")}`);
+    try {
+      const cleanup = await flushRetentionStorageCleanup();
+      for (const failure of cleanup.failed) {
+        console.warn(`[RETENTION] Attachment cleanup ${failure.cleanupId} will be retried: ${failure.error}`);
+      }
+    } catch (error) {
+      console.warn(`[RETENTION] Attachment cleanup will be retried: ${error.message}`);
+    }
+  }
   await audit(session.sub, "create", "ticket", ticket.id, { code: ticket.code, source: analysis.source, model: analysis.model || null });
   const decisionDetail = aiDecisionAuditDetail(analysis);
   if (decisionDetail) await audit("ai-agent", "ai_decision", "ticket", ticket.id, decisionDetail);
@@ -282,7 +319,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
   if (["admin", "technician"].includes(session.role)) {
     const result = await updateDb((db) => {
       db.messages.push(message);
-      if (attachments.length) db.attachments.push(...attachments);
+      persistTicketAttachments(db, ticketId, attachments);
       const ticket = db.tickets.find((item) => item.id === ticketId);
       const oldStatus = ticket.status;
       const newlyLocked = lockHumanHandoff(ticket, {
@@ -317,7 +354,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
   const persistHumanOnlyReply = async (reason = "existing_human_handoff") => {
     const updatedTicket = await updateDb((db) => {
       db.messages.push(message);
-      if (attachments.length) db.attachments.push(...attachments);
+      persistTicketAttachments(db, ticketId, attachments);
       const ticket = db.tickets.find((item) => item.id === ticketId);
       const oldStatus = ticket.status;
       const newlyLocked = lockHumanHandoff(ticket, {
@@ -347,7 +384,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
   if (messageRequestsHumanHandoff(latestUserMessage)) {
     const handoff = await updateDb((db) => {
       db.messages.push(message);
-      if (attachments.length) db.attachments.push(...attachments);
+      persistTicketAttachments(db, ticketId, attachments);
       const ticket = db.tickets.find((item) => item.id === ticketId);
       const currentMessages = db.messages.filter((item) => item.ticketId === ticketId);
       if (isHumanHandoffLocked(ticket, currentMessages.filter((item) => item.id !== message.id))) {
@@ -418,7 +455,7 @@ async function appendMessage(session, ticketId, body, options = {}) {
     const handoffAlreadyLocked = isHumanHandoffLocked(ticket, currentMessages);
 
     db.messages.push(message);
-    if (attachments.length) db.attachments.push(...attachments);
+    persistTicketAttachments(db, ticketId, attachments);
 
     if (handoffAlreadyLocked) {
       const oldStatus = ticket.status;
@@ -591,10 +628,18 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.15.0",
+      version: "5.15.1",
       time: nowIso(),
-      features: ["dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
-      deployment: { profile: config.deploymentProfile, attachments: getAttachmentStorageStatus() },
+      features: ["30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      deployment: {
+        profile: config.deploymentProfile,
+        attachments: getAttachmentStorageStatus(),
+        retention: {
+          maxStoredTickets: config.maxStoredTickets,
+          terminalStatuses: TERMINAL_TICKET_STATUSES,
+          maxTicketAttachmentBytes: config.maxTicketAttachmentBytes,
+        },
+      },
       agent: { ...agent, paidApiRequired: Boolean(agent.dataBoundary === "external" && agent.configured) },
       playbook,
       playbookGovernance,
@@ -695,6 +740,7 @@ async function handleApi(req, res, url, headers) {
     const bundle = await getTicketBundle(params.ticketId);
     if (!canAccessTicket(session, bundle.ticket)) throw Object.assign(new Error("Bạn không có quyền truy cập ticket này"), { status: 403 });
     const messageId = id("msg");
+    const remainingTicketBytes = remainingTicketAttachmentBytes(bundle.db, params.ticketId, config.maxTicketAttachmentBytes);
     const remainingTicketFiles = Math.max(0, config.maxAttachmentsPerTicket - bundle.attachments.length);
     const maxFiles = Math.min(config.maxAttachmentsPerReply, remainingTicketFiles);
     let body;
@@ -708,8 +754,8 @@ async function handleApi(req, res, url, headers) {
           uploaderId: session.sub,
           uploaderName: session.name,
           maxFiles,
-          maxFileBytes: config.maxAttachmentBytes,
-          maxTotalBytes: config.maxReplyUploadBytes,
+          maxFileBytes: Math.min(config.maxAttachmentBytes, remainingTicketBytes),
+          maxTotalBytes: Math.min(config.maxReplyUploadBytes, remainingTicketBytes),
         });
         body = { message: parsed.fields.message || "" };
         saved = parsed.attachments;
@@ -730,6 +776,7 @@ async function handleApi(req, res, url, headers) {
             mimeType: file.mimeType,
             dataBase64: file.dataBase64,
           }));
+          assertTicketAttachmentBudget(bundle.db, params.ticketId, saved, config.maxTicketAttachmentBytes);
         }
       }
 
@@ -772,6 +819,10 @@ async function handleApi(req, res, url, headers) {
     if (bundle.attachments.length >= config.maxAttachmentsPerTicket) {
       throw Object.assign(new Error(`Mỗi ticket chỉ được tối đa ${config.maxAttachmentsPerTicket} file`), { status: 409 });
     }
+    const remainingTicketBytes = remainingTicketAttachmentBytes(bundle.db, params.ticketId, config.maxTicketAttachmentBytes);
+    if (!remainingTicketBytes) {
+      assertTicketAttachmentBudget(bundle.db, params.ticketId, [{ size: 1 }], config.maxTicketAttachmentBytes);
+    }
     let attachment;
     if (isMultipartRequest(req)) {
       const parsed = await readMultipartAttachments(req, {
@@ -780,8 +831,8 @@ async function handleApi(req, res, url, headers) {
         uploaderId: session.sub,
         uploaderName: session.name,
         maxFiles: 1,
-        maxFileBytes: config.maxAttachmentBytes,
-        maxTotalBytes: config.maxAttachmentBytes,
+        maxFileBytes: Math.min(config.maxAttachmentBytes, remainingTicketBytes),
+        maxTotalBytes: Math.min(config.maxAttachmentBytes, remainingTicketBytes),
         acceptedFields: [],
         acceptedFileFields: ["file", "attachments"],
       });
@@ -800,8 +851,9 @@ async function handleApi(req, res, url, headers) {
       });
     }
     try {
+      assertTicketAttachmentBudget(bundle.db, params.ticketId, [attachment], config.maxTicketAttachmentBytes);
       await updateDb((db) => {
-        db.attachments.push(attachment);
+        persistTicketAttachments(db, params.ticketId, [attachment]);
         const ticket = db.tickets.find((item) => item.id === params.ticketId);
         ticket.updatedAt = nowIso();
         addSystemMessage(db, ticket.id, `${session.name || "Người dùng"} đã đính kèm file: ${attachment.fileName}`);

@@ -3,7 +3,7 @@ services:
     build:
       context: ../../backend
       dockerfile: Dockerfile
-    image: zalo-it-helpdesk:5.15.0
+    image: zalo-it-helpdesk:5.15.1
     restart: unless-stopped
     env_file:
       - .env
