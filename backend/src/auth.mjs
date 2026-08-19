@@ -86,12 +86,57 @@ async function verifyZaloRemotely(accessToken, claimedIdentity) {
   }
 }
 
-export async function loginWithZalo({ accessToken, userId, name, avatar, phone, department }) {
-  if (!userId) throw Object.assign(new Error("Missing Zalo user ID"), { status: 400 });
+export function buildZaloAppSecretProof(accessToken, appSecret = config.zaloAppSecret) {
+  if (!accessToken || !appSecret) throw Object.assign(new Error("Zalo access token and app secret are required"), { status: 503 });
+  return crypto.createHmac("sha256", appSecret).update(accessToken).digest("hex");
+}
 
+async function verifyZaloDirectly(accessToken, claimedIdentity = {}) {
+  if (!accessToken) throw Object.assign(new Error("Missing Zalo access token"), { status: 400 });
+  if (!config.zaloAppSecret) throw Object.assign(new Error("ZALO_APP_SECRET is required in direct Zalo mode"), { status: 503 });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), config.zaloVerifyTimeoutMs);
+  try {
+    const response = await fetch(config.zaloProfileUrl, {
+      method: "GET",
+      headers: {
+        access_token: accessToken,
+        appsecret_proof: buildZaloAppSecretProof(accessToken),
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    const providerError = Number(payload.error || 0);
+    if (!response.ok || providerError !== 0 || !payload.id) {
+      throw Object.assign(new Error("Zalo token verification failed"), { status: 401 });
+    }
+    const userId = String(payload.id);
+    if (claimedIdentity.userId && String(claimedIdentity.userId) !== userId) {
+      throw Object.assign(new Error("Zalo identity does not match the access token"), { status: 401 });
+    }
+    return {
+      userId,
+      name: String(payload.name || claimedIdentity.name || "Người dùng Zalo"),
+      avatar: String(payload.picture?.data?.url || claimedIdentity.avatar || ""),
+    };
+  } catch (error) {
+    if (error?.name === "AbortError") throw Object.assign(new Error("Zalo token verification timed out"), { status: 503 });
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function loginWithZalo({ accessToken, userId, name, avatar, phone, department }) {
   let identity = { userId, name, avatar };
-  if (config.zaloAuthMode === "remote") {
+  if (config.zaloAuthMode === "zalo") {
+    identity = await verifyZaloDirectly(accessToken, identity);
+  } else if (config.zaloAuthMode === "remote") {
     identity = await verifyZaloRemotely(accessToken, identity);
+  } else if (!userId) {
+    throw Object.assign(new Error("Missing Zalo user ID"), { status: 400 });
   }
 
   const user = await updateDb((db) => {

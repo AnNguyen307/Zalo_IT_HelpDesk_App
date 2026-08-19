@@ -1,5 +1,7 @@
 # Deployment Checklist — Zero-Cost Edition
 
+> Checklist lịch sử cho local/PC/NAS. Với hai profile v5.15.0, dùng `FREE_HOSTING_V5_15.md` hoặc `NAS_V5_15.md` cùng release notes v5.15.0.
+
 ## Mục tiêu chi phí
 
 - [ ] Không có OpenAI/API AI key trong `.env`.

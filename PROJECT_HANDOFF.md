@@ -1,5 +1,7 @@
 # Project Handoff — Zalo IT HelpDesk
 
+> Historical handoff through v5.12.0. For the current v5.15.0 runtime, read `AGENTS.md`, `README.md` and `docs/releases/v5.15.0/` before acting.
+
 > Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
 
 ## 1. Trạng thái hiện tại

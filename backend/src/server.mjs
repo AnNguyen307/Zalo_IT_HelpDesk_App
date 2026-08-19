@@ -1,12 +1,12 @@
 import http from "node:http";
 import path from "node:path";
 import { URL } from "node:url";
-import { config } from "./config.mjs";
+import { assertRuntimeConfig, config, runtimeConfigIssues } from "./config.mjs";
 import { analyzeTicket, formatAgentReply, getAgentStatus } from "./ai-agent.mjs";
 import { getCopilotModelOptions, listCopilotRuns, queueCopilotRun, recoverCopilotQueue } from "./ai-copilot.mjs";
 import { aiDecisionAuditDetail, buildAiQualityReport, validateAiReview } from "./ai-quality.mjs";
 import { loginAdmin, loginStaff, loginWithZalo, requireAuth, sessionUser } from "./auth.mjs";
-import { canPreviewAttachment, publicAttachment, readAttachmentFile, removeAttachmentFile, saveAttachment } from "./attachments.mjs";
+import { canPreviewAttachment, getAttachmentStorageStatus, publicAttachment, readAttachmentFile, removeAttachmentFile, saveAttachment } from "./attachments.mjs";
 import { isMultipartRequest, readMultipartAttachments } from "./multipart.mjs";
 import { corsHeaders, notFound, routeMatch, serveStatic } from "./http.mjs";
 import { appError, publicHttpError } from "./errors.mjs";
@@ -15,6 +15,7 @@ import { KB_SEED } from "./kb.mjs";
 import { buildOperationsReport, matchesSmartQueue, smartQueueCounts, ticketsCsv } from "./operations.mjs";
 import { buildPlaybookIndex, getPlaybookStatus, loadPlaybook, queuePlaybookReindex, searchPlaybook } from "./playbook.mjs";
 import { publicNotification, pushNotification } from "./notifications.mjs";
+import { enforceRequestRateLimit } from "./rate-limit.mjs";
 import {
   createPlaybookDraft,
   createPlaybookVersion,
@@ -37,6 +38,10 @@ import { plainSystemText } from "./system-text.mjs";
 import { DEFAULT_TICKET_PRIORITY, priorityFromAgentAnalysis } from "./ticket-priority.mjs";
 import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
 
+assertRuntimeConfig();
+for (const warning of runtimeConfigIssues().filter((item) => item.severity === "warning")) {
+  console.warn(`[CONFIG] ${warning.message}`);
+}
 await initializeStore();
 await seedKnowledgeBase(KB_SEED);
 await recoverCopilotQueue();
@@ -586,9 +591,10 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.14.0",
+      version: "5.15.0",
       time: nowIso(),
-      features: ["warm-industrial-ui", "signal-system", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      features: ["dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "30mb-attachment-limit", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      deployment: { profile: config.deploymentProfile, attachments: getAttachmentStorageStatus() },
       agent: { ...agent, paidApiRequired: Boolean(agent.dataBoundary === "external" && agent.configured) },
       playbook,
       playbookGovernance,
@@ -793,14 +799,19 @@ async function handleApi(req, res, url, headers) {
         dataBase64: body.dataBase64,
       });
     }
-    await updateDb((db) => {
-      db.attachments.push(attachment);
-      const ticket = db.tickets.find((item) => item.id === params.ticketId);
-      ticket.updatedAt = nowIso();
-      addSystemMessage(db, ticket.id, `${session.name || "Người dùng"} đã đính kèm file: ${attachment.fileName}`);
-      pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "attachment", note: attachment.fileName });
-      if (["admin", "technician"].includes(session.role)) notifyRequester(db, ticket, "attachment", `Có file mới trong ${ticket.code}`, attachment.fileName);
-    });
+    try {
+      await updateDb((db) => {
+        db.attachments.push(attachment);
+        const ticket = db.tickets.find((item) => item.id === params.ticketId);
+        ticket.updatedAt = nowIso();
+        addSystemMessage(db, ticket.id, `${session.name || "Người dùng"} đã đính kèm file: ${attachment.fileName}`);
+        pushHistory(db, { ticketId: ticket.id, actorId: session.sub, actorName: session.name, type: "attachment", note: attachment.fileName });
+        if (["admin", "technician"].includes(session.role)) notifyRequester(db, ticket, "attachment", `Có file mới trong ${ticket.code}`, attachment.fileName);
+      });
+    } catch (error) {
+      await removeAttachmentFile(attachment);
+      throw error;
+    }
     await audit(session.sub, "upload", "attachment", attachment.id, { ticketId: params.ticketId, fileName: attachment.fileName, size: attachment.size });
     return json(res, 201, { attachment: publicAttachment(attachment) }, headers);
   }
@@ -1412,6 +1423,7 @@ const server = http.createServer(async (req, res) => {
   }
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    enforceRequestRateLimit(req, url.pathname);
     if (url.pathname.startsWith("/api/") || url.pathname === "/health") return await handleApi(req, res, url, headers);
     if (url.pathname === "/") { res.writeHead(302, { ...headers, Location: "/admin" }); return res.end(); }
     if (await serveStatic(res, url.pathname, headers)) return;
@@ -1419,7 +1431,7 @@ const server = http.createServer(async (req, res) => {
   } catch (error) {
     console.error(error);
     const { status, payload } = publicHttpError(error, { pathname: String(req.url || "/").split("?", 1)[0] });
-    return json(res, status, payload, headers);
+    return json(res, status, payload, error.retryAfterSeconds ? { ...headers, "Retry-After": String(error.retryAfterSeconds) } : headers);
   }
 });
 
@@ -1428,7 +1440,12 @@ server.listen(config.port, "0.0.0.0", () => {
   console.log(`Admin dashboard: http://localhost:${config.port}/admin`);
   if (config.zaloAuthMode === "development") console.warn("WARNING: ZALO_AUTH_MODE=development must not be used in production.");
   if (config.appSecret === "dev-only-secret-change-me") console.warn("WARNING: Change APP_SECRET before production.");
-  console.log(`Database: ${config.dbProvider}${config.dbProvider === "sqlserver" ? ` (${config.sqlServerDatabase})` : ` (${config.dataFile})`}`);
+  const databaseLabel = config.dbProvider === "sqlserver"
+    ? `sqlserver (${config.sqlServerDatabase})`
+    : config.dbProvider === "postgres"
+      ? "postgres (state schema 1)"
+      : `json (${config.dataFile})`;
+  console.log(`Deployment profile: ${config.deploymentProfile}; database: ${databaseLabel}; attachments: ${getAttachmentStorageStatus().provider}`);
   console.log(`AI routing: ${config.aiRouterEnabled ? config.aiProviderOrder.join(" -> ") : config.aiProvider}; cloud enabled=${config.aiCloudEnabled}; Rules/HelpDesk fallback enabled.`);
   getAgentStatus({ force: true }).then((status) => {
     if (status.ready) console.log(`AI Agent ready: ${status.provider}${status.model ? ` / ${status.model}` : ""}`);

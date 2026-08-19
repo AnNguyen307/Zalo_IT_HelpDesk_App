@@ -1,10 +1,15 @@
 import { config } from "./config.mjs";
 import * as jsonStore from "./store-json.mjs";
+import * as postgresStore from "./store-postgres.mjs";
 import * as sqlServerStore from "./store-sqlserver.mjs";
 import { historyEntry, pushHistory } from "./store-helpers.mjs";
 import { id, nowIso } from "./utils.mjs";
 
-const adapter = config.dbProvider === "sqlserver" ? sqlServerStore : jsonStore;
+const adapter = config.dbProvider === "sqlserver"
+  ? sqlServerStore
+  : config.dbProvider === "postgres"
+    ? postgresStore
+    : jsonStore;
 
 export const initializeStore = (...args) => adapter.initializeStore(...args);
 export const readDb = (...args) => adapter.readDb(...args);

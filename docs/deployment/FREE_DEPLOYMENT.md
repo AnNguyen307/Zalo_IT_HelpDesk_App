@@ -1,5 +1,7 @@
 # Triển khai theo hướng không phát sinh phí dịch vụ
 
+> Tài liệu này dành cho backend local/PC + tunnel. Với free-hosting v5.15.0 dùng Render + Supabase, xem `FREE_HOSTING_V5_15.md`.
+
 ## 1. Chi phí đã loại bỏ
 
 Phiên bản này không cần:

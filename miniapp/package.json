@@ -1,6 +1,6 @@
 {
   "name": "zalo-it-helpdesk-miniapp",
-  "version": "5.14.1",
+  "version": "5.15.0",
   "private": true,
   "type": "module",
   "scripts": {
