@@ -191,9 +191,13 @@ export async function readAttachmentFile(attachment) {
   return readAttachmentStorage(attachment?.storagePath);
 }
 
-export async function removeAttachmentFile(attachment) {
+export async function removeAttachmentFileStrict(attachment) {
   if (!attachment?.storagePath) return;
-  await removeAttachmentStorage(attachment.storagePath).catch(() => undefined);
+  await removeAttachmentStorage(attachment.storagePath);
+}
+
+export async function removeAttachmentFile(attachment) {
+  await removeAttachmentFileStrict(attachment).catch(() => undefined);
 }
 
 export { getAttachmentStorageStatus };

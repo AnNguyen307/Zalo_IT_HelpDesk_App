@@ -80,8 +80,7 @@ async function api(path, options = {}) {
 }
 
 const PREVIEWABLE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/csv"]);
-const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
-const MAX_REPLY_UPLOAD_BYTES = 120 * 1024 * 1024;
+const MAX_TICKET_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const MAX_REPLY_FILES = 4;
 const paperclipIcon = '<svg class="admin-attachment-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m20.5 11.5-8.93 8.93a6 6 0 0 1-8.49-8.49l9.64-9.64a4 4 0 0 1 5.66 5.66l-9.65 9.65a2 2 0 0 1-2.83-2.83l8.94-8.93"/></svg>';
 const isPreviewableAttachment = (attachment) => PREVIEWABLE_MIME.has(String(attachment?.mimeType || "").toLowerCase());
@@ -620,7 +619,7 @@ async function openTicket(ticketId) {
       <article class="detail-card admin-conversation-card">
         <div class="card-head conversation-admin-head"><div><span class="overline">TRAO ĐỔI TRỰC TIẾP</span><h3>Hội thoại với ${esc(requester?.name || "người dùng")}</h3><p>Phản hồi mới nhất luôn nằm ở cuối hội thoại.</p></div><span class="badge">${messages.length} tin nhắn</span></div>
         <div id="adminMessages" class="messages">${messageHtml}</div>
-        ${writable ? `<div class="admin-reply-dock"><div id="adminReplyFileList" class="admin-reply-file-list"></div><div class="admin-reply-composer"><label class="admin-reply-attach" title="Thêm ảnh hoặc file" aria-label="Đính kèm ảnh hoặc file">${paperclipIcon}<input id="adminReplyFilesInput" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"/></label><textarea id="adminReply" rows="2" placeholder="Nhập phản hồi cho người dùng…"></textarea><button id="sendReply" class="button primary-button" type="button">Gửi phản hồi</button></div><small class="reply-security-note">Tối đa 4 file · 30 MB/file · tổng 120 MB</small></div>` : '<div class="viewer-notice">Chế độ chỉ xem · Bạn không thể phản hồi hoặc thay đổi ticket.</div>'}
+        ${writable ? `<div class="admin-reply-dock"><div id="adminReplyFileList" class="admin-reply-file-list"></div><div class="admin-reply-composer"><label class="admin-reply-attach" title="Thêm ảnh hoặc file" aria-label="Đính kèm ảnh hoặc file">${paperclipIcon}<input id="adminReplyFilesInput" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"/></label><textarea id="adminReply" rows="2" placeholder="Nhập phản hồi cho người dùng…"></textarea><button id="sendReply" class="button primary-button" type="button">Gửi phản hồi</button></div><small class="reply-security-note">Tối đa 4 file/lần · tổng 10 MB/yêu cầu</small></div>` : '<div class="viewer-notice">Chế độ chỉ xem · Bạn không thể phản hồi hoặc thay đổi ticket.</div>'}
       </article>
     </div>
     <aside class="workbench-side">
@@ -727,8 +726,11 @@ async function openTicket(ticketId) {
   $$('[data-download-attachment]').forEach((element) => { element.onclick = async () => { const attachment = attachments.find((item) => item.id === element.dataset.downloadAttachment); if (attachment) try { await downloadAttachment(attachment); } catch (error) { toast(error.message); } }; });
   if ($("#adminFiles")) $("#adminFiles").onchange = async (event) => {
     const files = [...event.target.files]; event.target.value = ""; if (!files.length) return;
-    const tooLarge = files.find((file) => file.size >= MAX_UPLOAD_BYTES);
-    if (tooLarge) return toast(`${tooLarge.name} vượt quá giới hạn 30 MB`);
+    const tooLarge = files.find((file) => file.size > MAX_TICKET_ATTACHMENT_BYTES);
+    if (tooLarge) return toast(`${tooLarge.name} vượt quá giới hạn 10 MB`);
+    const storedBytes = attachments.reduce((sum, attachment) => sum + (attachment.size || 0), 0);
+    const selectedBytes = files.reduce((sum, file) => sum + file.size, 0);
+    if (storedBytes + selectedBytes > MAX_TICKET_ATTACHMENT_BYTES) return toast("Tổng ảnh/file của yêu cầu vượt quá 10 MB");
     try {
       for (const file of files) {
         const form = new FormData();
@@ -743,13 +745,14 @@ async function openTicket(ticketId) {
   const renderReplyFiles = () => { if (!$("#adminReplyFileList")) return; $("#adminReplyFileList").innerHTML = replyFiles.map((file, index) => `<div><span class="admin-reply-file-icon">${paperclipIcon}</span><span><strong>${esc(file.name)}</strong><small>${formatSize(file.size)}</small></span><button type="button" data-remove-reply-file="${index}" aria-label="Bỏ ${esc(file.name)}">×</button></div>`).join(""); $$('[data-remove-reply-file]').forEach((element) => { element.onclick = () => { replyFiles.splice(Number(element.dataset.removeReplyFile), 1); renderReplyFiles(); }; }); };
   if ($("#adminReplyFilesInput")) $("#adminReplyFilesInput").onchange = (event) => {
     const files = [...event.target.files]; event.target.value = "";
-    const tooLarge = files.find((file) => file.size >= MAX_UPLOAD_BYTES);
-    if (tooLarge) return toast(`${tooLarge.name} vượt quá giới hạn 30 MB`);
+    const tooLarge = files.find((file) => file.size > MAX_TICKET_ATTACHMENT_BYTES);
+    if (tooLarge) return toast(`${tooLarge.name} vượt quá giới hạn 10 MB`);
     const proposed = [...replyFiles, ...files];
     if (proposed.length > MAX_REPLY_FILES) toast(`Mỗi phản hồi tối đa ${MAX_REPLY_FILES} file`);
     const limited = proposed.slice(0, MAX_REPLY_FILES);
-    const total = limited.reduce((sum, file) => sum + file.size, 0);
-    if (total > MAX_REPLY_UPLOAD_BYTES) return toast("Tổng file mỗi phản hồi vượt quá 120 MB");
+    const storedBytes = attachments.reduce((sum, attachment) => sum + (attachment.size || 0), 0);
+    const selectedBytes = limited.reduce((sum, file) => sum + file.size, 0);
+    if (storedBytes + selectedBytes > MAX_TICKET_ATTACHMENT_BYTES) return toast("Tổng ảnh/file của yêu cầu vượt quá 10 MB");
     replyFiles = limited; renderReplyFiles();
   };
   if ($("#saveTicket")) $("#saveTicket").onclick = async () => { try { const selected = $("#editAssignee").value; await api(`/api/admin/tickets/${ticket.id}`, { method: "PATCH", body: JSON.stringify({ status: $("#editStatus").value, priority: $("#editPriority").value, assignedToId: selected.startsWith("legacy:") ? undefined : selected, assignedTo: selected.startsWith("legacy:") ? ticket.assignedTo : undefined, resolution: $("#editResolution").value }) }); toast("Đã cập nhật ticket"); await load(); await openTicket(ticket.id); } catch (error) { toast(error.message); } };

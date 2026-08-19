@@ -50,6 +50,10 @@ services:
       - key: PLAYBOOK_GOVERNANCE_ENABLED
         value: "false"
       - key: MAX_ATTACHMENT_MB
-        value: "30"
+        value: "10"
       - key: MAX_REPLY_UPLOAD_MB
-        value: "120"
+        value: "10"
+      - key: MAX_STORED_TICKETS
+        value: "30"
+      - key: MAX_TICKET_ATTACHMENT_MB
+        value: "10"

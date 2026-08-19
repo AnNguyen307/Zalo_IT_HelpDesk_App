@@ -87,6 +87,8 @@ const playbookRetrievalMode = enumEnv(
   ["lexical", "hybrid"],
   legacyPlaybookSemantic ? "hybrid" : "lexical",
 );
+const maxStoredTickets = Math.min(30, Math.max(1, Math.trunc(numberEnv("MAX_STORED_TICKETS", 30))));
+const maxTicketAttachmentMb = Math.min(10, Math.max(1, numberEnv("MAX_TICKET_ATTACHMENT_MB", 10)));
 
 export const config = {
   port: numberEnv("PORT", 8080),
@@ -135,10 +137,15 @@ export const config = {
   supabaseUrl: String(process.env.SUPABASE_URL || "").replace(/\/$/, ""),
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY || "",
   supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET || "helpdesk-attachments",
+  // Retention guardrails are hard-capped for the free-tier pilot. Environment
+  // values may lower these limits, but cannot raise them above 30 tickets or
+  // 10 MB of attachments per ticket.
+  maxStoredTickets,
+  maxTicketAttachmentBytes: maxTicketAttachmentMb * 1024 * 1024,
   // Large uploads use multipart/form-data so file bytes are streamed to disk.
-  // File size is inclusive: a file of exactly 30 MB is accepted.
-  maxAttachmentBytes: numberEnv("MAX_ATTACHMENT_MB", 30) * 1024 * 1024,
-  maxReplyUploadBytes: numberEnv("MAX_REPLY_UPLOAD_MB", 120) * 1024 * 1024,
+  // A single upload/reply can never exceed the ticket's total 10 MB budget.
+  maxAttachmentBytes: Math.min(Math.max(1, numberEnv("MAX_ATTACHMENT_MB", 10)), maxTicketAttachmentMb) * 1024 * 1024,
+  maxReplyUploadBytes: Math.min(Math.max(1, numberEnv("MAX_REPLY_UPLOAD_MB", 10)), maxTicketAttachmentMb) * 1024 * 1024,
   maxLegacyJsonUploadBytes: numberEnv("MAX_LEGACY_JSON_UPLOAD_MB", 32) * 1024 * 1024,
   maxAttachmentsPerTicket: numberEnv("MAX_ATTACHMENTS_PER_TICKET", 8),
   maxAttachmentsPerReply: numberEnv("MAX_ATTACHMENTS_PER_REPLY", 4),

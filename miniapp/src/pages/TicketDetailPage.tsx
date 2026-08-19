@@ -39,8 +39,7 @@ const historyLabel: Record<string, string> = {
   reopen: "Mở lại ticket",
   rating: "Đánh giá",
 };
-const MAX_FILE = 30 * 1024 * 1024;
-const MAX_REPLY_BYTES = 120 * 1024 * 1024;
+const MAX_TICKET_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const MAX_REPLY_FILES = 4;
 const ACCEPTED = "image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip";
 const signalStages = ["Đã nhận", "Đối chiếu", "IT xử lý", "Hoàn tất"];
@@ -144,9 +143,11 @@ export function TicketDetailPage() {
     const picked = [...(event.target.files || [])];
     event.target.value = "";
     if (!picked.length) return;
-    const tooLarge = picked.find((file) => file.size > MAX_FILE);
+    const tooLarge = picked.find(
+      (file) => file.size > MAX_TICKET_ATTACHMENT_BYTES,
+    );
     if (tooLarge) {
-      toast(`${tooLarge.name} vượt quá giới hạn 30 MB`);
+      toast(`${tooLarge.name} vượt quá giới hạn 10 MB`);
       return;
     }
     setReplyFiles((current) => {
@@ -154,9 +155,16 @@ export function TicketDetailPage() {
       if (next.length > MAX_REPLY_FILES)
         toast(`Mỗi phản hồi tối đa ${MAX_REPLY_FILES} file`);
       const limited = next.slice(0, MAX_REPLY_FILES);
-      const total = limited.reduce((sum, file) => sum + file.size, 0);
-      if (total > MAX_REPLY_BYTES) {
-        toast("Tổng file mỗi phản hồi vượt quá 120 MB");
+      const storedBytes = attachments.reduce(
+        (sum, attachment) => sum + (attachment.size || 0),
+        0,
+      );
+      const selectedBytes = limited.reduce(
+        (sum, file) => sum + file.size,
+        0,
+      );
+      if (storedBytes + selectedBytes > MAX_TICKET_ATTACHMENT_BYTES) {
+        toast("Tổng ảnh/file của yêu cầu vượt quá 10 MB");
         return current;
       }
       return limited;
@@ -509,7 +517,7 @@ export function TicketDetailPage() {
                 </button>
               </div>
               <small className="reply-hint">
-                Tối đa {MAX_REPLY_FILES} file · 30 MB/file · tổng 120 MB
+                Tối đa {MAX_REPLY_FILES} file/lần · tổng 10 MB/yêu cầu
               </small>
             </form>
           </div>

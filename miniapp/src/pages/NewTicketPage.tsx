@@ -29,7 +29,7 @@ const quick = [
       hint: "Excel, Word, Outlook",
     },
   ],
-  MAX = 30 * 1024 * 1024;
+  MAX_TICKET_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export function NewTicketPage() {
   const { navigate, refreshTickets } = useApp();
   const [title, setTitle] = useState(""),
@@ -58,13 +58,25 @@ export function NewTicketPage() {
   }, []);
   function choose(e: ChangeEvent<HTMLInputElement>) {
     const a = [...(e.target.files || [])];
-    const big = a.find((f) => f.size > MAX);
+    const big = a.find((f) => f.size > MAX_TICKET_ATTACHMENT_BYTES);
     if (big) {
-      toast(`${big.name} vượt quá giới hạn 30 MB`);
+      toast(`${big.name} vượt quá giới hạn 10 MB`);
       e.target.value = "";
       return;
     }
-    setFiles((c) => [...c, ...a].slice(0, 8));
+    setFiles((current) => {
+      const next = [...current, ...a];
+      if (next.length > 8) toast("Mỗi yêu cầu tối đa 8 file");
+      const limited = next.slice(0, 8);
+      if (
+        limited.reduce((sum, file) => sum + file.size, 0) >
+        MAX_TICKET_ATTACHMENT_BYTES
+      ) {
+        toast("Tổng ảnh/file của yêu cầu vượt quá 10 MB");
+        return current;
+      }
+      return limited;
+    });
     e.target.value = "";
   }
   async function submit(e: FormEvent) {
@@ -226,7 +238,7 @@ export function NewTicketPage() {
             />
             <Icon name="attachment" size={25} />
             <strong>Chọn ảnh hoặc file</strong>
-            <small>Tối đa 8 file · 30 MB/file</small>
+            <small>Tối đa 8 file · tổng 10 MB/yêu cầu</small>
           </label>
           {files.length > 0 && (
             <div className="selected-files">
