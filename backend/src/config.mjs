@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -90,6 +91,7 @@ const playbookRetrievalMode = enumEnv(
 export const config = {
   port: numberEnv("PORT", 8080),
   nodeEnv: process.env.NODE_ENV || "development",
+  deploymentProfile: enumEnv("DEPLOYMENT_PROFILE", ["local", "free-hosting", "nas"], "local"),
   appSecret: process.env.APP_SECRET || "dev-only-secret-change-me",
   adminPassword: process.env.ADMIN_PASSWORD || "ChangeMeNow!",
   technicianPassword: process.env.TECHNICIAN_PASSWORD || "",
@@ -98,9 +100,18 @@ export const config = {
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean),
-  dbProvider: enumEnv("DB_PROVIDER", ["json", "sqlserver"], "json"),
+  dbProvider: enumEnv("DB_PROVIDER", ["json", "sqlserver", "postgres"], "json"),
   dataFile: path.resolve(backendRoot, process.env.DATA_FILE || "./data/db.json"),
   uploadsDir: path.resolve(backendRoot, process.env.UPLOADS_DIR || "./data/uploads"),
+
+  // PostgreSQL state-document adapter for the free-hosting pilot. SQL Server
+  // remains the normalized enterprise store used by the NAS profile.
+  postgresUrl: process.env.POSTGRES_URL || process.env.DATABASE_URL || "",
+  postgresSslMode: enumEnv("POSTGRES_SSL_MODE", ["disable", "require", "verify-full"], "require"),
+  postgresPoolMax: numberEnv("POSTGRES_POOL_MAX", 4),
+  postgresConnectionTimeoutMs: numberEnv("POSTGRES_CONNECTION_TIMEOUT_MS", 15000),
+  postgresIdleTimeoutMs: numberEnv("POSTGRES_IDLE_TIMEOUT_MS", 30000),
+  postgresStatementTimeoutMs: numberEnv("POSTGRES_STATEMENT_TIMEOUT_MS", 30000),
 
   // SQL Server storage. SQL authentication is the simplest local setup.
   // NTLM is supported when user, password and domain are supplied.
@@ -119,6 +130,11 @@ export const config = {
   sqlServerPoolMax: numberEnv("SQLSERVER_POOL_MAX", 10),
   sqlServerPoolMin: numberEnv("SQLSERVER_POOL_MIN", 0),
   sqlServerPoolIdleTimeoutMs: numberEnv("SQLSERVER_POOL_IDLE_TIMEOUT_MS", 30000),
+  attachmentStorageProvider: enumEnv("ATTACHMENT_STORAGE_PROVIDER", ["filesystem", "supabase"], "filesystem"),
+  attachmentTempDir: path.resolve(process.env.ATTACHMENT_TEMP_DIR || path.join(os.tmpdir(), "zalo-helpdesk-uploads")),
+  supabaseUrl: String(process.env.SUPABASE_URL || "").replace(/\/$/, ""),
+  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY || "",
+  supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET || "helpdesk-attachments",
   // Large uploads use multipart/form-data so file bytes are streamed to disk.
   // File size is inclusive: a file of exactly 30 MB is accepted.
   maxAttachmentBytes: numberEnv("MAX_ATTACHMENT_MB", 30) * 1024 * 1024,
@@ -126,12 +142,20 @@ export const config = {
   maxLegacyJsonUploadBytes: numberEnv("MAX_LEGACY_JSON_UPLOAD_MB", 32) * 1024 * 1024,
   maxAttachmentsPerTicket: numberEnv("MAX_ATTACHMENTS_PER_TICKET", 8),
   maxAttachmentsPerReply: numberEnv("MAX_ATTACHMENTS_PER_REPLY", 4),
+  rateLimitEnabled: booleanEnv("RATE_LIMIT_ENABLED", true),
+  rateLimitWindowSeconds: numberEnv("RATE_LIMIT_WINDOW_SECONDS", 60),
+  rateLimitAuthMax: numberEnv("RATE_LIMIT_AUTH_MAX", 120),
+  rateLimitWriteMax: numberEnv("RATE_LIMIT_WRITE_MAX", 240),
+  rateLimitUploadMax: numberEnv("RATE_LIMIT_UPLOAD_MAX", 60),
+  rateLimitMaxKeys: numberEnv("RATE_LIMIT_MAX_KEYS", 10000),
   sessionTtlHours: numberEnv("SESSION_TTL_HOURS", 168),
   reopenWindowDays: numberEnv("REOPEN_WINDOW_DAYS", 14),
   notificationPollSeconds: numberEnv("NOTIFICATION_POLL_SECONDS", 20),
   overdueCheckSeconds: numberEnv("OVERDUE_CHECK_SECONDS", 60),
-  zaloAuthMode: enumEnv("ZALO_AUTH_MODE", ["development", "remote"], "development"),
+  zaloAuthMode: enumEnv("ZALO_AUTH_MODE", ["development", "remote", "zalo"], "development"),
   zaloTokenVerifyUrl: process.env.ZALO_TOKEN_VERIFY_URL || "",
+  zaloAppSecret: process.env.ZALO_APP_SECRET || "",
+  zaloProfileUrl: process.env.ZALO_PROFILE_URL || "https://graph.zalo.me/v2.0/me",
   zaloVerifyTimeoutMs: numberEnv("ZALO_VERIFY_TIMEOUT_MS", 7000),
 
   sla: {
@@ -226,3 +250,86 @@ export const config = {
 
   backendRoot,
 };
+
+function issue(code, message, severity = "error") {
+  return { code, message, severity };
+}
+
+function isHttpsUrl(value) {
+  try { return new URL(value).protocol === "https:"; }
+  catch { return false; }
+}
+
+export function runtimeConfigIssues(candidate = config) {
+  if (candidate.deploymentProfile === "local") return [];
+
+  const issues = [];
+  if (candidate.nodeEnv !== "production") {
+    issues.push(issue("node-env", "NODE_ENV must be production outside the local profile."));
+  }
+  if (!candidate.appSecret || candidate.appSecret === "dev-only-secret-change-me" || candidate.appSecret.length < 32) {
+    issues.push(issue("app-secret", "APP_SECRET must be a non-default value with at least 32 characters."));
+  }
+  if (!candidate.allowedOrigins.length || candidate.allowedOrigins.includes("*")) {
+    issues.push(issue("cors", "ALLOWED_ORIGINS must be an explicit allowlist; wildcard origins are not accepted."));
+  }
+  if (candidate.zaloAuthMode === "development") {
+    issues.push(issue("zalo-auth", "ZALO_AUTH_MODE=development cannot be exposed by a hosted deployment."));
+  }
+  if (candidate.zaloAuthMode === "remote" && !isHttpsUrl(candidate.zaloTokenVerifyUrl)) {
+    issues.push(issue("zalo-verifier", "Remote Zalo authentication requires an HTTPS ZALO_TOKEN_VERIFY_URL."));
+  }
+  if (candidate.zaloAuthMode === "zalo" && !candidate.zaloAppSecret) {
+    issues.push(issue("zalo-app-secret", "Direct Zalo authentication requires ZALO_APP_SECRET on the backend."));
+  }
+  if (candidate.zaloAuthMode === "zalo") {
+    try {
+      const profileUrl = new URL(candidate.zaloProfileUrl);
+      if (profileUrl.protocol !== "https:" || profileUrl.hostname !== "graph.zalo.me") throw new Error("invalid");
+    } catch {
+      issues.push(issue("zalo-profile-url", "Hosted direct authentication only sends tokens to https://graph.zalo.me."));
+    }
+  }
+  if (candidate.aiCloudEnabled && !candidate.aiRedactionEnabled) {
+    issues.push(issue("ai-redaction", "AI_REDACTION_ENABLED must be true when cloud AI is enabled."));
+  }
+  if (candidate.legacyStaffLoginEnabled) {
+    if (!candidate.adminPassword || candidate.adminPassword === "ChangeMeNow!" || candidate.adminPassword.length < 12) {
+      issues.push(issue("legacy-admin-password", "Legacy staff login requires a non-default ADMIN_PASSWORD with at least 12 characters."));
+    } else {
+      issues.push(issue("legacy-staff-login", "Disable LEGACY_STAFF_LOGIN_ENABLED after creating a named Admin account.", "warning"));
+    }
+  }
+
+  if (candidate.deploymentProfile === "free-hosting") {
+    if (candidate.dbProvider !== "postgres") {
+      issues.push(issue("free-database", "The free-hosting profile requires DB_PROVIDER=postgres."));
+    }
+    if (!candidate.postgresUrl) {
+      issues.push(issue("postgres-url", "POSTGRES_URL is required for the free-hosting profile."));
+    }
+    if (candidate.attachmentStorageProvider !== "supabase") {
+      issues.push(issue("free-attachments", "The free-hosting profile requires ATTACHMENT_STORAGE_PROVIDER=supabase."));
+    }
+    if (!isHttpsUrl(candidate.supabaseUrl) || !candidate.supabaseSecretKey || !candidate.supabaseStorageBucket) {
+      issues.push(issue("supabase-storage", "SUPABASE_URL, SUPABASE_SECRET_KEY and SUPABASE_STORAGE_BUCKET are required for private attachment storage."));
+    }
+  }
+
+  if (candidate.deploymentProfile === "nas") {
+    if (candidate.dbProvider !== "sqlserver") {
+      issues.push(issue("nas-database", "The NAS profile requires DB_PROVIDER=sqlserver."));
+    }
+    if (candidate.attachmentStorageProvider !== "filesystem") {
+      issues.push(issue("nas-attachments", "The NAS profile requires ATTACHMENT_STORAGE_PROVIDER=filesystem."));
+    }
+  }
+
+  return issues;
+}
+
+export function assertRuntimeConfig(candidate = config) {
+  const errors = runtimeConfigIssues(candidate).filter((item) => item.severity === "error");
+  if (!errors.length) return;
+  throw new Error(`Hosted runtime configuration is unsafe:\n${errors.map((item) => `- [${item.code}] ${item.message}`).join("\n")}`);
+}

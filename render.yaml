@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: zalo-it-helpdesk-pilot
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: sh -c "npm run db:postgres:init && npm start"
+    healthCheckPath: /health
+    maxShutdownDelaySeconds: 30
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEPLOYMENT_PROFILE
+        value: free-hosting
+      - key: APP_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://h5.zdn.vn
+      - key: DB_PROVIDER
+        value: postgres
+      - key: POSTGRES_URL
+        sync: false
+      - key: POSTGRES_SSL_MODE
+        value: require
+      - key: POSTGRES_POOL_MAX
+        value: "4"
+      - key: ATTACHMENT_STORAGE_PROVIDER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: helpdesk-attachments
+      - key: ZALO_AUTH_MODE
+        value: zalo
+      - key: ZALO_APP_SECRET
+        sync: false
+      - key: LEGACY_STAFF_LOGIN_ENABLED
+        value: "true"
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: AI_CLOUD_ENABLED
+        value: "false"
+      - key: AI_REDACTION_ENABLED
+        value: "true"
+      - key: PLAYBOOK_GOVERNANCE_ENABLED
+        value: "false"
+      - key: MAX_ATTACHMENT_MB
+        value: "30"
+      - key: MAX_REPLY_UPLOAD_MB
+        value: "120"

@@ -3,6 +3,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import {
+  buildAttachmentStoragePath,
+  getAttachmentStorageStatus,
+  putAttachmentBuffer,
+  putAttachmentFile,
+  readAttachmentStorage,
+  removeAttachmentStorage,
+} from "./attachment-storage.mjs";
 import { config } from "./config.mjs";
 import { id, nowIso } from "./utils.mjs";
 
@@ -83,16 +91,15 @@ function attachmentIdentity(fileName, mimeType) {
 
 function newAttachmentPaths(ticketId, extension) {
   const attachmentId = id("att");
-  const directory = path.join(config.uploadsDir, ticketId);
   const storedName = `${attachmentId}${extension}`;
-  const diskPath = path.join(directory, storedName);
-  const tempPath = `${diskPath}.uploading`;
-  return { attachmentId, directory, diskPath, tempPath };
+  const storagePath = buildAttachmentStoragePath(ticketId, storedName);
+  const tempPath = path.join(config.attachmentTempDir, `${attachmentId}.uploading`);
+  return { attachmentId, storagePath, tempPath };
 }
 
 function attachmentRecord({
   attachmentId, ticketId, messageId, uploaderId, uploaderName,
-  originalName, safeMime, size, diskPath,
+  originalName, safeMime, size, storagePath,
 }) {
   return {
     id: attachmentId,
@@ -103,7 +110,7 @@ function attachmentRecord({
     fileName: originalName,
     mimeType: safeMime,
     size,
-    storagePath: path.relative(config.backendRoot, diskPath).replaceAll("\\", "/"),
+    storagePath,
     createdAt: nowIso(),
   };
 }
@@ -125,13 +132,12 @@ export async function saveAttachment({
     throw statusError(`File được phép tối đa ${Math.round(config.maxAttachmentBytes / 1024 / 1024)} MB`, 413);
   }
 
-  const { attachmentId, directory, diskPath } = newAttachmentPaths(ticketId, extension);
-  await fs.mkdir(directory, { recursive: true });
-  await fs.writeFile(diskPath, data, { flag: "wx" });
+  const { attachmentId, storagePath } = newAttachmentPaths(ticketId, extension);
+  await putAttachmentBuffer(storagePath, data, safeMime);
 
   return attachmentRecord({
     attachmentId, ticketId, messageId, uploaderId, uploaderName,
-    originalName, safeMime, size: data.length, diskPath,
+    originalName, safeMime, size: data.length, storagePath,
   });
 }
 
@@ -140,8 +146,8 @@ export async function saveAttachmentStream({
   fileName, mimeType, maxBytes = config.maxAttachmentBytes, onChunk,
 }) {
   const { originalName, safeMime, extension } = attachmentIdentity(fileName, mimeType);
-  const { attachmentId, directory, diskPath, tempPath } = newAttachmentPaths(ticketId, extension);
-  await fs.mkdir(directory, { recursive: true });
+  const { attachmentId, storagePath, tempPath } = newAttachmentPaths(ticketId, extension);
+  await fs.mkdir(config.attachmentTempDir, { recursive: true });
 
   let size = 0;
   const limiter = new Transform({
@@ -166,40 +172,31 @@ export async function saveAttachmentStream({
       throw statusError(`File được phép tối đa ${Math.round(maxBytes / 1024 / 1024)} MB`, 413);
     }
     if (!size) throw statusError("File rỗng hoặc dữ liệu không hợp lệ");
-    await fs.rename(tempPath, diskPath);
+    await putAttachmentFile(storagePath, tempPath, safeMime);
   } catch (error) {
     await fs.rm(tempPath, { force: true }).catch(() => undefined);
-    await fs.rm(diskPath, { force: true }).catch(() => undefined);
+    await removeAttachmentStorage(storagePath).catch(() => undefined);
     throw error;
+  } finally {
+    await fs.rm(tempPath, { force: true }).catch(() => undefined);
   }
 
   return attachmentRecord({
     attachmentId, ticketId, messageId, uploaderId, uploaderName,
-    originalName, safeMime, size, diskPath,
+    originalName, safeMime, size, storagePath,
   });
 }
 
-function safeAttachmentPath(storagePath) {
-  const root = path.resolve(config.uploadsDir);
-  const absolute = path.resolve(config.backendRoot, storagePath || "");
-  const relative = path.relative(root, absolute);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw statusError("Đường dẫn file không hợp lệ");
-  }
-  return absolute;
-}
-
 export async function readAttachmentFile(attachment) {
-  return fs.readFile(safeAttachmentPath(attachment?.storagePath));
+  return readAttachmentStorage(attachment?.storagePath);
 }
 
 export async function removeAttachmentFile(attachment) {
   if (!attachment?.storagePath) return;
-  let absolute;
-  try { absolute = safeAttachmentPath(attachment.storagePath); }
-  catch { return; }
-  await fs.rm(absolute, { force: true }).catch(() => undefined);
+  await removeAttachmentStorage(attachment.storagePath).catch(() => undefined);
 }
+
+export { getAttachmentStorageStatus };
 
 export function canPreviewAttachment(attachment) {
   return PREVIEWABLE_MIME.has(String(attachment?.mimeType || "").toLowerCase());

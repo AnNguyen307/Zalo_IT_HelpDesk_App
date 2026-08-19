@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    image: zalo-it-helpdesk:5.15.0
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - helpdesk_data:/app/data
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  helpdesk_data:
+    name: zalo_helpdesk_data

@@ -13,7 +13,8 @@ IF DB_ID(N'ZaloHelpDesk') IS NULL
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.sql_logins WHERE name = N'zalo_helpdesk_app')
-    CREATE LOGIN zalo_helpdesk_app WITH PASSWORD = N'truongan123', CHECK_POLICY = ON, CHECK_EXPIRATION = ON;
+    CREATE LOGIN zalo_helpdesk_app
+      WITH PASSWORD = 'CHANGE_ME_STRONG_SQL_PASSWORD', CHECK_POLICY = ON, CHECK_EXPIRATION = ON;
 GO
 
 USE ZaloHelpDesk;
