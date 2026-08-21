@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.16.1" />
+  <link rel="stylesheet" href="/admin.css?v=5.16.2" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -62,13 +62,13 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.1</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.2</span></div>
     </aside>
 
     <div class="admin-main">
       <header class="main-header">
         <div class="header-copy"><span class="overline">IT SERVICE OPERATIONS</span><h1 id="activeSectionTitle">Tổng quan vận hành</h1><p id="activeSectionDescription">Trạng thái, owner, SLA và bước tiếp theo theo thời gian thực.</p></div>
-        <div class="header-actions"><button id="refreshBtn" class="button icon-button" title="Làm mới"><span>↻</span></button><button id="logoutBtn" class="button subtle-button"><span>Đăng xuất</span><b>↗</b></button></div>
+        <div class="header-actions"><div id="headerIdentity" class="header-identity" aria-live="polite"><span id="headerIdentityAvatar" class="header-identity-avatar" aria-hidden="true">IT</span><span class="header-identity-copy"><strong id="headerIdentityName">Đang tải tài khoản…</strong><small id="headerIdentityRole">Đang xác định vai trò</small></span></div><button id="refreshBtn" class="button icon-button" title="Làm mới" aria-label="Làm mới dữ liệu"><span>↻</span></button><button id="logoutBtn" class="button subtle-button"><span>Đăng xuất</span><b>↗</b></button></div>
       </header>
 
       <div class="main-content">
@@ -108,8 +108,8 @@
         </section>
 
         <section id="staffTab" class="workspace-section hidden admin-only">
-          <div class="section-toolbar"><div><span class="overline">ACCESS CONTROL</span><h2>Tài khoản HelpDesk</h2><p>Danh tính riêng cho từng nhân sự, phân quyền rõ và lưu audit chính xác.</p></div><button id="newStaffBtn" class="button primary-button">Thêm nhân sự</button></div>
-          <article id="legacyLoginNotice" class="info-banner staff-security-banner"><span>i</span><p>Mật khẩu dùng chung đang được giữ để chuyển đổi an toàn. Sau khi xác nhận tài khoản riêng hoạt động, hãy tắt <code>LEGACY_STAFF_LOGIN_ENABLED</code>.</p></article>
+          <div class="section-toolbar staff-toolbar"><div><span class="overline">QUẢN LÝ TRUY CẬP</span><h2>Tài khoản HelpDesk</h2><p>Theo dõi trạng thái, vai trò và lần đăng nhập của từng nhân sự trong một màn hình.</p></div><button id="newStaffBtn" class="button primary-button">Thêm nhân sự</button></div>
+          <article id="legacyLoginNotice" class="info-banner staff-security-banner"><span>i</span><div><strong>Chuyển đổi tài khoản an toàn</strong><p>Mật khẩu dùng chung vẫn đang bật. Sau khi xác nhận tài khoản riêng hoạt động, hãy tắt <code>LEGACY_STAFF_LOGIN_ENABLED</code>.</p></div></article>
           <div id="staffSummary" class="staff-summary"></div>
           <div id="staffList" class="staff-grid"></div>
           <section class="user-access-panel">
@@ -144,9 +144,9 @@
         </section>
 
         <section id="governanceTab" class="workspace-section hidden">
-          <div class="section-toolbar"><div><span class="overline">CONTROLLED LEARNING</span><h2>Quản trị vòng đời Playbook</h2><p>Kỹ thuật viên tạo đề xuất; quản trị viên duyệt và phát hành. AI chỉ học từ phiên bản Published.</p></div><div class="header-actions"><button id="seedPlaybookBtn" class="button subtle-button admin-only">Nhập baseline</button><button id="newPlaybookDraftBtn" class="button primary-button"><span>＋</span> Tạo bản nháp</button></div></div>
-          <article class="governance-banner"><div class="governance-flow"><span>Draft</span><b>→</b><span>Submitted</span><b>→</b><span>Admin Review</span><b>→</b><span>Published</span><b>→</b><span>Auto Re-index</span></div><p>Không có cơ chế “học trực tiếp” từ ticket chưa được duyệt. Điều này ngăn AI ghi nhớ hướng xử lý sai hoặc thông tin nhạy cảm.</p></article>
-          <div id="governanceStats" class="stats-grid governance-stats"></div>
+          <div class="section-toolbar governance-toolbar"><div><span class="overline">VÒNG ĐỜI PLAYBOOK</span><h2>Quản trị quy trình</h2><p>Tạo, kiểm tra, phê duyệt và phát hành procedure theo một luồng kiểm soát thống nhất.</p></div><div class="header-actions"><button id="seedPlaybookBtn" class="button subtle-button admin-only">Nhập Playbook gốc</button><button id="newPlaybookDraftBtn" class="button primary-button"><span>＋</span> Tạo bản nháp</button></div></div>
+          <article class="governance-workflow"><div class="governance-workflow-head"><span class="overline">LUỒNG PHÊ DUYỆT</span><h3>Từ bản nháp đến dữ liệu AI được phép sử dụng</h3></div><div class="governance-flow" aria-label="Vòng đời procedure"><div class="governance-flow-step draft"><b>01</b><span><strong>Bản nháp</strong><small>Soạn và kiểm tra</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step submitted"><b>02</b><span><strong>Gửi duyệt</strong><small>Khóa nội dung chờ xử lý</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step review"><b>03</b><span><strong>Quản trị duyệt</strong><small>Kiểm tra quyền và an toàn</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step published"><b>04</b><span><strong>Đã phát hành</strong><small>AI được phép tham chiếu</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step indexed"><b>05</b><span><strong>Cập nhật chỉ mục</strong><small>Tự động chạy nền</small></span></div></div><div class="governance-policy-note"><strong>Nguyên tắc an toàn</strong><span>Ticket chưa được duyệt không trở thành kiến thức của AI. Chỉ procedure đã phát hành và đang hoạt động mới được sử dụng.</span></div></article>
+          <div id="governanceStats" class="governance-summary" aria-label="Tổng quan vòng đời Playbook"></div>
           <div class="filter-panel governance-filter">
             <label class="admin-search"><span>⌕</span><input id="governanceSearch" placeholder="Tìm mã, tiêu đề, nội dung procedure…" /></label>
             <select id="governanceStatus"><option value="">Mọi trạng thái phiên bản</option><option value="submitted">Chờ duyệt</option><option value="draft">Bản nháp</option><option value="rejected">Bị từ chối</option><option value="published">Đã phát hành</option><option value="superseded">Phiên bản cũ</option></select>
@@ -154,8 +154,8 @@
             <button id="refreshGovernanceBtn" class="button subtle-button compact">↻ Làm mới</button>
           </div>
           <div class="governance-layout">
-            <div class="table-panel"><div class="table-heading"><div><h2>Procedure và đề xuất</h2><p id="governanceCount">Đang tải…</p></div><span id="indexStateChip" class="badge">INDEX</span></div><div id="governanceList" class="governance-list"></div></div>
-            <aside class="workspace-card governance-help"><span class="card-kicker">QUYỀN HẠN</span><h3>Ai được làm gì?</h3><div class="permission-row"><b>Kỹ thuật viên</b><span>Tạo/sửa draft, tạo từ ticket, gửi duyệt.</span></div><div class="permission-row"><b>Quản trị viên</b><span>Duyệt, publish, reject, deprecate và rollback.</span></div><div class="permission-row"><b>AI Agent</b><span>Chỉ đọc procedure Published + Active.</span></div><hr/><p>Ngay sau Publish, cache được làm mới và semantic index được rebuild tự động trong nền.</p></aside>
+            <div class="table-panel governance-table"><div class="table-heading"><div><span class="overline">DANH SÁCH QUY TRÌNH</span><h2>Procedure và đề xuất</h2><p id="governanceCount">Đang tải…</p></div><span id="indexStateChip" class="badge">CHỈ MỤC</span></div><div id="governanceList" class="governance-list"></div></div>
+            <aside class="workspace-card governance-help"><span class="overline">QUYỀN HẠN</span><h3>Ai chịu trách nhiệm?</h3><div class="permission-row technician"><b>Kỹ thuật viên</b><span>Tạo hoặc sửa bản nháp và gửi duyệt.</span></div><div class="permission-row admin"><b>Quản trị viên</b><span>Kiểm tra, phát hành, từ chối và rollback.</span></div><div class="permission-row agent"><b>AI Agent</b><span>Chỉ đọc procedure đã phát hành và đang hoạt động.</span></div><div class="governance-help-note">Sau khi phát hành, cache và semantic index được cập nhật tự động trong nền.</div></aside>
           </div>
         </section>
 
@@ -272,6 +272,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.16.1"></script>
+  <script type="module" src="/admin.js?v=5.16.2"></script>
 </body>
 </html>
