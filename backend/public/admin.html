@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.16.0" />
+  <link rel="stylesheet" href="/admin.css?v=5.16.1" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -62,7 +62,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.0</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.1</span></div>
     </aside>
 
     <div class="admin-main">
@@ -113,12 +113,12 @@
           <div id="staffSummary" class="staff-summary"></div>
           <div id="staffList" class="staff-grid"></div>
           <section class="user-access-panel">
-            <div class="section-toolbar access-toolbar"><div><span class="overline">MINI APP ACCESS</span><h2>Mã mời nhân viên</h2><p>Xác nhận một lần trên thiết bị; phiên sau đó được tự gia hạn tối đa 90 ngày.</p></div><button id="newInviteBtn" class="button primary-button">Tạo mã mời</button></div>
-            <article class="info-banner invite-security-banner"><span>i</span><p>Mã mời chỉ hiển thị một lần và được lưu dưới dạng hash. Thu hồi phiên sẽ đăng xuất người dùng ngay trên mọi thiết bị đang hoạt động.</p></article>
-            <div id="userAccessSummary" class="staff-summary"></div>
+            <div class="section-toolbar access-toolbar"><div><span class="overline">TRUY CẬP MINI APP</span><h2>Mã mời nhân viên</h2><p>Tạo mã một lần, theo dõi người đã xác nhận và quản lý thiết bị đang đăng nhập.</p></div><button id="newInviteBtn" class="button primary-button">Tạo mã mời</button></div>
+            <div id="userAccessSummary" class="access-summary" aria-label="Tổng quan truy cập Mini App"></div>
+            <article class="info-banner invite-security-banner"><span>i</span><div><strong>Bảo mật mã mời</strong><p>Mã chỉ hiển thị một lần. Thu hồi phiên sẽ đăng xuất người dùng trên tất cả thiết bị đang hoạt động.</p></div></article>
             <div class="access-grid">
-              <article class="access-card"><div class="access-card-head"><div><span class="overline">INVITES</span><h3>Mã mời gần đây</h3></div></div><div id="inviteList" class="access-list"></div></article>
-              <article class="access-card"><div class="access-card-head"><div><span class="overline">DEVICES</span><h3>Người dùng Mini App</h3></div></div><div id="miniUserList" class="access-list"></div></article>
+              <article class="access-card"><div class="access-card-head"><div><span class="overline">MÃ MỜI</span><h3>Mã mời gần đây</h3><p>Mã còn hiệu lực và lịch sử xác nhận.</p></div></div><div id="inviteList" class="access-list"></div></article>
+              <article class="access-card"><div class="access-card-head"><div><span class="overline">THIẾT BỊ</span><h3>Người dùng Mini App</h3><p>Nhân viên đã xác nhận và phiên đang hoạt động.</p></div></div><div id="miniUserList" class="access-list"></div></article>
             </div>
           </section>
         </section>
@@ -272,6 +272,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.16.0"></script>
+  <script type="module" src="/admin.js?v=5.16.1"></script>
 </body>
 </html>

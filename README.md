@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.16.0 — One-time Employee Invites
+# Zalo IT HelpDesk v5.16.1 — Readable Employee Access Admin
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.0 thay đăng nhập Zalo Graph bằng mã mời nhân viên dùng một lần. Sau lần xác nhận đầu tiên, thiết bị giữ phiên đăng nhập trượt tối đa 90 ngày; người dùng không cần nhập lại mã khi mở Mini App hằng ngày. Admin có thể thu hồi mã chưa dùng hoặc đăng xuất ngay mọi thiết bị của một người dùng.
+v5.16.1 tinh chỉnh vùng quản trị mã mời của v5.16.0: chữ lớn hơn, phân cấp thông tin rõ hơn, trạng thái dễ quét và các thao tác thu hồi/đăng xuất dùng cùng kiểu nút phụ trung tính. Luồng mã mời dùng một lần và phiên thiết bị 90 ngày không thay đổi.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,12 +14,12 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend: `5.16.0`
+- Backend: `5.16.1`
 - Mini App metadata: `5.16.0`
-- UI/UX: thêm màn hình mã mời và vùng quản lý quyền truy cập theo Warm Industrial + Signal System
-- SQL Server: schema `10`, cần chạy migration `010_user_invite_access.sql`
-- PostgreSQL pilot: state schema `1`, cần khởi tạo lần đầu
-- Mini App cần deploy lại vì thay đổi luồng xác thực
+- UI/UX: tăng khả năng đọc và đơn giản hóa vùng quản trị mã mời/thiết bị theo Warm Industrial + Signal System
+- SQL Server: schema `10`, không có migration mới
+- PostgreSQL pilot: state schema `1`, không thay đổi
+- Mini App không cần build hoặc deploy lại cho bản Admin-only này
 
 ## Kiến trúc
 
