@@ -75,6 +75,8 @@ npm run db:postgres:init && exec npm start
 
 Nó tạo PostgreSQL state schema `1`, revoke quyền `PUBLIC/anon/authenticated`, bật RLS và không xóa state đã có.
 
+Image backend dùng Node.js 22 Alpine để cung cấp native WebSocket mà Supabase SDK cần khi khởi tạo client phía server.
+
 ## 4. Kiểm tra lần đầu
 
 Không đổi Mini App ngay. Trước hết mở:

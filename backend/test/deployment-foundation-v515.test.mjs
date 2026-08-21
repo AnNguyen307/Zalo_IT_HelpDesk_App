@@ -186,6 +186,8 @@ test("deployment manifests are non-secret, persistent and opt-in", async () => {
     readFile(path.join(backendRoot, "sql", "000_create_database_template.sql"), "utf8"),
     readFile(path.join(backendRoot, "sql", "postgres", "001_state_store.sql"), "utf8"),
   ]);
+  assert.equal((dockerfile.match(/FROM node:22-alpine/g) ?? []).length, 2);
+  assert.doesNotMatch(dockerfile, /FROM node:20/);
   assert.match(dockerfile, /npm ci --omit=dev/);
   assert.match(dockerfile, /USER node/);
   assert.doesNotMatch(dockerfile, /COPY data/);
