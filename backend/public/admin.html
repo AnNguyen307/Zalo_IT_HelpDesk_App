@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.16.2" />
+  <link rel="stylesheet" href="/admin.css?v=5.16.3" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -62,7 +62,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.2</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.3</span></div>
     </aside>
 
     <div class="admin-main">
@@ -74,10 +74,25 @@
       <div class="main-content">
         <section id="ticketsTab" class="workspace-section">
           <div id="stats" class="stats-grid"></div>
-          <article class="policy-banner">
-            <img src="/assets/admin-operations-1280.webp" alt="" width="1280" height="720" />
-            <div><span class="overline">VẬN HÀNH CÓ KIỂM SOÁT</span><strong>Playbook là căn cứ, không phải giới hạn</strong><p>AI mở rộng giả thuyết có kiểm chứng; quyết định rủi ro vẫn do HelpDesk.</p></div>
-            <div class="policy-tags"><span>Căn cứ rõ</span><span>Kiểm chứng được</span><span>Theo dõi SLA</span></div>
+          <article class="operations-signal-banner" aria-label="Nhịp vận hành HelpDesk theo thời gian thực">
+            <div class="signal-banner-copy">
+              <div class="signal-banner-eyebrow"><i aria-hidden="true"></i><span>TRUNG TÂM TÍN HIỆU · ĐANG HOẠT ĐỘNG</span></div>
+              <h2>Mỗi yêu cầu đều có <span>một bước tiếp theo rõ ràng.</span></h2>
+              <p>Ticket, SLA, Playbook và AI cùng hội tụ về một hàng đợi để HelpDesk biết việc nào cần xử lý trước.</p>
+              <div class="signal-banner-status" aria-label="Trạng thái vận hành nhanh">
+                <div><small>AI Agent</small><strong id="overviewAgentSignal">Đang kiểm tra</strong></div>
+                <div><small>Playbook</small><strong id="overviewPlaybookSignal">Đang tải</strong></div>
+                <div><small>SLA</small><strong id="overviewSlaSignal">Đang đồng bộ</strong></div>
+              </div>
+            </div>
+            <div class="signal-banner-visual" aria-hidden="true">
+              <span class="signal-rail rail-one"></span><span class="signal-rail rail-two"></span><span class="signal-rail rail-three"></span>
+              <span class="signal-pulse pulse-one"></span><span class="signal-pulse pulse-two"></span><span class="signal-pulse pulse-three"></span>
+              <span class="signal-node node-ticket"><b>01</b><small>TICKET</small></span>
+              <span class="signal-node node-playbook"><b>02</b><small>PLAYBOOK</small></span>
+              <span class="signal-node node-owner"><b>03</b><small>OWNER</small></span>
+              <div class="signal-core"><i></i><strong>LIVE</strong><small>HELPDESK</small></div>
+            </div>
           </article>
           <div id="smartQueues" class="smart-queues" aria-label="Hàng đợi thông minh"></div>
           <div class="filter-panel">
@@ -109,7 +124,6 @@
 
         <section id="staffTab" class="workspace-section hidden admin-only">
           <div class="section-toolbar staff-toolbar"><div><span class="overline">QUẢN LÝ TRUY CẬP</span><h2>Tài khoản HelpDesk</h2><p>Theo dõi trạng thái, vai trò và lần đăng nhập của từng nhân sự trong một màn hình.</p></div><button id="newStaffBtn" class="button primary-button">Thêm nhân sự</button></div>
-          <article id="legacyLoginNotice" class="info-banner staff-security-banner"><span>i</span><div><strong>Chuyển đổi tài khoản an toàn</strong><p>Mật khẩu dùng chung vẫn đang bật. Sau khi xác nhận tài khoản riêng hoạt động, hãy tắt <code>LEGACY_STAFF_LOGIN_ENABLED</code>.</p></div></article>
           <div id="staffSummary" class="staff-summary"></div>
           <div id="staffList" class="staff-grid"></div>
           <section class="user-access-panel">
@@ -125,27 +139,34 @@
 
         <section id="knowledgeTab" class="workspace-section hidden">
           <div class="section-toolbar"><div><span class="overline">GUIDANCE LIBRARY</span><h2>Knowledge Base</h2><p>Các checklist ngắn hỗ trợ Playbook, không thay thế quy trình đã phê duyệt.</p></div><button id="newKbBtn" class="button primary-button"><span>＋</span> Thêm hướng dẫn</button></div>
-          <article class="info-banner"><span>i</span><p><strong>Nguyên tắc:</strong> Knowledge Base chỉ được dùng làm ngữ cảnh. Trong Strict Mode, KB đơn lẻ không đủ điều kiện để AI tự hướng dẫn người dùng.</p></article>
           <div id="kbList" class="kb-grid"></div>
         </section>
 
-        <section id="playbookTab" class="workspace-section hidden">
-          <div class="section-toolbar"><div><span class="overline">SOURCE OF TRUTH</span><h2>Enterprise Playbook</h2><p>Quy trình nội bộ đã làm sạch, phân quyền và lập chỉ mục semantic.</p></div><div class="header-actions"><button id="refreshPlaybookBtn" class="button subtle-button">↻ Kiểm tra</button><button id="reindexPlaybookBtn" class="button primary-button">Re-index semantic</button></div></div>
-          <div id="playbookStatus" class="health-grid"></div>
-          <div class="split-workspace">
-            <form id="playbookSearchForm" class="workspace-card query-card">
-              <span class="card-kicker">PLAYBOOK SEARCH</span><h3>Kiểm thử tình huống</h3><p>Nhập triệu chứng giống cách người dùng mô tả để kiểm tra procedure được ưu tiên.</p>
-              <label>Tình huống<textarea id="playbookSearchPrompt" rows="7" placeholder="Ví dụ: Client VLAN80 nhận IP nhưng không ra Internet" required></textarea></label>
-              <label>Phạm vi hiển thị<select id="playbookAudience"><option value="employee">Employee-safe</option><option value="technician" selected>Technician</option><option value="all">Tất cả</option></select></label>
-              <button type="submit" class="button primary-button full">⌕ Tìm trong Playbook</button>
+        <section id="playbookTab" class="workspace-section hidden playbook-workspace">
+          <div class="playbook-command-deck">
+            <div class="playbook-command-copy"><span class="overline">ENTERPRISE PLAYBOOK</span><h2>Tra cứu một lần, thấy đúng quy trình.</h2><p>Nguồn xử lý chính thức được phân quyền, lập chỉ mục và luôn hiển thị mức độ phù hợp.</p></div>
+            <div class="playbook-command-snapshot" aria-label="Tình trạng Playbook">
+              <span id="playbookHeroState" class="playbook-state-chip pending"><i></i>Đang kiểm tra</span>
+              <div><strong id="playbookHeroCount">—</strong><small>procedure sẵn sàng</small></div>
+              <div><strong id="playbookHeroMode">—</strong><small>chế độ truy xuất</small></div>
+            </div>
+            <div class="playbook-command-actions"><button id="refreshPlaybookBtn" class="button subtle-button">↻ Kiểm tra</button><button id="reindexPlaybookBtn" class="button primary-button">Cập nhật semantic index</button></div>
+          </div>
+          <section class="playbook-readiness-panel"><div class="playbook-panel-heading"><div><span class="card-kicker">SYSTEM READINESS</span><h3>Sức khỏe nguồn tri thức</h3></div><p>Đọc nhanh cấu hình, phạm vi và trạng thái chỉ mục.</p></div><div id="playbookStatus" class="health-grid playbook-status-grid"></div></section>
+          <div class="playbook-search-workspace">
+            <form id="playbookSearchForm" class="workspace-card query-card playbook-query-card">
+              <span class="card-kicker">TRA CỨU TÌNH HUỐNG</span><h3>Mô tả vấn đề thực tế</h3><p>Nhập triệu chứng như cách người dùng báo lỗi. Hệ thống sẽ xếp hạng procedure phù hợp nhất.</p>
+              <label>Tình huống<textarea id="playbookSearchPrompt" rows="8" placeholder="Ví dụ: Client VLAN80 nhận IP nhưng không truy cập được Internet" required></textarea></label>
+              <label>Đối tượng sử dụng<select id="playbookAudience"><option value="employee">Nhân viên · nội dung an toàn</option><option value="technician" selected>Kỹ thuật viên · đầy đủ</option><option value="all">Tất cả phạm vi</option></select></label>
+              <button type="submit" class="button primary-button full">⌕ Tìm procedure phù hợp</button>
             </form>
-            <div id="playbookSearchResult" class="playbook-results"><div class="empty-state compact-empty"><span>▤</span><h3>Chưa chạy tra cứu</h3><p>Kết quả và điểm tương đồng sẽ xuất hiện tại đây.</p></div></div>
+            <section class="playbook-result-panel"><div class="playbook-panel-heading"><div><span class="card-kicker">KẾT QUẢ XẾP HẠNG</span><h3>Procedure đề xuất</h3></div><p>Ưu tiên theo độ phù hợp và phạm vi cho phép.</p></div><div id="playbookSearchResult" class="playbook-results"><div class="empty-state compact-empty"><span>▤</span><h3>Sẵn sàng tra cứu</h3><p>Nhập một tình huống để xem procedure và các bước được phép.</p></div></div></section>
           </div>
         </section>
 
         <section id="governanceTab" class="workspace-section hidden">
           <div class="section-toolbar governance-toolbar"><div><span class="overline">VÒNG ĐỜI PLAYBOOK</span><h2>Quản trị quy trình</h2><p>Tạo, kiểm tra, phê duyệt và phát hành procedure theo một luồng kiểm soát thống nhất.</p></div><div class="header-actions"><button id="seedPlaybookBtn" class="button subtle-button admin-only">Nhập Playbook gốc</button><button id="newPlaybookDraftBtn" class="button primary-button"><span>＋</span> Tạo bản nháp</button></div></div>
-          <article class="governance-workflow"><div class="governance-workflow-head"><span class="overline">LUỒNG PHÊ DUYỆT</span><h3>Từ bản nháp đến dữ liệu AI được phép sử dụng</h3></div><div class="governance-flow" aria-label="Vòng đời procedure"><div class="governance-flow-step draft"><b>01</b><span><strong>Bản nháp</strong><small>Soạn và kiểm tra</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step submitted"><b>02</b><span><strong>Gửi duyệt</strong><small>Khóa nội dung chờ xử lý</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step review"><b>03</b><span><strong>Quản trị duyệt</strong><small>Kiểm tra quyền và an toàn</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step published"><b>04</b><span><strong>Đã phát hành</strong><small>AI được phép tham chiếu</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step indexed"><b>05</b><span><strong>Cập nhật chỉ mục</strong><small>Tự động chạy nền</small></span></div></div><div class="governance-policy-note"><strong>Nguyên tắc an toàn</strong><span>Ticket chưa được duyệt không trở thành kiến thức của AI. Chỉ procedure đã phát hành và đang hoạt động mới được sử dụng.</span></div></article>
+          <article class="governance-workflow"><div class="governance-workflow-head"><span class="overline">LUỒNG PHÊ DUYỆT</span><h3>Từ bản nháp đến dữ liệu AI được phép sử dụng</h3></div><div class="governance-flow" aria-label="Vòng đời procedure"><div class="governance-flow-step draft"><b>01</b><span><strong>Bản nháp</strong><small>Soạn và kiểm tra</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step submitted"><b>02</b><span><strong>Gửi duyệt</strong><small>Khóa nội dung chờ xử lý</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step review"><b>03</b><span><strong>Quản trị duyệt</strong><small>Kiểm tra quyền và an toàn</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step published"><b>04</b><span><strong>Đã phát hành</strong><small>AI được phép tham chiếu</small></span></div><i aria-hidden="true">→</i><div class="governance-flow-step indexed"><b>05</b><span><strong>Cập nhật chỉ mục</strong><small>Tự động chạy nền</small></span></div></div></article>
           <div id="governanceStats" class="governance-summary" aria-label="Tổng quan vòng đời Playbook"></div>
           <div class="filter-panel governance-filter">
             <label class="admin-search"><span>⌕</span><input id="governanceSearch" placeholder="Tìm mã, tiêu đề, nội dung procedure…" /></label>
@@ -159,25 +180,27 @@
           </div>
         </section>
 
-        <section id="agentTab" class="workspace-section hidden">
-          <div class="section-toolbar"><div><span class="overline">AI CONTROL PLANE</span><h2>AI HelpDesk Agent</h2><p>Router cloud thống nhất với Rules/HelpDesk fallback; mọi quyết định đều có telemetry và đường handoff an toàn.</p></div><div class="header-actions"><select id="aiQualityDays" aria-label="Khoảng đánh giá AI"><option value="7">7 ngày</option><option value="30" selected>30 ngày</option><option value="90">90 ngày</option><option value="180">180 ngày</option></select><button id="refreshAgentBtn" class="button subtle-button">↻ Kiểm tra lại</button></div></div>
-          <div id="aiQualityMetrics" class="ai-quality-metrics"></div>
-          <div class="ai-quality-grid">
-            <article class="report-card"><div class="report-card-head"><div><span class="card-kicker">PROVIDER ROUTING</span><h3>Chất lượng theo provider</h3></div></div><div id="aiProviderQuality" class="ai-provider-quality"></div></article>
-            <article class="report-card"><div class="report-card-head"><div><span class="card-kicker">REVIEW SIGNALS</span><h3>Nhóm AI thường cần sửa</h3></div></div><div id="aiCategoryIssues" class="breakdown-list"></div></article>
-            <article class="report-card ai-review-wide"><div class="report-card-head"><div><span class="card-kicker">ADMIN FEEDBACK</span><h3>Quyết định gần đây</h3></div><span id="aiReviewCoverage" class="badge">0% đã đánh giá</span></div><div class="table-scroll"><table class="report-table ai-review-table"><thead><tr><th>Ticket</th><th>Provider</th><th>Đề xuất</th><th>Kết quả</th><th>Thời gian</th></tr></thead><tbody id="aiReviewRows"></tbody></table></div></article>
+        <section id="agentTab" class="workspace-section hidden ai-control-workspace">
+          <div class="ai-command-deck">
+            <div class="ai-command-copy"><div class="ai-state-line"><span id="aiHeroState" class="ai-state-chip pending"><i></i>Đang kiểm tra</span><span>AI CONTROL PLANE</span></div><h2>Nhìn thấy sức khỏe AI trước khi người dùng bị ảnh hưởng.</h2><p>Router, model, quota và chất lượng quyết định được gom vào một luồng giám sát rõ ràng. Thiếu căn cứ sẽ chuyển kỹ thuật viên ngay.</p></div>
+            <div class="ai-route-visual" aria-hidden="true"><span>INPUT</span><i></i><b id="aiHeroRoute">ROUTER</b><i></i><span>HELPDESK</span><em></em></div>
+            <div class="ai-command-controls"><label>Khoảng đánh giá<select id="aiQualityDays" aria-label="Khoảng đánh giá AI"><option value="7">7 ngày</option><option value="30" selected>30 ngày</option><option value="90">90 ngày</option><option value="180">180 ngày</option></select></label><button id="refreshAgentBtn" class="button subtle-button">↻ Kiểm tra lại</button></div>
           </div>
-          <article class="strict-agent-banner"><div class="strict-orb">✦</div><div><strong>Không trả lời mông lung</strong><p>Không có Playbook phù hợp, procedure không auto-eligible, confidence thấp hoặc AI provider không sẵn sàng đều dẫn đến escalation ngay.</p></div><span>ZERO GUESSING</span></article>
-          <div id="agentStatus" class="health-grid"></div>
-          <article class="provider-observability-panel"><div class="report-card-head"><div><span class="card-kicker">QUOTA &amp; READINESS</span><h3>Trạng thái từng AI provider</h3><p>Token đã dùng do Helpdesk quan sát; quota còn lại chỉ hiển thị khi provider hoặc ngân sách app có số liệu.</p></div><span class="provider-scope-chip">PHIÊN BACKEND · UTC DAY</span></div><div id="agentProviderStatus" class="provider-observability-grid"></div></article>
-          <div class="split-workspace">
-            <form id="agentTestForm" class="workspace-card query-card">
-              <span class="card-kicker">AGENT SANDBOX</span><h3>Kiểm thử quyết định</h3><p>Test phản hồi và xem Agent hướng dẫn hay chuyển kỹ thuật viên.</p>
-              <label>Tình huống<textarea id="agentTestPrompt" rows="8" placeholder="Ví dụ: Máy in Ricoh báo Offline, tôi đã xóa hàng đợi nhưng vẫn không in được." required></textarea></label>
-              <button type="submit" class="button primary-button full">✦ Phân tích bằng AI Agent</button>
-            </form>
-            <pre id="agentTestResult" class="agent-test-result">Chưa chạy kiểm thử.</pre>
+          <div class="ai-readiness-grid">
+            <section class="ai-status-panel"><div class="playbook-panel-heading"><div><span class="card-kicker">RUNTIME STATUS</span><h3>Trạng thái hệ thống AI</h3></div><p id="aiHeroModel">Đang đồng bộ cấu hình model.</p></div><div id="agentStatus" class="health-grid ai-status-grid"></div></section>
+            <article class="provider-observability-panel"><div class="report-card-head"><div><span class="card-kicker">PROVIDER READINESS</span><h3>Tuyến AI và hạn mức</h3><p>Quota còn lại chỉ xuất hiện khi provider hoặc ngân sách ứng dụng có số liệu đáng tin cậy.</p></div><span class="provider-scope-chip">BACKEND · UTC DAY</span></div><div id="agentProviderStatus" class="provider-observability-grid"></div></article>
           </div>
+          <section class="ai-quality-section"><div class="ai-section-heading"><div><span class="card-kicker">DECISION QUALITY</span><h3>Chất lượng quyết định</h3><p>Đo độ chính xác, handoff và độ trễ trong khoảng thời gian đã chọn.</p></div><span id="aiReviewCoverage" class="badge">0% đã đánh giá</span></div><div id="aiQualityMetrics" class="ai-quality-metrics"></div>
+            <div class="ai-quality-grid">
+              <article class="report-card"><div class="report-card-head"><div><span class="card-kicker">PROVIDER ROUTING</span><h3>Chất lượng theo provider</h3></div></div><div id="aiProviderQuality" class="ai-provider-quality"></div></article>
+              <article class="report-card"><div class="report-card-head"><div><span class="card-kicker">REVIEW SIGNALS</span><h3>Nhóm cần ưu tiên cải thiện</h3></div></div><div id="aiCategoryIssues" class="breakdown-list"></div></article>
+              <article class="report-card ai-review-wide"><div class="report-card-head"><div><span class="card-kicker">ADMIN FEEDBACK</span><h3>Quyết định gần đây</h3></div></div><div class="table-scroll"><table class="report-table ai-review-table"><thead><tr><th>Ticket</th><th>Provider</th><th>Đề xuất</th><th>Kết quả</th><th>Thời gian</th></tr></thead><tbody id="aiReviewRows"></tbody></table></div></article>
+            </div>
+          </section>
+          <section class="ai-sandbox-section"><div class="ai-section-heading"><div><span class="card-kicker">DECISION LAB</span><h3>Kiểm thử một tình huống trước khi áp dụng</h3><p>Xem Agent chọn hướng dẫn theo Playbook hay bàn giao cho kỹ thuật viên.</p></div></div><div class="ai-sandbox-workspace">
+              <form id="agentTestForm" class="workspace-card query-card ai-query-card"><label>Tình huống<textarea id="agentTestPrompt" rows="8" placeholder="Ví dụ: Máy in Ricoh báo Offline, tôi đã xóa hàng đợi nhưng vẫn không in được." required></textarea></label><button type="submit" class="button primary-button full">✦ Phân tích bằng AI Agent</button></form>
+              <pre id="agentTestResult" class="agent-test-result">Chưa chạy kiểm thử.</pre>
+            </div></section>
         </section>
       </div>
     </div>
@@ -272,6 +295,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.16.2"></script>
+  <script type="module" src="/admin.js?v=5.16.3"></script>
 </body>
 </html>
