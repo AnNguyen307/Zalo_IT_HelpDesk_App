@@ -37,8 +37,11 @@ test("direct Zalo authentication verifies appsecret_proof and rejects claimed id
   const expectedProof = crypto.createHmac("sha256", appSecret).update(accessToken).digest("hex");
   const observed = [];
   const graph = http.createServer((req, res) => {
-    observed.push(req.headers);
-    const valid = req.headers.access_token === accessToken && req.headers.appsecret_proof === expectedProof;
+    const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    observed.push({ headers: req.headers, fields: url.searchParams.get("fields") });
+    const valid = req.headers.access_token === accessToken
+      && req.headers.appsecret_proof === expectedProof
+      && url.searchParams.get("fields") === "id,name,picture";
     res.writeHead(valid ? 200 : 401, { "Content-Type": "application/json" });
     res.end(JSON.stringify(valid
       ? { id: "zalo-verified-user", name: "Verified User", picture: { data: { url: "https://example.invalid/avatar.jpg" } }, error: 0 }
@@ -98,5 +101,6 @@ test("direct Zalo authentication verifies appsecret_proof and rejects claimed id
   assert.equal(limited.status, 429);
   assert.ok(Number(limited.retryAfter) >= 1);
   assert.ok(observed.length >= 3);
-  assert.ok(observed.every((headers) => headers.appsecret_proof === expectedProof));
+  assert.ok(observed.every(({ headers }) => headers.appsecret_proof === expectedProof));
+  assert.ok(observed.every(({ fields }) => fields === "id,name,picture"));
 });

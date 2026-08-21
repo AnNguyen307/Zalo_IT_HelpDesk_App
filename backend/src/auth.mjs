@@ -91,6 +91,12 @@ export function buildZaloAppSecretProof(accessToken, appSecret = config.zaloAppS
   return crypto.createHmac("sha256", appSecret).update(accessToken).digest("hex");
 }
 
+export function buildZaloProfileUrl(profileUrl = config.zaloProfileUrl) {
+  const url = new URL(profileUrl);
+  if (!url.searchParams.has("fields")) url.searchParams.set("fields", "id,name,picture");
+  return url;
+}
+
 async function verifyZaloDirectly(accessToken, claimedIdentity = {}) {
   if (!accessToken) throw Object.assign(new Error("Missing Zalo access token"), { status: 400 });
   if (!config.zaloAppSecret) throw Object.assign(new Error("ZALO_APP_SECRET is required in direct Zalo mode"), { status: 503 });
@@ -98,7 +104,7 @@ async function verifyZaloDirectly(accessToken, claimedIdentity = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.zaloVerifyTimeoutMs);
   try {
-    const response = await fetch(config.zaloProfileUrl, {
+    const response = await fetch(buildZaloProfileUrl(), {
       method: "GET",
       headers: {
         access_token: accessToken,
@@ -110,6 +116,7 @@ async function verifyZaloDirectly(accessToken, claimedIdentity = {}) {
     const payload = await response.json().catch(() => ({}));
     const providerError = Number(payload.error || 0);
     if (!response.ok || providerError !== 0 || !payload.id) {
+      console.warn(`[ZALO_AUTH] Profile verification rejected: http=${response.status}; provider_error=${Number.isFinite(providerError) ? providerError : "unknown"}; has_id=${Boolean(payload.id)}`);
       throw Object.assign(new Error("Zalo token verification failed"), { status: 401 });
     }
     const userId = String(payload.id);

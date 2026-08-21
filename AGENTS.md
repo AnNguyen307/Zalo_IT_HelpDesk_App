@@ -90,7 +90,7 @@ If a gate cannot run, state exactly why and do not claim it passed.
 - Add meaningful health feature flags for major capabilities so the deployed runtime can be verified without inference.
 - Keep release notes under `docs/releases/<version>/`.
 - Never add a database migration for a UI-only release.
-- Current system release: `v5.15.1`; UI/UX remains the approved v5.14.1 design.
+- Current Backend release: `v5.15.2`; Mini App remains `v5.15.1`; UI/UX remains the approved v5.14.1 design.
 - SQL Server/NAS schema remains `9`; free-hosting PostgreSQL uses state schema `1`.
 - Changing the hosted backend URL requires a Mini App rebuild/deploy even when UI code is unchanged.
 
