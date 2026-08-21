@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.15.1 — Storage Retention
+# Zalo IT HelpDesk v5.15.2 — Zalo Authentication Hotfix
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.15.1 giữ nguyên thiết kế **Warm Industrial + Signal System** đã duyệt, kế thừa hai profile triển khai v5.15.0 và bổ sung giới hạn lưu trữ an toàn cho free tier:
+v5.15.2 là hotfix Backend cho đăng nhập Zalo trên bản Testing/Live. Backend nay yêu cầu rõ các trường Profile `id,name,picture` theo mẫu chính thức của Zalo; thiết kế **Warm Industrial + Signal System**, giới hạn lưu trữ và Mini App v5.15.1 không thay đổi.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend: `5.15.1`
+- Backend: `5.15.2`
 - Mini App metadata: `5.15.1`
 - UI/UX: không thay đổi so với bản v5.14.1 đã duyệt
 - SQL Server: schema `9`, không có migration mới
@@ -90,7 +90,7 @@ Backend tạo `appsecret_proof` HMAC-SHA256, gọi `https://graph.zalo.me/v2.0/m
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
-- Release/rollback: [docs/releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md](docs/releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md)
+- Release/rollback: [docs/releases/v5.15.2/CHANGES_V5_15_2_ZALO_AUTH_PROFILE_FIELDS.md](docs/releases/v5.15.2/CHANGES_V5_15_2_ZALO_AUTH_PROFILE_FIELDS.md)
 - Working agreement cho Agent: [AGENTS.md](AGENTS.md)
 
 `render.yaml` để `autoDeployTrigger: off`: merge GitHub không tự ý phát hành. `deploy/nas/compose.yaml` chỉ bind backend vào `127.0.0.1:8080`; HTTPS cần named tunnel/reverse proxy riêng.

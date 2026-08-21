@@ -40,7 +40,7 @@ Lấy App Secret của đúng Zalo Mini App đang dùng. Backend sẽ:
 
 1. nhận access token từ `getAccessToken`;
 2. tạo `appsecret_proof` HMAC-SHA256;
-3. gọi `https://graph.zalo.me/v2.0/me` với hai header `access_token` và `appsecret_proof`;
+3. gọi `https://graph.zalo.me/v2.0/me?fields=id,name,picture` với hai header `access_token` và `appsecret_proof`;
 4. dùng profile trả về để phát session riêng.
 
 Đây là luồng Zalo khuyến nghị hiện hành. [Zalo Mini App user authentication](https://miniapp.zaloplatforms.com/documents/intro/authen-user/)
