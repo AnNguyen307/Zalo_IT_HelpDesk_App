@@ -1,6 +1,6 @@
 # Project Handoff — Zalo IT HelpDesk
 
-> Historical handoff through v5.12.0. For the current Backend v5.16.1 / Mini App v5.16.0 runtime, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.1/` and `docs/releases/v5.16.0/` before acting.
+> Historical handoff through v5.12.0. For the current Backend v5.16.2 / Mini App v5.16.0 runtime, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.2/` and `docs/releases/v5.16.0/` before acting.
 
 > Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
 

@@ -19,6 +19,7 @@ const labels = {
   urgent: "Khẩn cấp", high: "Cao", normal: "Bình thường", low: "Thấp",
   network: "Mạng", printer: "Máy in", windows: "Windows", office: "Office", account: "Tài khoản", software: "Phần mềm", hardware: "Phần cứng", other: "Khác",
 };
+const staffRoleLabels = { admin: "Quản trị viên", technician: "Kỹ thuật viên", viewer: "Chỉ xem" };
 const escalationLabels = {
   no_playbook_match: "Không có Playbook phù hợp",
   playbook_not_auto_eligible: "Playbook yêu cầu kỹ thuật viên",
@@ -166,8 +167,9 @@ async function load() {
 }
 
 function applyRoleVisibility() {
-  const admin = state.user?.role === "admin";
-  const writable = ["admin", "technician"].includes(state.user?.role);
+  const role = state.user?.role || "viewer";
+  const admin = role === "admin";
+  const writable = ["admin", "technician"].includes(role);
   $$(".admin-only").forEach((element) => {
     if (element.id === "staffTab") element.classList.toggle("hidden", !admin || state.activeTab !== "staff");
     else element.classList.toggle("hidden", !admin);
@@ -175,7 +177,17 @@ function applyRoleVisibility() {
   $$(".write-only").forEach((element) => element.classList.toggle("hidden", !writable));
   if ($("#newKbBtn")) $("#newKbBtn").classList.toggle("hidden", !admin);
   ["#newPlaybookDraftBtn", "#reindexPlaybookBtn", "#agentTestForm"].forEach((selector) => $(selector)?.classList.toggle("hidden", !writable));
-  if ($("#staffIdentity")) $("#staffIdentity").textContent = `${state.user?.name || "Staff"} · ${admin ? "ADMIN" : state.user?.role === "viewer" ? "VIEWER" : "TECHNICIAN"}`;
+  const displayName = state.user?.name || state.user?.displayName || "Nhân sự HelpDesk";
+  const roleLabel = staffRoleLabels[role] || "Nhân sự HelpDesk";
+  const accountContext = state.user?.legacy ? `${roleLabel} · Tài khoản dùng chung` : state.user?.username ? `${roleLabel} · @${state.user.username}` : roleLabel;
+  if ($("#staffIdentity")) $("#staffIdentity").textContent = `${displayName} · ${roleLabel}`;
+  if ($("#headerIdentity")) {
+    $("#headerIdentity").dataset.role = role;
+    $("#headerIdentity").setAttribute("aria-label", `Đang đăng nhập: ${displayName}, ${accountContext}`);
+  }
+  if ($("#headerIdentityAvatar")) $("#headerIdentityAvatar").textContent = initials(displayName);
+  if ($("#headerIdentityName")) $("#headerIdentityName").textContent = displayName;
+  if ($("#headerIdentityRole")) $("#headerIdentityRole").textContent = accountContext;
 }
 
 const queueMeta = [
@@ -257,9 +269,9 @@ function renderOperations() {
 function renderStaff() {
   if (!$("#staffList") || state.user?.role !== "admin") return;
   const counts = Object.fromEntries(["admin", "technician", "viewer"].map((role) => [role, state.staff.filter((item) => item.role === role && item.active).length]));
-  $("#staffSummary").innerHTML = `<span><b>${state.staff.filter((item) => item.active).length}</b> hoạt động</span><span><b>${counts.admin}</b> Admin</span><span><b>${counts.technician}</b> Kỹ thuật viên</span><span><b>${counts.viewer}</b> Viewer</span>`;
+  $("#staffSummary").innerHTML = `<article class="staff-summary-item active"><b>${state.staff.filter((item) => item.active).length}</b><span>Đang hoạt động</span><small>Có thể đăng nhập HelpDesk</small></article><article class="staff-summary-item admin"><b>${counts.admin}</b><span>Quản trị viên</span><small>Toàn quyền quản trị</small></article><article class="staff-summary-item technician"><b>${counts.technician}</b><span>Kỹ thuật viên</span><small>Tiếp nhận và xử lý</small></article><article class="staff-summary-item viewer"><b>${counts.viewer}</b><span>Chỉ xem</span><small>Theo dõi, không chỉnh sửa</small></article>`;
   $("#legacyLoginNotice").classList.toggle("hidden", !state.legacyLoginEnabled);
-  $("#staffList").innerHTML = state.staff.map((account) => `<article class="staff-card ${account.active ? "" : "inactive"}"><div class="staff-avatar">${esc(initials(account.displayName))}</div><div class="staff-card-main"><div><strong>${esc(account.displayName)}</strong><span class="badge ${account.active ? "success" : ""}">${account.active ? "Hoạt động" : "Đã khóa"}</span></div><p>@${esc(account.username)}</p><small>${account.lastLoginAt ? `Đăng nhập ${formatDate(account.lastLoginAt)}` : "Chưa đăng nhập"}</small></div><div class="staff-card-side"><span class="role-chip ${account.role}">${account.role === "admin" ? "Admin" : account.role === "viewer" ? "Chỉ xem" : "Kỹ thuật viên"}</span><button type="button" class="button subtle-button compact" data-staff-edit="${account.id}">Chỉnh sửa</button></div></article>`).join("") || '<div class="empty-state"><h3>Chưa có tài khoản riêng</h3><p>Tạo tài khoản đầu tiên rồi đăng nhập thử trước khi tắt chế độ dùng chung.</p></div>';
+  $("#staffList").innerHTML = state.staff.map((account) => `<article class="staff-card ${account.active ? "" : "inactive"}"><span class="staff-avatar" aria-hidden="true">${esc(initials(account.displayName))}</span><div class="staff-card-main"><div class="staff-name-line"><strong>${esc(account.displayName)}</strong><span class="staff-account-status ${account.active ? "active" : "inactive"}">${account.active ? "Đang hoạt động" : "Đã khóa"}</span></div><p>@${esc(account.username)}</p><small>${account.lastLoginAt ? `Đăng nhập gần nhất ${formatDate(account.lastLoginAt)}` : "Chưa đăng nhập lần nào"}</small></div><div class="staff-card-side"><span class="role-chip ${esc(account.role)}">${esc(staffRoleLabels[account.role] || account.role)}</span><button type="button" class="button staff-secondary-button compact" data-staff-edit="${esc(account.id)}" aria-label="Chỉnh sửa tài khoản ${esc(account.displayName)}">Chỉnh sửa</button></div></article>`).join("") || '<div class="empty-state staff-empty"><h3>Chưa có tài khoản riêng</h3><p>Thêm nhân sự đầu tiên và kiểm tra đăng nhập trước khi tắt tài khoản dùng chung.</p></div>';
   $$('[data-staff-edit]').forEach((button) => { button.onclick = () => openStaffEditor(button.dataset.staffEdit); });
 }
 
@@ -391,20 +403,24 @@ function renderPlaybookMatches(entries) {
 }
 
 
-const versionStatusLabels = { draft: "Bản nháp", submitted: "Chờ duyệt", rejected: "Bị từ chối", published: "Published", superseded: "Phiên bản cũ", archived: "Lưu trữ" };
+const versionStatusLabels = { draft: "Bản nháp", submitted: "Chờ duyệt", rejected: "Bị từ chối", published: "Đã phát hành", superseded: "Phiên bản cũ", archived: "Lưu trữ" };
 const splitLines = (value) => String(value || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
 
 function renderGovernance() {
   const governance = state.governance || {}; const counts = governance.counts || {}; const index = governance.index || {};
   const items = [
-    ["Procedure", counts.procedures || 0, ""], ["Published", counts.published || 0, "success"],
-    ["Chờ duyệt", counts.submitted || 0, Number(counts.submitted) ? "danger" : ""], ["Bản nháp", counts.drafts || 0, ""], ["Bị từ chối", counts.rejected || 0, ""],
+    ["Tổng procedure", counts.procedures || 0, "procedures", "Tất cả quy trình đang quản lý"],
+    ["Đã phát hành", counts.published || 0, "published", "AI được phép sử dụng"],
+    ["Chờ duyệt", counts.submitted || 0, "submitted", Number(counts.submitted) ? "Cần quản trị xử lý" : "Không có việc tồn đọng"],
+    ["Bản nháp", counts.drafts || 0, "draft", "Đang được hoàn thiện"],
+    ["Bị từ chối", counts.rejected || 0, "rejected", "Cần chỉnh sửa trước khi gửi lại"],
   ];
-  $("#governanceStats").innerHTML = items.map(([label, value, style], indexValue) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${["▤","✓","!","◇","×"][indexValue]}</b></div><strong>${esc(value)}</strong><small>${indexValue === 2 && Number(value) ? "Cần duyệt" : ""}</small></article>`).join("");
+  $("#governanceStats").innerHTML = items.map(([label, value, style, note]) => `<article class="governance-summary-item ${style}"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`).join("");
   setNavCountBadge("#reviewBadge", counts.submitted);
   const indexClass = index.status === "ready" ? "index-ready" : index.status === "failed" ? "index-failed" : "index-building";
+  const indexLabels = { ready: "Sẵn sàng", failed: "Lỗi", building: "Đang cập nhật", "not installed": "Chưa cài đặt" };
   $("#indexStateChip").className = `badge ${indexClass}`;
-  $("#indexStateChip").textContent = `INDEX: ${(index.status || "not installed").toUpperCase()}`;
+  $("#indexStateChip").textContent = `Chỉ mục: ${indexLabels[index.status || "not installed"] || index.status}`;
   const query = $("#governanceSearch")?.value.trim().toLowerCase() || "";
   const status = $("#governanceStatus")?.value || ""; const lifecycle = $("#governanceLifecycle")?.value || "";
   const rows = state.procedures.filter((item) => {
@@ -412,7 +428,7 @@ function renderGovernance() {
     return (!query || haystack.includes(query)) && (!status || item.version?.status === status) && (!lifecycle || item.lifecycleStatus === lifecycle);
   });
   $("#governanceCount").textContent = `${rows.length} / ${state.procedures.length} procedure`;
-  $("#governanceList").innerHTML = rows.length ? rows.map((item) => `<article class="governance-item" data-procedure="${item.id}"><div class="governance-title"><span class="governance-code">${esc(item.code)}</span><strong>${esc(item.title)}</strong><small>${esc(item.version?.content?.summary || "Chưa có tóm tắt")}</small></div><div class="governance-col"><span>Phiên bản</span><strong>v${item.version?.versionNumber || "—"} · ${esc(item.version?.createdByName || item.ownerName || "—")}</strong></div><div class="governance-col"><span>Phạm vi</span><strong>${esc(item.audience)} · ${esc(labels[item.category] || item.category)}</strong></div><span class="governance-status ${esc(item.version?.status || "draft")}">${esc(versionStatusLabels[item.version?.status] || item.version?.status || "Chưa có")}</span></article>`).join("") : '<div class="empty-state"><span>◫</span><h3>Chưa có procedure phù hợp</h3><p>Tạo bản nháp mới hoặc nhập baseline Enterprise Playbook.</p></div>';
+  $("#governanceList").innerHTML = rows.length ? rows.map((item) => `<article class="governance-item" data-procedure="${esc(item.id)}"><div class="governance-title"><span class="governance-code">${esc(item.code)}</span><strong>${esc(item.title)}</strong><small>${esc(item.version?.content?.summary || "Chưa có tóm tắt")}</small></div><div class="governance-col"><span>Phiên bản</span><strong>v${item.version?.versionNumber || "—"} · ${esc(item.version?.createdByName || item.ownerName || "—")}</strong></div><div class="governance-col"><span>Phạm vi</span><strong>${esc(item.audience)} · ${esc(labels[item.category] || item.category)}</strong></div><span class="governance-status ${esc(item.version?.status || "draft")}">${esc(versionStatusLabels[item.version?.status] || item.version?.status || "Chưa có")}</span></article>`).join("") : '<div class="empty-state governance-empty"><span>◫</span><h3>Chưa có procedure để hiển thị</h3><p>Tạo bản nháp mới hoặc nhập Playbook gốc để bắt đầu vòng đời phê duyệt.</p></div>';
   $$('[data-procedure]').forEach((element) => { element.onclick = () => openPlaybookEditor(element.dataset.procedure).catch((error) => toast(error.message)); });
 }
 
