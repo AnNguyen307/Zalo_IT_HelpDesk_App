@@ -8,6 +8,7 @@ function clientAddress(req) {
 }
 
 function policyFor(method, pathname) {
+  if (method === "POST" && pathname === "/api/auth/invite") return { name: "invite-auth", max: config.rateLimitInviteMax };
   if (method === "POST" && pathname.startsWith("/api/auth/")) return { name: "auth", max: config.rateLimitAuthMax };
   if (method === "POST" && (/\/attachments\/?$/.test(pathname) || /\/replies\/?$/.test(pathname))) {
     return { name: "upload", max: config.rateLimitUploadMax };

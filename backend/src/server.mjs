@@ -5,7 +5,20 @@ import { assertRuntimeConfig, config, runtimeConfigIssues } from "./config.mjs";
 import { analyzeTicket, formatAgentReply, getAgentStatus } from "./ai-agent.mjs";
 import { getCopilotModelOptions, listCopilotRuns, queueCopilotRun, recoverCopilotQueue } from "./ai-copilot.mjs";
 import { aiDecisionAuditDetail, buildAiQualityReport, validateAiReview } from "./ai-quality.mjs";
-import { loginAdmin, loginStaff, loginWithZalo, requireAuth, sessionUser } from "./auth.mjs";
+import {
+  createUserInvite,
+  listUserAccess,
+  loginAdmin,
+  loginStaff,
+  loginWithZalo,
+  logoutUserAccess,
+  redeemUserInvite,
+  refreshUserAccess,
+  requireAuth,
+  revokeUserInvite,
+  revokeUserSessions,
+  sessionUser,
+} from "./auth.mjs";
 import { canPreviewAttachment, getAttachmentStorageStatus, publicAttachment, readAttachmentFile, removeAttachmentFile, removeAttachmentFileStrict, saveAttachment } from "./attachments.mjs";
 import { isMultipartRequest, readMultipartAttachments } from "./multipart.mjs";
 import { corsHeaders, notFound, routeMatch, serveStatic } from "./http.mjs";
@@ -628,9 +641,15 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.15.2",
+      version: "5.16.0",
       time: nowIso(),
       features: ["30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      authentication: {
+        userLogin: "one-time-invite",
+        deviceSessionDays: config.userRefreshTtlDays,
+        accessTokenMinutes: config.userAccessTtlMinutes,
+        immediateRevocation: true,
+      },
       deployment: {
         profile: config.deploymentProfile,
         attachments: getAttachmentStorageStatus(),
@@ -651,6 +670,18 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, await loginWithZalo(await readJson(req)), headers);
   }
 
+  if (req.method === "POST" && pathname === "/api/auth/invite") {
+    return json(res, 200, await redeemUserInvite(await readJson(req)), headers);
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/refresh") {
+    return json(res, 200, await refreshUserAccess(await readJson(req)), headers);
+  }
+
+  if (req.method === "POST" && pathname === "/api/auth/logout") {
+    return json(res, 200, await logoutUserAccess(await readJson(req)), headers);
+  }
+
   if (req.method === "POST" && pathname === "/api/auth/admin") {
     const body = await readJson(req);
     return json(res, 200, await loginAdmin(body.password), headers);
@@ -666,6 +697,21 @@ async function handleApi(req, res, url, headers) {
     const user = await sessionUser(session);
     if (!user) throw Object.assign(new Error("User session is no longer valid"), { status: 401 });
     return json(res, 200, { user, settings: { notificationPollSeconds: config.notificationPollSeconds } }, headers);
+  }
+
+  if (req.method === "PATCH" && pathname === "/api/me") {
+    const session = await requireAuth(req);
+    if (session.role !== "user") throw Object.assign(new Error("Chỉ người dùng Mini App có thể cập nhật hồ sơ tại đây"), { status: 403 });
+    const body = await readJson(req);
+    const updated = await updateDb((db) => {
+      const user = db.users.find((item) => item.id === session.sub);
+      if (!user) throw Object.assign(new Error("User session is no longer valid"), { status: 401 });
+      user.department = String(body.department ?? user.department ?? "").trim().slice(0, 120);
+      user.phone = String(body.phone ?? user.phone ?? "").trim().slice(0, 80);
+      user.updatedAt = nowIso();
+      return user;
+    });
+    return json(res, 200, { user: updated }, headers);
   }
 
   if (req.method === "GET" && pathname === "/api/notifications") {
@@ -1063,6 +1109,34 @@ async function handleApi(req, res, url, headers) {
     });
     await audit(session.sub, "test", "aiAgent", analysis.model || "rules", { source: analysis.source, latencyMs: analysis.latencyMs });
     return json(res, 200, { analysis, reply: formatAgentReply(analysis) }, headers);
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/user-access") {
+    await requireAuth(req, { admin: true });
+    return json(res, 200, await listUserAccess(), headers);
+  }
+
+  if (req.method === "POST" && pathname === "/api/admin/user-invites") {
+    const session = await requireAuth(req, { admin: true });
+    const result = await createUserInvite(await readJson(req), session.sub);
+    await audit(session.sub, "create", "userInvite", result.invite.id, { employeeCode: result.invite.employeeCode, expiresAt: result.invite.expiresAt });
+    return json(res, 201, result, headers);
+  }
+
+  params = routeMatch(pathname, "/api/admin/user-invites/:inviteId/revoke");
+  if (req.method === "POST" && params) {
+    const session = await requireAuth(req, { admin: true });
+    const invite = await revokeUserInvite(params.inviteId, session.sub);
+    await audit(session.sub, "revoke", "userInvite", invite.id, { employeeCode: invite.employeeCode });
+    return json(res, 200, { invite }, headers);
+  }
+
+  params = routeMatch(pathname, "/api/admin/users/:userId/revoke-sessions");
+  if (req.method === "POST" && params) {
+    const session = await requireAuth(req, { admin: true });
+    const result = await revokeUserSessions(params.userId, session.sub);
+    await audit(session.sub, "revoke_sessions", "user", params.userId, { revoked: result.revoked });
+    return json(res, 200, result, headers);
   }
 
   if (req.method === "GET" && pathname === "/api/admin/staff") {

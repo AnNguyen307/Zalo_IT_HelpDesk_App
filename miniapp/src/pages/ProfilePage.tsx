@@ -77,7 +77,7 @@ export function ProfilePage() {
         </button>
       </form>
       <button className="logout-button" onClick={logout}>
-        <Icon name="logout" /> Đăng nhập lại tài khoản Zalo
+        <Icon name="logout" /> Đăng xuất khỏi thiết bị
       </button>
     </>
   );

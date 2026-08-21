@@ -1,5 +1,5 @@
 -- v5.15.0 free-hosting pilot state store.
--- The NAS/SQL Server profile continues to use SQL Server schema version 9.
+-- The NAS/SQL Server profile uses SQL Server schema version 10 from v5.16.0.
 
 CREATE TABLE IF NOT EXISTS public.helpdesk_runtime_state (
     id smallint PRIMARY KEY CHECK (id = 1),

@@ -2,17 +2,43 @@ import type { AppNotification, Attachment, Message, Satisfaction, Ticket, Ticket
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
 let sessionToken = "";
+let refreshHandler: (() => Promise<boolean>) | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 
 export function setApiToken(token: string) { sessionToken = token; }
+export function setApiRefreshHandler(handler: (() => Promise<boolean>) | null) { refreshHandler = handler; }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  field?: string;
+
+  constructor(message: string, status: number, code?: string, field?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.field = field;
+  }
+}
+
+async function refreshOnce() {
+  if (!refreshHandler) return false;
+  if (!refreshInFlight) refreshInFlight = refreshHandler().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+async function request<T>(path: string, options: RequestInit = {}, mayRefresh = true): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body !== undefined && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   headers.set("ngrok-skip-browser-warning", "1");
   if (sessionToken) headers.set("Authorization", `Bearer ${sessionToken}`);
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Lỗi kết nối (${response.status})`);
+  if (response.status === 401 && mayRefresh && !path.startsWith("/api/auth/") && await refreshOnce()) {
+    return request<T>(path, options, false);
+  }
+  if (!response.ok) throw new ApiError(body.error || `Lỗi kết nối (${response.status})`, response.status, body.code, body.field);
   return body as T;
 }
 
@@ -21,11 +47,12 @@ export function isPreviewableMime(mimeType: string) {
 }
 
 
-async function fetchAttachmentBlob(attachment: Attachment, preview = false) {
+async function fetchAttachmentBlob(attachment: Attachment, preview = false, mayRefresh = true): Promise<Blob> {
   const headers = new Headers({ "ngrok-skip-browser-warning": "1" });
   if (sessionToken) headers.set("Authorization", `Bearer ${sessionToken}`);
   const suffix = preview ? "?preview=1" : "";
   const response = await fetch(`${API_BASE}/api/attachments/${encodeURIComponent(attachment.id)}${suffix}`, { headers });
+  if (response.status === 401 && mayRefresh && await refreshOnce()) return fetchAttachmentBlob(attachment, preview, false);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body.error || `${preview ? "Không thể xem trước" : "Không thể tải file"} (${response.status})`);
@@ -34,8 +61,11 @@ async function fetchAttachmentBlob(attachment: Attachment, preview = false) {
 }
 
 export const api = {
-  loginZalo: (payload: Record<string, unknown>) => request<{ token: string; user: User }>("/api/auth/zalo", { method: "POST", body: JSON.stringify(payload) }),
+  loginInvite: (payload: { code: string; deviceId: string }) => request<{ token: string; refreshToken: string; refreshExpiresAt: string; user: User }>("/api/auth/invite", { method: "POST", body: JSON.stringify(payload) }, false),
+  refreshSession: (payload: { refreshToken: string; deviceId: string }) => request<{ token: string; refreshToken: string; refreshExpiresAt: string; user: User }>("/api/auth/refresh", { method: "POST", body: JSON.stringify(payload) }, false),
+  logoutSession: (payload: { refreshToken: string; deviceId: string }) => request<{ ok: boolean }>("/api/auth/logout", { method: "POST", body: JSON.stringify(payload) }, false),
   me: () => request<{ user: User; settings?: { notificationPollSeconds?: number } }>("/api/me"),
+  updateProfile: (payload: { department: string; phone: string }) => request<{ user: User }>("/api/me", { method: "PATCH", body: JSON.stringify(payload) }),
   tickets: () => request<{ tickets: Ticket[] }>("/api/tickets"),
   createTicket: (payload: { title: string; description: string; location?: string; device?: string }) => request<{ ticket: Ticket; messages: Message[] }>("/api/tickets", { method: "POST", body: JSON.stringify(payload) }),
   ticket: (id: string) => request<{ ticket: Ticket; messages: Message[]; attachments: Attachment[]; history: TicketHistory[] }>(`/api/tickets/${encodeURIComponent(id)}`),

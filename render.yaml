@@ -39,6 +39,14 @@ services:
         sync: false
       - key: LEGACY_STAFF_LOGIN_ENABLED
         value: "true"
+      - key: USER_ACCESS_TTL_MINUTES
+        value: "60"
+      - key: USER_REFRESH_TTL_DAYS
+        value: "90"
+      - key: USER_INVITE_TTL_HOURS
+        value: "24"
+      - key: RATE_LIMIT_INVITE_MAX
+        value: "10"
       - key: ADMIN_PASSWORD
         sync: false
       - key: AI_CLOUD_ENABLED

@@ -2,7 +2,7 @@ import { buildStaffAccountPayload, staffActivePresentation, staffErrorFieldId } 
 
 const state = {
   token: sessionStorage.getItem("hd_admin") || "",
-  user: null, tickets: [], stats: null, kb: [], agent: null, aiQuality: null, playbook: null, governance: null, procedures: [], staff: [], directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
+  user: null, tickets: [], stats: null, kb: [], agent: null, aiQuality: null, playbook: null, governance: null, procedures: [], staff: [], userAccess: { invites: [], users: [] }, directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
 };
 const COPILOT_PROVIDER_STORAGE_KEY = "hd_copilot_provider";
 const copilotProviderLabels = { gemini: "Gemini", groq: "Groq", openrouter: "OpenRouter", sambanova: "SambaNova" };
@@ -147,7 +147,7 @@ function switchTab(name) {
 async function load() {
   const me = await api("/api/me");
   state.user = me.user || null;
-  const [tickets, stats, kb, agent, aiQuality, playbook, governance, procedures, report, directory, staff] = await Promise.all([
+  const [tickets, stats, kb, agent, aiQuality, playbook, governance, procedures, report, directory, staff, userAccess] = await Promise.all([
     api(`/api/tickets?queue=${encodeURIComponent(state.activeQueue)}`), api("/api/admin/stats"), api("/api/admin/knowledge-base"),
     api("/api/admin/agent/status").catch((error) => ({ agent: { ready: false, error: error.message } })),
     api(`/api/admin/ai-quality?days=${encodeURIComponent($("#aiQualityDays")?.value || 30)}`).catch((error) => ({ report: { error: error.message, summary: {}, recent: [] } })),
@@ -157,11 +157,12 @@ async function load() {
     api(`/api/admin/operations?days=${encodeURIComponent($("#reportDays")?.value || 30)}`).catch(() => ({ report: null })),
     api("/api/staff/directory").catch(() => ({ accounts: [] })),
     state.user?.role === "admin" ? api("/api/admin/staff").catch(() => ({ accounts: [] })) : Promise.resolve({ accounts: [] }),
+    state.user?.role === "admin" ? api("/api/admin/user-access").catch(() => ({ invites: [], users: [] })) : Promise.resolve({ invites: [], users: [] }),
   ]);
   state.tickets = tickets.tickets || []; state.stats = { ...stats, queueCounts: tickets.queueCounts || stats.queueCounts || {} }; state.kb = kb.entries || [];
   state.agent = agent.agent || {}; state.aiQuality = aiQuality.report || {}; state.playbook = playbook.playbook || {}; state.governance = governance.governance || {}; state.procedures = procedures.procedures || [];
-  state.report = report.report || null; state.directory = directory.accounts || []; state.staff = staff.accounts || []; state.legacyLoginEnabled = staff.legacyLoginEnabled !== false;
-  applyRoleVisibility(); renderStats(); renderSmartQueues(); renderTickets(); renderOperations(); renderStaff(); renderKb(); renderAgent(); renderAiQuality(); renderPlaybook(); renderGovernance();
+  state.report = report.report || null; state.directory = directory.accounts || []; state.staff = staff.accounts || []; state.userAccess = { invites: userAccess.invites || [], users: userAccess.users || [] }; state.legacyLoginEnabled = staff.legacyLoginEnabled !== false;
+  applyRoleVisibility(); renderStats(); renderSmartQueues(); renderTickets(); renderOperations(); renderStaff(); renderUserAccess(); renderKb(); renderAgent(); renderAiQuality(); renderPlaybook(); renderGovernance();
 }
 
 function applyRoleVisibility() {
@@ -260,6 +261,44 @@ function renderStaff() {
   $("#legacyLoginNotice").classList.toggle("hidden", !state.legacyLoginEnabled);
   $("#staffList").innerHTML = state.staff.map((account) => `<article class="staff-card ${account.active ? "" : "inactive"}"><div class="staff-avatar">${esc(initials(account.displayName))}</div><div class="staff-card-main"><div><strong>${esc(account.displayName)}</strong><span class="badge ${account.active ? "success" : ""}">${account.active ? "Hoạt động" : "Đã khóa"}</span></div><p>@${esc(account.username)}</p><small>${account.lastLoginAt ? `Đăng nhập ${formatDate(account.lastLoginAt)}` : "Chưa đăng nhập"}</small></div><div class="staff-card-side"><span class="role-chip ${account.role}">${account.role === "admin" ? "Admin" : account.role === "viewer" ? "Chỉ xem" : "Kỹ thuật viên"}</span><button type="button" class="button subtle-button compact" data-staff-edit="${account.id}">Chỉnh sửa</button></div></article>`).join("") || '<div class="empty-state"><h3>Chưa có tài khoản riêng</h3><p>Tạo tài khoản đầu tiên rồi đăng nhập thử trước khi tắt chế độ dùng chung.</p></div>';
   $$('[data-staff-edit]').forEach((button) => { button.onclick = () => openStaffEditor(button.dataset.staffEdit); });
+}
+
+const inviteStatusLabels = { active: "Còn hiệu lực", used: "Đã sử dụng", expired: "Hết hạn", revoked: "Đã thu hồi" };
+
+function renderUserAccess() {
+  if (!$("#inviteList") || state.user?.role !== "admin") return;
+  const invites = state.userAccess.invites || []; const users = state.userAccess.users || [];
+  const activeInvites = invites.filter((item) => item.status === "active").length;
+  const activeSessions = users.reduce((total, item) => total + Number(item.activeSessions || 0), 0);
+  $("#userAccessSummary").innerHTML = `<span><b>${activeInvites}</b> mã còn hiệu lực</span><span><b>${users.length}</b> nhân viên đã xác nhận</span><span><b>${activeSessions}</b> thiết bị đang đăng nhập</span>`;
+  $("#inviteList").innerHTML = invites.slice(0, 20).map((invite) => `<div class="access-row"><span class="access-avatar">${esc(initials(invite.displayName))}</span><div><strong>${esc(invite.displayName)}</strong><p>${esc(invite.employeeCode)}${invite.department ? ` · ${esc(invite.department)}` : ""}</p><small>${esc(inviteStatusLabels[invite.status] || invite.status)} · ${invite.status === "active" ? `hết hạn ${formatDate(invite.expiresAt)}` : formatDate(invite.usedAt || invite.revokedAt || invite.expiresAt)}</small></div>${invite.status === "active" ? `<button type="button" class="button subtle-button compact" data-invite-revoke="${invite.id}">Thu hồi</button>` : `<span class="access-status ${invite.status}">${esc(inviteStatusLabels[invite.status] || invite.status)}</span>`}</div>`).join("") || '<div class="empty-state compact-empty"><h3>Chưa có mã mời</h3><p>Tạo mã đầu tiên để nhân viên xác nhận Mini App.</p></div>';
+  $("#miniUserList").innerHTML = users.map((user) => `<div class="access-row"><span class="access-avatar user">${esc(initials(user.name))}</span><div><strong>${esc(user.name)}</strong><p>${esc(user.employeeCode)}${user.department ? ` · ${esc(user.department)}` : ""}</p><small>${user.activeSessions ? `${user.activeSessions} thiết bị · hoạt động ${formatDate(user.lastSeenAt)}` : "Không có thiết bị đang đăng nhập"}</small></div>${user.activeSessions ? `<button type="button" class="button danger-button compact" data-user-revoke="${user.id}">Đăng xuất</button>` : '<span class="access-status revoked">Đã đăng xuất</span>'}</div>`).join("") || '<div class="empty-state compact-empty"><h3>Chưa có người dùng</h3><p>Người dùng sẽ xuất hiện sau khi dùng mã mời.</p></div>';
+  $$('[data-invite-revoke]').forEach((button) => { button.onclick = async () => {
+    if (!confirm("Thu hồi mã mời này? Mã sẽ không thể sử dụng.")) return;
+    try { await api(`/api/admin/user-invites/${button.dataset.inviteRevoke}/revoke`, { method: "POST", body: "{}" }); await refreshUserAccess(); toast("Đã thu hồi mã mời"); } catch (error) { toast(error.message); }
+  }; });
+  $$('[data-user-revoke]').forEach((button) => { button.onclick = async () => {
+    if (!confirm("Đăng xuất người dùng khỏi tất cả thiết bị? Người dùng sẽ cần mã mời mới để đăng nhập lại.")) return;
+    try { const result = await api(`/api/admin/users/${button.dataset.userRevoke}/revoke-sessions`, { method: "POST", body: "{}" }); await refreshUserAccess(); toast(`Đã thu hồi ${result.revoked} phiên đăng nhập`); } catch (error) { toast(error.message); }
+  }; });
+}
+
+async function refreshUserAccess() {
+  const result = await api("/api/admin/user-access");
+  state.userAccess = { invites: result.invites || [], users: result.users || [] };
+  renderUserAccess();
+}
+
+function openInviteDialog() {
+  $("#inviteForm").reset();
+  $("#inviteFormFields").classList.remove("hidden");
+  $("#inviteResult").classList.add("hidden");
+  $("#inviteSaveBtn").classList.remove("hidden");
+  $("#inviteFormError").classList.add("hidden");
+  $("#inviteFormError").textContent = "";
+  ["#inviteEmployeeCode", "#inviteDisplayName", "#inviteDepartment"].forEach((selector) => $(selector).removeAttribute("aria-invalid"));
+  $("#inviteDialog").showModal();
+  $("#inviteEmployeeCode").focus();
 }
 
 function openStaffEditor(staffId = "") {
@@ -797,6 +836,32 @@ $("#exportReportBtn").onclick = async () => {
   } catch (error) { toast(error.message); }
 };
 $("#newStaffBtn").onclick = () => openStaffEditor();
+$("#newInviteBtn").onclick = openInviteDialog;
+$$('[data-close-invite]').forEach((button) => { button.onclick = () => $("#inviteDialog").close(); });
+$("#inviteForm").onsubmit = async (event) => {
+  event.preventDefault();
+  const button = $("#inviteSaveBtn"); const errorBox = $("#inviteFormError");
+  errorBox.classList.add("hidden"); errorBox.textContent = "";
+  ["#inviteEmployeeCode", "#inviteDisplayName", "#inviteDepartment"].forEach((selector) => $(selector).removeAttribute("aria-invalid"));
+  button.disabled = true; button.textContent = "Đang tạo…";
+  try {
+    const result = await api("/api/admin/user-invites", { method: "POST", body: JSON.stringify({ employeeCode: $("#inviteEmployeeCode").value, displayName: $("#inviteDisplayName").value, department: $("#inviteDepartment").value, validHours: Number($("#inviteValidHours").value) }) });
+    $("#inviteResultCode").textContent = result.code;
+    $("#inviteResultMeta").textContent = `${result.invite.displayName} · ${result.invite.employeeCode} · hết hạn ${formatDate(result.invite.expiresAt)}`;
+    $("#inviteFormFields").classList.add("hidden"); $("#inviteResult").classList.remove("hidden"); button.classList.add("hidden");
+    await refreshUserAccess();
+  } catch (error) {
+    errorBox.textContent = error.message; errorBox.classList.remove("hidden");
+    const fieldIds = { employeeCode: "inviteEmployeeCode", displayName: "inviteDisplayName", department: "inviteDepartment" };
+    const field = document.getElementById(fieldIds[error.field]);
+    if (field) { field.setAttribute("aria-invalid", "true"); field.focus(); }
+  } finally { button.disabled = false; button.textContent = "Tạo mã một lần"; }
+};
+$("#copyInviteBtn").onclick = async () => {
+  const code = $("#inviteResultCode").textContent;
+  try { await navigator.clipboard.writeText(code); toast("Đã sao chép mã mời"); }
+  catch { window.prompt("Sao chép mã mời:", code); }
+};
 $$('[data-close-staff]').forEach((button) => { button.onclick = () => $("#staffDialog").close(); });
 $("#staffDialog").oncancel = (event) => { if ($("#staffSaveBtn").disabled) event.preventDefault(); };
 $("#staffActive").onchange = () => { clearStaffFormError(); updateStaffActivePresentation(); };
