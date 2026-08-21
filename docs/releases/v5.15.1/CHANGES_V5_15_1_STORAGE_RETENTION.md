@@ -33,6 +33,7 @@ Hai giới hạn retention được hard-cap ở 30 ticket và 10 MB/ticket. Có
 ## Tác động phát hành
 
 - Backend/Admin/Mini App metadata đồng bộ `5.15.1`.
+- Render Free Blueprint không khai báo `maxShutdownDelaySeconds` vì thuộc tính này không được hỗ trợ trên free tier.
 - Thiết kế UI vẫn là v5.14.1; chỉ copy và validation attachment được đồng bộ theo 10 MB/ticket.
 - SQL Server giữ schema `9`; không có migration mới.
 - PostgreSQL free-hosting giữ state schema `1`; không có migration mới.
