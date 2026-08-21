@@ -1,6 +1,6 @@
 # Project Handoff — Zalo IT HelpDesk
 
-> Historical handoff through v5.12.0. For the current Backend v5.16.3 / Mini App v5.16.0 runtime, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.3/` and `docs/releases/v5.16.0/` before acting.
+> Historical handoff through v5.12.0. For the current Backend v5.16.4 / Mini App v5.16.0 runtime, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.16.4 supersedes the historical single-provider selection rule: a selected model is now preferred first, then the remaining cloud route is tried before Rules/Playbook.
 
 > Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
 
@@ -38,7 +38,7 @@ Khóa `human_only` chỉ chặn AI Agent khỏi kênh User; nó không tắt Sta
 - Phân tích hiển thị là reasoning summary có thể kiểm chứng, không xuất chain-of-thought.
 - Bản nháp chỉ được chép vào ô reply; kỹ thuật viên vẫn phải duyệt và bấm gửi.
 - Helpdesk chọn `auto|gemini|groq|openrouter|sambanova`; chỉ provider nằm trong route và đã cấu hình mới hợp lệ.
-- `auto` giữ failover cloud. Model cụ thể chỉ gọi đúng provider đã chọn và fallback Rules/Playbook nếu provider đó lỗi.
+- Lịch sử v5.12: `auto` giữ failover cloud, còn model cụ thể từng chỉ gọi đúng provider đã chọn. Quy tắc này đã được v5.16.4 thay thế: model cụ thể là ưu tiên đầu tiên, sau đó router failover qua cloud route trước khi dùng Rules/Playbook.
 - Mỗi run lưu riêng provider/model được yêu cầu và provider/model thực tế; trình duyệt không bao giờ nhận API key.
 
 Quyết định cloud-only của v5.9.1 vẫn giữ nguyên:

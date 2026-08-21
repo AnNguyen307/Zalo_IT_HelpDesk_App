@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.16.3 — Admin Visual Refresh
+# Zalo IT HelpDesk v5.16.4 — Cloud AI Reliability
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.3 làm mới các vùng vận hành chính của Admin: Tổng quan có banner tín hiệu động phản ánh trạng thái thật, Playbook được tổ chức theo luồng sẵn sàng → tra cứu → kết quả, và Hệ thống & AI ưu tiên sức khỏe runtime/provider trước dữ liệu chất lượng và sandbox. Các banner nguyên tắc/chuyển đổi cứng nhắc đã được loại bỏ; API và nghiệp vụ không thay đổi.
+v5.16.4 làm cứng Cloud AI Router sau các lỗi runtime thực tế: model được HelpDesk chọn là ưu tiên đầu tiên nhưng vẫn failover sang các Cloud provider còn lại, JSON/schema lỗi được retry có kiểm soát, OpenRouter dùng free router còn hiệu lực và Admin phân biệt rõ provider sẵn sàng với provider vừa lỗi. Rules/Playbook vẫn là lớp dự phòng cuối cùng, không giả mạo phân tích AI.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,12 +14,12 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend: `5.16.3`
+- Backend: `5.16.4`
 - Mini App metadata: `5.16.0`
-- UI/UX: banner vận hành động, Playbook workspace và AI Control Plane theo Warm Industrial + Signal System
+- Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
 - SQL Server: schema `10`, không có migration mới
 - PostgreSQL pilot: state schema `1`, không thay đổi
-- Mini App không cần build hoặc deploy lại cho bản Admin-only này
+- Mini App không cần build hoặc deploy lại cho bản Backend/Admin-only này
 
 ## Kiến trúc
 
@@ -100,6 +100,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
+- Độ ổn định Cloud AI v5.16.4: [docs/releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md](docs/releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md)
 - Thay đổi UI Backend v5.16.3: [docs/releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md](docs/releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md)
 - Release/rollback: [docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md](docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md)
 - Working agreement cho Agent: [AGENTS.md](AGENTS.md)

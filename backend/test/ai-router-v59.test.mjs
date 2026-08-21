@@ -58,6 +58,15 @@ function okOpenAi(provider, confidence = 0.95) {
   }), { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
+function okGemini(provider = "gemini", confidence = 0.95) {
+  return new Response(JSON.stringify({
+    responseId: `response-${provider}`,
+    modelVersion: `${provider}-model`,
+    candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({ provider, confidence }) }] } }],
+    usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
 test("Router V2 falls through quota failure to the next cloud provider", async (context) => {
   configureRouter(context);
   const called = [];
@@ -88,7 +97,7 @@ test("Router V2 falls through quota failure to the next cloud provider", async (
   assert.equal(called.length, 2);
 });
 
-test("staff-selected model is honored without cloud failover", async (context) => {
+test("staff-selected model remains the first cloud candidate", async (context) => {
   configureRouter(context);
   const called = [];
   globalThis.fetch = async (url) => {
@@ -106,7 +115,7 @@ test("staff-selected model is honored without cloud failover", async (context) =
   });
 
   assert.equal(result.validated.provider, "groq");
-  assert.equal(result.telemetry.routingPolicy, "staff_selected");
+  assert.equal(result.telemetry.routingPolicy, "staff_preferred_with_failover");
   assert.equal(result.telemetry.requestedProviderKey, "groq");
   assert.equal(result.telemetry.requestedModel, "groq-test");
   assert.deepEqual(result.telemetry.attempts.map((item) => item.providerKey), ["groq"]);
@@ -126,14 +135,54 @@ test("model options expose readiness but never provider credentials", async (con
   assert.doesNotMatch(JSON.stringify(result), /gemini-test-key|groq-test-key/);
 });
 
+test("provider readiness reports recent inference failures as degraded", async (context) => {
+  configureRouter(context);
+  globalThis.fetch = async (url) => {
+    if (String(url).includes("generativelanguage")) {
+      return new Response(JSON.stringify({
+        candidates: [{ finishReason: "STOP", content: { parts: [{ text: '{"provider":"gemini' }] } }],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (String(url).includes("api.groq.com")) return okOpenAi("groq");
+    throw new Error(`Unexpected URL ${url}`);
+  };
+
+  await requestAiProviderDecision({
+    system: "test",
+    payload: {},
+    schema,
+    validate(content) {
+      try { return JSON.parse(content); }
+      catch (error) {
+        error.reasonCode = "invalid_json";
+        throw error;
+      }
+    },
+  });
+
+  const options = await getAiModelOptions();
+  const gemini = options.options.find((item) => item.providerKey === "gemini");
+  const groq = options.options.find((item) => item.providerKey === "groq");
+  assert.equal(gemini.ready, true);
+  assert.equal(gemini.operationalState, "degraded");
+  assert.equal(gemini.reasonCode, "recent_failures");
+  assert.equal(gemini.lastErrorCode, "invalid_json");
+  assert.equal(groq.operationalState, "healthy");
+});
+
 test("missing Gemini quota headers mean unknown quota instead of zero remaining", async (context) => {
   configureRouter(context);
-  globalThis.fetch = async () => new Response(JSON.stringify({
+  config.geminiModel = "gemini-3.6-flash";
+  let requestBody = null;
+  globalThis.fetch = async (_url, options) => {
+    requestBody = JSON.parse(String(options.body));
+    return new Response(JSON.stringify({
     responseId: "gemini-no-quota-headers",
-    modelVersion: "gemini-test",
+    modelVersion: "gemini-3.6-flash",
     candidates: [{ content: { parts: [{ text: JSON.stringify({ provider: "gemini", confidence: 0.95 }) }] } }],
     usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 4, totalTokenCount: 12 },
-  }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
 
   await requestAiProviderDecision({
     system: "test",
@@ -150,6 +199,8 @@ test("missing Gemini quota headers mean unknown quota instead of zero remaining"
   assert.equal(gemini.quota.tokens, null);
   assert.equal(gemini.quota.requests, null);
   assert.equal(gemini.quota.providerReported, null);
+  assert.equal(requestBody.generationConfig.temperature, undefined);
+  assert.ok(requestBody.generationConfig.maxOutputTokens >= 4096);
 });
 
 test("model options expose provider quota periods and app-observed token usage", async (context) => {
@@ -213,28 +264,108 @@ test("quota failure explains why a configured model is temporarily unavailable",
   assert.equal("apiKey" in gemini, false);
 });
 
-test("failed staff-selected model does not silently call another cloud provider", async (context) => {
+test("failed staff-selected model falls through to the remaining cloud route", async (context) => {
   configureRouter(context);
   const called = [];
   globalThis.fetch = async (url) => {
     called.push(String(url));
-    return new Response(JSON.stringify({ error: { message: "selected provider unavailable" } }), {
-      status: 503,
-      headers: { "Content-Type": "application/json" },
-    });
+    if (String(url).includes("api.groq.com")) {
+      return new Response(JSON.stringify({ error: { message: "selected provider unavailable" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (String(url).includes("generativelanguage")) return okGemini();
+    throw new Error(`Unexpected URL ${url}`);
   };
 
-  await assert.rejects(
-    requestAiProviderDecision({ system: "test", payload: {}, schema, providerKey: "groq" }),
-    (error) => {
-      assert.equal(error.reasonCode, "all_providers_unavailable");
-      assert.equal(error.providerTelemetry.requestedProviderKey, "groq");
-      assert.deepEqual(error.providerTelemetry.attempts.map((item) => item.providerKey), ["groq"]);
-      return true;
-    },
-  );
-  assert.equal(called.length, 1);
+  const result = await requestAiProviderDecision({
+    system: "test",
+    payload: {},
+    schema,
+    providerKey: "groq",
+    validate: (content) => JSON.parse(content),
+  });
+
+  assert.equal(result.validated.provider, "gemini");
+  assert.equal(result.telemetry.requestedProviderKey, "groq");
+  assert.deepEqual(result.telemetry.attempts.map((item) => [item.providerKey, item.status]), [
+    ["groq", "failed"],
+    ["gemini", "success"],
+  ]);
+  assert.equal(called.length, 2);
   assert.match(called[0], /api\.groq\.com/);
+  assert.match(called[1], /generativelanguage/);
+});
+
+test("invalid structured JSON is retried before cloud failover", async (context) => {
+  configureRouter(context);
+  config.aiProviderRetries = 1;
+  let geminiCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (!String(url).includes("generativelanguage")) throw new Error(`Unexpected URL ${url}`);
+    geminiCalls += 1;
+    if (geminiCalls === 1) {
+      return new Response(JSON.stringify({
+        candidates: [{ finishReason: "STOP", content: { parts: [{ text: '{"provider":"gemini' }] } }],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return okGemini();
+  };
+
+  const result = await requestAiProviderDecision({
+    system: "test",
+    payload: {},
+    schema,
+    providerKey: "gemini",
+    validate(content) {
+      try { return JSON.parse(content); }
+      catch (error) {
+        error.reasonCode = "invalid_json";
+        throw error;
+      }
+    },
+  });
+
+  assert.equal(result.validated.provider, "gemini");
+  assert.deepEqual(result.telemetry.attempts.map((item) => [item.providerKey, item.status, item.attempt]), [
+    ["gemini", "rejected", 1],
+    ["gemini", "success", 2],
+  ]);
+});
+
+test("Groq retries failed strict generation with JSON object mode", async (context) => {
+  configureRouter(context);
+  config.aiProviderRetries = 1;
+  const formats = [];
+  const systemPrompts = [];
+  globalThis.fetch = async (url, options) => {
+    if (!String(url).includes("api.groq.com")) throw new Error(`Unexpected URL ${url}`);
+    const request = JSON.parse(String(options.body));
+    formats.push(request.response_format.type);
+    systemPrompts.push(request.messages[0].content);
+    if (formats.length === 1) {
+      return new Response(JSON.stringify({
+        error: { code: "failed_generation", message: "Generated JSON does not match the expected schema" },
+      }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
+    return okOpenAi("groq");
+  };
+
+  const result = await requestAiProviderDecision({
+    system: "test",
+    payload: {},
+    schema,
+    providerKey: "groq",
+    validate: (content) => JSON.parse(content),
+  });
+
+  assert.equal(result.validated.provider, "groq");
+  assert.deepEqual(formats, ["json_schema", "json_object"]);
+  assert.doesNotMatch(systemPrompts[0], /schema sau/);
+  assert.match(systemPrompts[1], /schema sau/);
+  assert.match(systemPrompts[1], /"required":\["confidence","provider"\]/);
+  assert.equal(result.telemetry.attempts[0].reasonCode, "structured_output_rejected");
 });
 
 test("Router V2 rejects low-confidence output and tries a different model family", async (context) => {
