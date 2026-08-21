@@ -18,6 +18,7 @@ MAX_REPLY_UPLOAD_MB=10
 ## Thứ tự deploy
 
 1. Deploy backend v5.15.1.
+   Container tự chạy `npm run db:postgres:init && exec npm start` từ `backend/Dockerfile`; không đặt lại Docker Command trên Render.
 2. Kiểm tra `/health` trả version `5.15.1`, `maxStoredTickets = 30` và `maxTicketAttachmentBytes = 10485760`.
 3. Smoke test ticket, reply, upload và download trên backend.
 4. Build/deploy Mini App v5.15.1 với `VITE_API_BASE_URL` của backend vừa xác nhận.
