@@ -50,7 +50,7 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
       - key: AI_CLOUD_ENABLED
-        value: "false"
+        value: "true"
       - key: AI_REDACTION_ENABLED
         value: "true"
       - key: PLAYBOOK_GOVERNANCE_ENABLED
