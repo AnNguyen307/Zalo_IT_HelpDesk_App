@@ -1,16 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { api, setApiToken } from "./lib/api";
-import { clearSession, getZaloIdentity, readSession, saveSession, toast } from "./lib/zalo";
+import { api, setApiRefreshHandler, setApiToken } from "./lib/api";
+import { clearSession, getDeviceId, readSession, saveSession, toast } from "./lib/zalo";
 import type { AppNotification, Page, Ticket, User } from "./types";
 
 interface AppContextValue {
   loading: boolean;
+  authError: string;
   user: User | null;
   tickets: Ticket[];
   notifications: AppNotification[];
   unreadCount: number;
   page: Page;
   selectedTicketId: string | null;
+  loginWithInvite: (code: string) => Promise<void>;
   navigate: (page: Page, ticketId?: string) => void;
   refreshTickets: () => Promise<void>;
   refreshNotifications: (silent?: boolean) => Promise<void>;
@@ -24,6 +26,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -45,29 +48,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     previousUnread.current = result.unreadCount;
   }, []);
 
-  const authenticate = useCallback(async (profile?: { department?: string; phone?: string }) => {
-    const identity = await getZaloIdentity();
-    const result = await api.loginZalo({ ...identity, ...profile });
-    setApiToken(result.token);
-    saveSession(result.token);
-    setUser(result.user);
-    return result.user;
+  const refreshAccessSession = useCallback(async () => {
+    const cached = readSession();
+    if (!cached?.refreshToken) return false;
+    try {
+      const result = await api.refreshSession({ refreshToken: cached.refreshToken, deviceId: getDeviceId() });
+      setApiToken(result.token);
+      saveSession(result.token, result.refreshToken);
+      setUser(result.user);
+      setAuthError("");
+      return true;
+    } catch {
+      clearSession();
+      setApiToken("");
+      setUser(null);
+      setAuthError("");
+      return false;
+    }
   }, []);
 
   useEffect(() => {
+    setApiRefreshHandler(refreshAccessSession);
+    return () => setApiRefreshHandler(null);
+  }, [refreshAccessSession]);
+
+  useEffect(() => {
     (async () => {
+      const cached = readSession();
+      if (!cached) {
+        setLoading(false);
+        return;
+      }
       try {
-        const cached = readSession();
-        if (cached) {
-          setApiToken(cached);
-          try {
-            const result = await api.me();
-            setUser(result.user);
-          } catch {
-            clearSession();
-            await authenticate();
-          }
-        } else await authenticate();
+        setApiToken(cached.accessToken);
+        const result = await api.me();
+        setUser(result.user);
         await Promise.all([refreshTickets(), refreshNotifications()]);
         const ticketFromLink = new URLSearchParams(window.location.search).get("ticket");
         if (ticketFromLink) {
@@ -75,12 +90,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setPage("detail");
         }
       } catch (error) {
-        toast(error instanceof Error ? error.message : "Không thể đăng nhập HelpDesk");
+        setAuthError(readSession() ? (error instanceof Error ? error.message : "Không thể kết nối HelpDesk") : "");
       } finally {
         setLoading(false);
       }
     })();
-  }, [authenticate, refreshNotifications, refreshTickets]);
+  }, [refreshNotifications, refreshTickets]);
 
   useEffect(() => {
     if (!user) return;
@@ -90,6 +105,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 20_000);
     return () => window.clearInterval(timer);
   }, [user, refreshNotifications, refreshTickets]);
+
+  const loginWithInvite = useCallback(async (code: string) => {
+    setAuthError("");
+    try {
+      const result = await api.loginInvite({ code, deviceId: getDeviceId() });
+      setApiToken(result.token);
+      saveSession(result.token, result.refreshToken);
+      setUser(result.user);
+      setPage("home");
+      await Promise.all([refreshTickets(), refreshNotifications()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Không thể xác nhận mã mời";
+      setAuthError(message);
+      throw error;
+    }
+  }, [refreshNotifications, refreshTickets]);
 
   const navigate = useCallback((next: Page, ticketId?: string) => {
     setPage(next);
@@ -108,31 +139,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshNotifications]);
 
   const updateProfile = useCallback(async (department: string, phone: string) => {
-    const updated = await authenticate({ department, phone });
-    setUser(updated);
+    const result = await api.updateProfile({ department, phone });
+    setUser(result.user);
     toast("Đã cập nhật thông tin");
-  }, [authenticate]);
+  }, []);
 
   const logout = useCallback(async () => {
+    const cached = readSession();
+    if (cached?.refreshToken) {
+      await api.logoutSession({ refreshToken: cached.refreshToken, deviceId: getDeviceId() }).catch(() => undefined);
+    }
     clearSession();
     setApiToken("");
     setUser(null);
     setTickets([]);
     setNotifications([]);
     setUnreadCount(0);
-    setLoading(true);
-    try {
-      await authenticate();
-      await Promise.all([refreshTickets(), refreshNotifications()]);
-      setPage("home");
-    } finally { setLoading(false); }
-  }, [authenticate, refreshNotifications, refreshTickets]);
+    setAuthError("");
+    setPage("home");
+  }, []);
 
   const value = useMemo(() => ({
-    loading, user, tickets, notifications, unreadCount, page, selectedTicketId,
-    navigate, refreshTickets, refreshNotifications, markNotificationRead, markAllNotificationsRead,
+    loading, authError, user, tickets, notifications, unreadCount, page, selectedTicketId,
+    loginWithInvite, navigate, refreshTickets, refreshNotifications, markNotificationRead, markAllNotificationsRead,
     updateProfile, logout,
-  }), [loading, user, tickets, notifications, unreadCount, page, selectedTicketId, navigate, refreshTickets, refreshNotifications, markNotificationRead, markAllNotificationsRead, updateProfile, logout]);
+  }), [loading, authError, user, tickets, notifications, unreadCount, page, selectedTicketId, loginWithInvite, navigate, refreshTickets, refreshNotifications, markNotificationRead, markAllNotificationsRead, updateProfile, logout]);
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 

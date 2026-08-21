@@ -1,6 +1,6 @@
 # Deployment Checklist — Zero-Cost Edition
 
-> Checklist lịch sử cho local/PC/NAS. Với hai profile v5.15.1, dùng `FREE_HOSTING_V5_15.md` hoặc `NAS_V5_15.md` cùng release notes v5.15.1.
+> Checklist lịch sử cho local/PC/NAS. Với v5.16.0, dùng tài liệu profile v5.15 làm nền cùng release notes `docs/releases/v5.16.0/`.
 
 ## Mục tiêu chi phí
 
@@ -74,7 +74,7 @@
 - [ ] Tắt toàn bộ provider và xác nhận ticket vẫn tạo với priority Bình thường, `agent_unavailable` và attempt telemetry.
 - [ ] `PLAYBOOK_RETRIEVAL_MODE=lexical`, `PLAYBOOK_EMBED_PROVIDER=none` vẫn tìm đúng Top-K khi cloud AI tắt.
 - [ ] Chạy `npm run playbook:benchmark` và lưu kết quả cùng release validation.
-- [ ] Chạy `npm run db:migrate` và xác nhận schema version `9` trước khi restart backend.
+- [ ] Chạy `npm run db:migrate` và xác nhận schema version `10` trước khi restart backend.
 - [ ] Kiểm tra `/health` là `5.13.0`, có `provider-quota-observability`, `quota-header-null-safety`, `provider-readiness-diagnostics`, `copilot-independent-reasoning`, `copilot-model-selection`.
 - [ ] Gọi Gemini thành công khi response không có quota header; xác nhận Gemini vẫn sẵn sàng và quota token hiển thị “Không xác định”, không phải `0`.
 - [ ] Admin → AI Agent hiển thị token/request đã quan sát, ngân sách app, quota provider, lỗi gần nhất và circuit mà không lộ API key.

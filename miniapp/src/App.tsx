@@ -2,6 +2,7 @@ import { Icon } from "./components/Icon";
 import { Layout } from "./components/Layout";
 import { useApp } from "./context";
 import { HomePage } from "./pages/HomePage";
+import { InviteLoginPage } from "./pages/InviteLoginPage";
 import { NewTicketPage } from "./pages/NewTicketPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -19,15 +20,7 @@ export default function App() {
       <span className="splash-loader" />
     </div>
   );
-  if (!user) return (
-    <div className="system-state-screen offline-state" role="alert">
-      <span className="state-symbol"><Icon name="alert" size={28} /></span>
-      <span className="state-kicker">CHƯA THỂ KẾT NỐI</span>
-      <h1>Bạn đang ngoại tuyến</h1>
-      <p>Yêu cầu của bạn chưa bị mất. Hãy kiểm tra mạng và thử kết nối lại.</p>
-      <button className="primary" onClick={() => window.location.reload()}><Icon name="refresh" /> Thử lại</button>
-    </div>
-  );
+  if (!user) return <InviteLoginPage />;
   const content = page === "home" ? <HomePage />
     : page === "tickets" ? <TicketsPage />
       : page === "new" ? <NewTicketPage />

@@ -118,6 +118,39 @@ function mapUser(row) {
   };
 }
 
+function mapUserInvite(row) {
+  return {
+    id: row.id,
+    employeeCode: row.employee_code || "",
+    displayName: row.display_name || "",
+    department: row.department || "",
+    codeHash: row.code_hash || "",
+    createdBy: row.created_by || "",
+    createdAt: toIso(row.created_at),
+    expiresAt: toIso(row.expires_at),
+    usedAt: toIso(row.used_at),
+    usedByUserId: row.used_by_user_id || null,
+    revokedAt: toIso(row.revoked_at),
+    revokedBy: row.revoked_by || null,
+    revokeReason: row.revoke_reason || "",
+  };
+}
+
+function mapUserRefreshSession(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    deviceHash: row.device_hash || "",
+    tokenHash: row.token_hash || "",
+    expiresAt: toIso(row.expires_at),
+    createdAt: toIso(row.created_at),
+    lastRefreshedAt: toIso(row.last_refreshed_at),
+    revokedAt: toIso(row.revoked_at),
+    revokedBy: row.revoked_by || null,
+    revokeReason: row.revoke_reason || "",
+  };
+}
+
 function mapStaffAccount(row) {
   return {
     id: row.id,
@@ -275,6 +308,8 @@ function mapAudit(row) {
 async function readDbFrom(executor) {
   // Keep requests sequential so this works both with a pool and with a single-connection transaction.
   const users = await queryAll(executor, "SELECT * FROM helpdesk.users ORDER BY created_at, id");
+  const userInvites = await queryAll(executor, "SELECT * FROM helpdesk.user_invites ORDER BY created_at, id");
+  const userRefreshSessions = await queryAll(executor, "SELECT * FROM helpdesk.user_refresh_sessions ORDER BY created_at, id");
   const staffAccounts = await queryAll(executor, "SELECT * FROM helpdesk.staff_accounts ORDER BY created_at, id");
   const tickets = await queryAll(executor, "SELECT * FROM helpdesk.tickets ORDER BY created_at, id");
   const messages = await queryAll(executor, "SELECT * FROM helpdesk.messages ORDER BY created_at, id");
@@ -287,6 +322,8 @@ async function readDbFrom(executor) {
 
   return normalizeDb({
     users: users.map(mapUser),
+    userInvites: userInvites.map(mapUserInvite),
+    userRefreshSessions: userRefreshSessions.map(mapUserRefreshSession),
     staffAccounts: staffAccounts.map(mapStaffAccount),
     tickets: tickets.map(mapTicket),
     messages: messages.map(mapMessage),
@@ -341,6 +378,51 @@ async function upsertUser(executor, item) {
     WHEN NOT MATCHED THEN INSERT
       (id,zalo_user_id,name,avatar,phone,department,role,created_at,updated_at)
       VALUES (@id,@zalo_user_id,@name,@avatar,@phone,@department,@role,@created_at,@updated_at);
+  `);
+}
+
+async function upsertUserInvite(executor, item) {
+  const req = request(executor);
+  req.input("id", sql.NVarChar(64), item.id)
+    .input("employee_code", sql.NVarChar(40), item.employeeCode || "")
+    .input("display_name", sql.NVarChar(120), item.displayName || "")
+    .input("department", sql.NVarChar(120), item.department || "")
+    .input("code_hash", sql.Char(64), item.codeHash || "")
+    .input("created_by", sql.NVarChar(64), item.createdBy || "")
+    .input("created_at", sql.DateTime2(3), toDate(item.createdAt) || new Date())
+    .input("expires_at", sql.DateTime2(3), toDate(item.expiresAt) || new Date())
+    .input("used_at", sql.DateTime2(3), toDate(item.usedAt))
+    .input("used_by_user_id", sql.NVarChar(64), item.usedByUserId || null)
+    .input("revoked_at", sql.DateTime2(3), toDate(item.revokedAt))
+    .input("revoked_by", sql.NVarChar(64), item.revokedBy || null)
+    .input("revoke_reason", sql.NVarChar(80), item.revokeReason || "");
+  await req.query(`
+    MERGE helpdesk.user_invites WITH (HOLDLOCK) AS target
+    USING (SELECT @id AS id) AS source ON target.id=source.id
+    WHEN MATCHED THEN UPDATE SET employee_code=@employee_code,display_name=@display_name,department=@department,code_hash=@code_hash,created_by=@created_by,created_at=@created_at,expires_at=@expires_at,used_at=@used_at,used_by_user_id=@used_by_user_id,revoked_at=@revoked_at,revoked_by=@revoked_by,revoke_reason=@revoke_reason
+    WHEN NOT MATCHED THEN INSERT (id,employee_code,display_name,department,code_hash,created_by,created_at,expires_at,used_at,used_by_user_id,revoked_at,revoked_by,revoke_reason)
+      VALUES (@id,@employee_code,@display_name,@department,@code_hash,@created_by,@created_at,@expires_at,@used_at,@used_by_user_id,@revoked_at,@revoked_by,@revoke_reason);
+  `);
+}
+
+async function upsertUserRefreshSession(executor, item) {
+  const req = request(executor);
+  req.input("id", sql.NVarChar(64), item.id)
+    .input("user_id", sql.NVarChar(64), item.userId)
+    .input("device_hash", sql.Char(64), item.deviceHash || "")
+    .input("token_hash", sql.Char(64), item.tokenHash || "")
+    .input("expires_at", sql.DateTime2(3), toDate(item.expiresAt) || new Date())
+    .input("created_at", sql.DateTime2(3), toDate(item.createdAt) || new Date())
+    .input("last_refreshed_at", sql.DateTime2(3), toDate(item.lastRefreshedAt) || new Date())
+    .input("revoked_at", sql.DateTime2(3), toDate(item.revokedAt))
+    .input("revoked_by", sql.NVarChar(64), item.revokedBy || null)
+    .input("revoke_reason", sql.NVarChar(80), item.revokeReason || "");
+  await req.query(`
+    MERGE helpdesk.user_refresh_sessions WITH (HOLDLOCK) AS target
+    USING (SELECT @id AS id) AS source ON target.id=source.id
+    WHEN MATCHED THEN UPDATE SET user_id=@user_id,device_hash=@device_hash,token_hash=@token_hash,expires_at=@expires_at,created_at=@created_at,last_refreshed_at=@last_refreshed_at,revoked_at=@revoked_at,revoked_by=@revoked_by,revoke_reason=@revoke_reason
+    WHEN NOT MATCHED THEN INSERT (id,user_id,device_hash,token_hash,expires_at,created_at,last_refreshed_at,revoked_at,revoked_by,revoke_reason)
+      VALUES (@id,@user_id,@device_hash,@token_hash,@expires_at,@created_at,@last_refreshed_at,@revoked_at,@revoked_by,@revoke_reason);
   `);
 }
 
@@ -567,6 +649,8 @@ async function upsertAudit(executor, item) {
 
 const COLLECTIONS = [
   ["users", "users", upsertUser],
+  ["userInvites", "user_invites", upsertUserInvite],
+  ["userRefreshSessions", "user_refresh_sessions", upsertUserRefreshSession],
   ["staffAccounts", "staff_accounts", upsertStaffAccount],
   ["tickets", "tickets", upsertTicket],
   ["messages", "messages", upsertMessage],
@@ -665,6 +749,8 @@ export async function getStoreStatus() {
     const result = await pool.request().query(`
       SELECT
         (SELECT COUNT_BIG(*) FROM helpdesk.users) AS users,
+        (SELECT COUNT_BIG(*) FROM helpdesk.user_invites) AS userInvites,
+        (SELECT COUNT_BIG(*) FROM helpdesk.user_refresh_sessions) AS userRefreshSessions,
         (SELECT COUNT_BIG(*) FROM helpdesk.staff_accounts) AS staffAccounts,
         (SELECT COUNT_BIG(*) FROM helpdesk.tickets) AS tickets,
         (SELECT COUNT_BIG(*) FROM helpdesk.messages) AS messages,

@@ -1,31 +1,31 @@
-# Zalo IT HelpDesk v5.15.2 — Zalo Authentication Hotfix
+# Zalo IT HelpDesk v5.16.0 — One-time Employee Invites
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.15.2 là hotfix Backend cho đăng nhập Zalo trên bản Testing/Live. Backend nay yêu cầu rõ các trường Profile `id,name,picture` theo mẫu chính thức của Zalo; thiết kế **Warm Industrial + Signal System**, giới hạn lưu trữ và Mini App v5.15.1 không thay đổi.
+v5.16.0 thay đăng nhập Zalo Graph bằng mã mời nhân viên dùng một lần. Sau lần xác nhận đầu tiên, thiết bị giữ phiên đăng nhập trượt tối đa 90 ngày; người dùng không cần nhập lại mã khi mở Mini App hằng ngày. Admin có thể thu hồi mã chưa dùng hoặc đăng xuất ngay mọi thiết bị của một người dùng.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
 | `free-hosting` | Render Free | Supabase PostgreSQL state schema `1` | Supabase private Storage | Thử nghiệm/pilot không SLA |
-| `nas` | Container trên NAS/server doanh nghiệp | SQL Server schema `9` | Docker volume/filesystem | Vận hành nội bộ ổn định |
+| `nas` | Container trên NAS/server doanh nghiệp | SQL Server schema `10` | Docker volume/filesystem | Vận hành nội bộ ổn định |
 | `local` | Node.js trên máy phát triển | JSON hoặc SQL Server | Filesystem | Phát triển và regression test |
 
 Không profile nào được hard-code secret. Mini App chỉ chứa URL API public; `APP_SECRET`, Zalo App Secret, database credential, Supabase Secret Key và AI keys chỉ nằm ở backend secret store.
 
 ## Trạng thái release
 
-- Backend: `5.15.2`
-- Mini App metadata: `5.15.1`
-- UI/UX: không thay đổi so với bản v5.14.1 đã duyệt
-- SQL Server: schema `9`, không có migration mới
+- Backend: `5.16.0`
+- Mini App metadata: `5.16.0`
+- UI/UX: thêm màn hình mã mời và vùng quản lý quyền truy cập theo Warm Industrial + Signal System
+- SQL Server: schema `10`, cần chạy migration `010_user_invite_access.sql`
 - PostgreSQL pilot: state schema `1`, cần khởi tạo lần đầu
-- Mini App cần deploy lại khi đổi `VITE_API_BASE_URL` sang URL backend mới
+- Mini App cần deploy lại vì thay đổi luồng xác thực
 
 ## Kiến trúc
 
 ```text
 Zalo Mini App (Zalo host)
-        │ HTTPS + verified Zalo identity
+        │ HTTPS + one-time invite / rolling device session
         ▼
 Node.js Backend + Admin
    ├── Ticket / message / audit transactional state
@@ -43,6 +43,9 @@ Các bất biến vẫn được giữ:
 - Toàn hệ thống lưu tối đa 30 ticket; khi tạo ticket mới ở ngưỡng này, ticket `resolved`/`closed` cũ nhất được xóa.
 - Không xóa ticket đang hoạt động; nếu cả 30 ticket đều đang hoạt động, ticket mới bị từ chối rõ ràng.
 - Tổng ảnh/file tối đa 10 MB cho mỗi ticket, tính cộng dồn qua mọi lần upload/reply; file nằm ở private object storage/filesystem, không nằm trong database.
+- Mã mời chỉ dùng một lần, mặc định hết hạn sau 24 giờ và chỉ được lưu dưới dạng HMAC hash.
+- Refresh token gắn với một thiết bị, được xoay mỗi lần dùng và có thời hạn trượt tối đa 90 ngày.
+- Thu hồi phiên trong Admin làm access token hiện tại mất hiệu lực ngay.
 
 ## Chạy local
 
@@ -73,24 +76,31 @@ npm start
 
 Browser preview dùng `VITE_API_BASE_URL=http://127.0.0.1:8080`. Điện thoại/Zalo phải dùng URL HTTPS truy cập được từ Internet.
 
-## Xác thực Zalo hosted
+## Xác thực người dùng Mini App
 
-Hosted profile dùng:
+Luồng mặc định:
+
+1. Admin mở **Nhân sự → Mã mời nhân viên**, nhập mã nhân viên, tên và phòng ban.
+2. Hệ thống hiển thị mã `XXXX-XXXX-XXXX` đúng một lần.
+3. Nhân viên nhập mã đó trong Mini App để xác nhận thiết bị.
+4. Các lần sau Mini App tự xoay refresh token; không gọi Zalo Graph và không hỏi lại mã.
+
+Các biến kiểm soát:
 
 ```env
-ZALO_AUTH_MODE=zalo
-ZALO_APP_SECRET=<backend-secret-only>
+USER_ACCESS_TTL_MINUTES=60
+USER_REFRESH_TTL_DAYS=90
+USER_INVITE_TTL_HOURS=24
+RATE_LIMIT_INVITE_MAX=10
 ```
 
-Backend tạo `appsecret_proof` HMAC-SHA256, gọi `https://graph.zalo.me/v2.0/me` và lấy `id/name/avatar` từ phản hồi đã xác minh. Nó không tin `userId` Client tự gửi.
-
-`ZALO_AUTH_MODE=development` chỉ dành cho local và bị fail-fast khi dùng trong `free-hosting` hoặc `nas`.
+Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Mini App v5.16.0 không gửi Zalo access token và không phụ thuộc vị trí IP của Backend.
 
 ## Triển khai
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
-- Release/rollback: [docs/releases/v5.15.2/CHANGES_V5_15_2_ZALO_AUTH_PROFILE_FIELDS.md](docs/releases/v5.15.2/CHANGES_V5_15_2_ZALO_AUTH_PROFILE_FIELDS.md)
+- Release/rollback: [docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md](docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md)
 - Working agreement cho Agent: [AGENTS.md](AGENTS.md)
 
 `render.yaml` để `autoDeployTrigger: off`: merge GitHub không tự ý phát hành. `deploy/nas/compose.yaml` chỉ bind backend vào `127.0.0.1:8080`; HTTPS cần named tunnel/reverse proxy riêng.

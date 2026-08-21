@@ -61,6 +61,8 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.15.0/UPGRADE_V5_15_0_DEPLOYMENT_FOUNDATION.md](./releases/v5.15.0/UPGRADE_V5_15_0_DEPLOYMENT_FOUNDATION.md)
 - [releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md](./releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md)
 - [releases/v5.15.1/UPGRADE_V5_15_1_STORAGE_RETENTION.md](./releases/v5.15.1/UPGRADE_V5_15_1_STORAGE_RETENTION.md)
+- [releases/v5.16.0/CHANGES_V5_16_0_ONE_TIME_INVITES.md](./releases/v5.16.0/CHANGES_V5_16_0_ONE_TIME_INVITES.md)
+- [releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md](./releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)

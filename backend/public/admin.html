@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.15.2" />
+  <link rel="stylesheet" href="/admin.css?v=5.16.0" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -62,7 +62,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.15.2</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.0</span></div>
     </aside>
 
     <div class="admin-main">
@@ -112,6 +112,15 @@
           <article id="legacyLoginNotice" class="info-banner staff-security-banner"><span>i</span><p>Mật khẩu dùng chung đang được giữ để chuyển đổi an toàn. Sau khi xác nhận tài khoản riêng hoạt động, hãy tắt <code>LEGACY_STAFF_LOGIN_ENABLED</code>.</p></article>
           <div id="staffSummary" class="staff-summary"></div>
           <div id="staffList" class="staff-grid"></div>
+          <section class="user-access-panel">
+            <div class="section-toolbar access-toolbar"><div><span class="overline">MINI APP ACCESS</span><h2>Mã mời nhân viên</h2><p>Xác nhận một lần trên thiết bị; phiên sau đó được tự gia hạn tối đa 90 ngày.</p></div><button id="newInviteBtn" class="button primary-button">Tạo mã mời</button></div>
+            <article class="info-banner invite-security-banner"><span>i</span><p>Mã mời chỉ hiển thị một lần và được lưu dưới dạng hash. Thu hồi phiên sẽ đăng xuất người dùng ngay trên mọi thiết bị đang hoạt động.</p></article>
+            <div id="userAccessSummary" class="staff-summary"></div>
+            <div class="access-grid">
+              <article class="access-card"><div class="access-card-head"><div><span class="overline">INVITES</span><h3>Mã mời gần đây</h3></div></div><div id="inviteList" class="access-list"></div></article>
+              <article class="access-card"><div class="access-card-head"><div><span class="overline">DEVICES</span><h3>Người dùng Mini App</h3></div></div><div id="miniUserList" class="access-list"></div></article>
+            </div>
+          </section>
         </section>
 
         <section id="knowledgeTab" class="workspace-section hidden">
@@ -215,6 +224,26 @@
     </form>
   </dialog>
 
+  <dialog id="inviteDialog" class="form-dialog invite-dialog">
+    <form id="inviteForm">
+      <div class="dialog-head"><div><span class="overline">ONE-TIME INVITE</span><h2>Tạo mã mời nhân viên</h2><p class="muted">Mã xác nhận đúng một thiết bị và không thể xem lại sau khi đóng.</p></div><button type="button" class="dialog-close" data-close-invite aria-label="Đóng">×</button></div>
+      <div id="inviteFormFields" class="form-grid">
+        <label>Mã nhân viên<input id="inviteEmployeeCode" autocomplete="off" maxlength="40" required placeholder="VD: NV001" /></label>
+        <label>Tên hiển thị<input id="inviteDisplayName" autocomplete="off" maxlength="120" required placeholder="VD: Nguyễn Văn An" /></label>
+        <label>Phòng ban<input id="inviteDepartment" autocomplete="off" maxlength="120" placeholder="VD: Kế toán" /></label>
+        <label>Hiệu lực<select id="inviteValidHours"><option value="8">8 giờ</option><option value="24" selected>24 giờ</option><option value="72">3 ngày</option><option value="168">7 ngày</option></select></label>
+      </div>
+      <div id="inviteFormError" class="form-error staff-form-error hidden" role="alert" aria-live="assertive"></div>
+      <section id="inviteResult" class="invite-result hidden" aria-live="polite">
+        <span class="overline">MÃ CHỈ HIỂN THỊ LẦN NÀY</span>
+        <strong id="inviteResultCode">XXXX-XXXX-XXXX</strong>
+        <p id="inviteResultMeta"></p>
+        <button id="copyInviteBtn" type="button" class="button primary-button">Sao chép mã</button>
+      </section>
+      <div class="dialog-actions"><button type="button" class="button subtle-button" data-close-invite>Đóng</button><button id="inviteSaveBtn" type="submit" class="button primary-button">Tạo mã một lần</button></div>
+    </form>
+  </dialog>
+
   <dialog id="playbookEditorDialog" class="form-dialog playbook-editor-dialog">
     <form id="playbookEditorForm">
       <div class="dialog-head"><div><span class="overline">PLAYBOOK LIFECYCLE</span><h2 id="playbookEditorTitle">Bản nháp Playbook</h2><p id="playbookEditorMeta" class="muted"></p></div><button type="button" class="dialog-close" data-close-playbook-editor aria-label="Đóng">×</button></div>
@@ -243,6 +272,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.15.2"></script>
+  <script type="module" src="/admin.js?v=5.16.0"></script>
 </body>
 </html>
