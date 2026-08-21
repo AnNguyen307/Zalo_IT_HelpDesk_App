@@ -189,8 +189,10 @@ test("deployment manifests are non-secret, persistent and opt-in", async () => {
   assert.match(dockerfile, /npm ci --omit=dev/);
   assert.match(dockerfile, /USER node/);
   assert.doesNotMatch(dockerfile, /COPY data/);
+  assert.match(dockerfile, /CMD \["sh", "-c", "npm run db:postgres:init && exec npm start"\]/);
   assert.match(render, /plan: free/);
   assert.match(render, /autoDeployTrigger: off/);
+  assert.doesNotMatch(render, /dockerCommand:/);
   assert.match(render, /key: MAX_STORED_TICKETS\n\s+value: "30"/);
   assert.match(render, /key: MAX_TICKET_ATTACHMENT_MB\n\s+value: "10"/);
   for (const key of ["POSTGRES_URL", "SUPABASE_SECRET_KEY", "ZALO_APP_SECRET", "ADMIN_PASSWORD"]) {

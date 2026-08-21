@@ -67,10 +67,10 @@ Lấy App Secret của đúng Zalo Mini App đang dùng. Backend sẽ:
 
 `APP_SECRET` được Render tạo ngẫu nhiên. Không thay nó giữa các restart, nếu không toàn bộ session hiện có sẽ mất hiệu lực.
 
-Render Free không hỗ trợ pre-deploy command trả phí, nên `dockerCommand` chạy idempotent:
+Render Free không hỗ trợ pre-deploy command trả phí. Container vì vậy chạy lệnh idempotent sau từ `CMD` dạng exec trong `backend/Dockerfile`; Blueprint không override `dockerCommand` để tránh Render phân tách sai chuỗi shell:
 
 ```text
-npm run db:postgres:init && npm start
+npm run db:postgres:init && exec npm start
 ```
 
 Nó tạo PostgreSQL state schema `1`, revoke quyền `PUBLIC/anon/authenticated`, bật RLS và không xóa state đã có.
