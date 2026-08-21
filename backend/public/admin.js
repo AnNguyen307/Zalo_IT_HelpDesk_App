@@ -137,7 +137,10 @@ function setHealth(dotSelector, textSelector, ready, text) {
 }
 function renderOverviewSignals() {
   const agent = state.agent || {}; const playbook = state.playbook || {}; const overdue = Number(state.stats?.overdue || 0);
-  if ($("#overviewAgentSignal")) $("#overviewAgentSignal").textContent = agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Handoff an toàn";
+  const agentSignal = agent.operationalState === "degraded"
+    ? "Cloud AI suy giảm"
+    : agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Handoff an toàn";
+  if ($("#overviewAgentSignal")) $("#overviewAgentSignal").textContent = agentSignal;
   if ($("#overviewPlaybookSignal")) $("#overviewPlaybookSignal").textContent = playbook.ready ? `${playbook.totalEntries || 0} procedure` : "Đang kiểm tra";
   if ($("#overviewSlaSignal")) $("#overviewSlaSignal").textContent = overdue ? `${overdue} ticket quá hạn` : "Trong ngưỡng";
 }
@@ -509,10 +512,13 @@ async function openPlaybookEditor(procedureId = "", versionId = "") {
 
 function renderAgent() {
   const agent = state.agent || {}; const policy = agent.policy || {};
+  const degraded = agent.operationalState === "degraded";
+  const operationalLabel = degraded ? "Suy giảm" : agent.ready ? "Sẵn sàng" : "Chưa sẵn sàng";
+  const operationalStyle = degraded ? "degraded" : agent.ready ? "ready" : "not-ready";
   const connection = agent.reachable == null ? (agent.configured ? "Theo cấu hình" : "Chưa cấu hình") : agent.reachable ? "Đã kết nối" : "Không kết nối";
   const modelState = agent.modelInstalled == null ? (agent.configured ? "Đã cấu hình" : "Chưa") : agent.modelInstalled ? "Sẵn sàng" : "Chưa tải";
   const items = [
-    ["Trạng thái", agent.ready ? "Sẵn sàng" : "Chưa sẵn sàng", agent.ready ? "ready" : "not-ready"], ["Chế độ", agent.mode || "—", ""],
+    ["Trạng thái", operationalLabel, operationalStyle], ["Chế độ", agent.mode || "—", ""],
     ["Provider", agent.provider || "—", ""], ["Model hiện tại", agent.model || "Rules", ""], ["Kết nối", connection, agent.ready ? "ready" : "not-ready"],
     ["Thứ tự", Array.isArray(agent.order) ? agent.order.join(" → ") : (agent.providerKey || "—"), ""], ["Đang ưu tiên", agent.activeProvider || agent.providerKey || "Rules", ""],
     ["Trạng thái model", modelState, agent.ready ? "ready" : "not-ready"], ["Ranh giới dữ liệu", agent.dataBoundary === "mixed" ? "Cloud + nội bộ" : agent.dataBoundary === "external" ? "Cloud bên ngoài" : "Nội bộ", agent.dataBoundary === "external" || agent.dataBoundary === "mixed" ? "" : "ready"],
@@ -523,15 +529,21 @@ function renderAgent() {
   $("#agentStatus").innerHTML = items.map(([label, value, style]) => healthCard(label, value, style)).join("") + (agent.error ? `<div class="agent-error">${esc(agent.error)}</div>` : "");
   renderProviderObservability(agent.providers || []);
   const heroState = $("#aiHeroState");
-  if (heroState) { heroState.className = `ai-state-chip ${agent.ready ? "ready" : "not-ready"}`; heroState.innerHTML = `<i></i>${agent.ready ? "AI sẵn sàng" : "Đang handoff"}`; }
+  if (heroState) { heroState.className = `ai-state-chip ${operationalStyle}`; heroState.innerHTML = `<i></i>${degraded ? "Cloud AI suy giảm" : agent.ready ? "AI sẵn sàng" : "Đang handoff"}`; }
   if ($("#aiHeroRoute")) $("#aiHeroRoute").textContent = (agent.activeProvider || agent.providerKey || "RULES").toUpperCase();
-  if ($("#aiHeroModel")) $("#aiHeroModel").textContent = agent.ready ? `${agent.provider || "AI"} · ${agent.model || "Rules"} đang phục vụ` : "Provider chưa sẵn sàng; HelpDesk fallback vẫn hoạt động.";
-  setHealth("#topAgentState", "#topAgentText", Boolean(agent.ready), agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Đang dùng handoff an toàn");
+  if ($("#aiHeroModel")) $("#aiHeroModel").textContent = degraded
+    ? "Provider vừa lỗi; router vẫn retry/failover trước khi dùng Rules/Playbook."
+    : agent.ready ? `${agent.provider || "AI"} · ${agent.model || "Rules"} đang phục vụ` : "Provider chưa sẵn sàng; HelpDesk fallback vẫn hoạt động.";
+  const topAgentDot = $("#topAgentState");
+  topAgentDot.classList.remove("pending", "ready", "error");
+  topAgentDot.classList.add(degraded ? "pending" : agent.ready ? "ready" : "error");
+  $("#topAgentText").textContent = degraded ? "Cloud AI suy giảm · failover đang bật" : agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Đang dùng handoff an toàn";
   renderOverviewSignals();
 }
 
 const providerReasonLabels = {
   eligible: "Đủ điều kiện route",
+  recent_failures: "Có lỗi gần đây; vẫn được retry/failover",
   not_configured: "Thiếu cấu hình cloud/API key/model",
   feature_disabled: "Provider đang tắt",
   daily_budget_exhausted: "Hết ngân sách ngày của Helpdesk",
@@ -575,7 +587,9 @@ function renderProviderObservability(providers) {
       ? `<div class="provider-last-error"><b>Lỗi gần nhất${item.lastHttpStatus ? ` · HTTP ${esc(item.lastHttpStatus)}` : ""}</b><span>${esc(item.lastError)}</span></div>`
       : "";
     const cooldown = item.circuit?.openUntil ? `<small>Thử lại sau: ${formatDate(item.circuit.openUntil)}</small>` : "";
-    return `<article class="provider-observability-card ${item.ready ? "ready" : "not-ready"}"><header><div><span class="provider-readiness-dot"></span><strong>${esc(copilotProviderLabels[item.providerKey] || item.providerKey)}</strong><small>${esc(item.model || "Chưa cấu hình")}</small></div><b>${item.ready ? "SẴN SÀNG" : "TẠM KHÓA"}</b></header><div class="provider-quota-metrics"><p><span>Token đã dùng</span><strong>${formatCount(item.quota?.tokensUsed || 0)}</strong><small>Helpdesk quan sát trong phiên</small></p><p><span>Token còn lại</span><strong>${esc(token.value)}</strong><small>${esc(token.source)}</small></p><p><span>Request còn lại</span><strong>${esc(providerRequestBalance(item))}</strong><small>${formatCount(item.quota?.requestsUsed || 0)} request đã gọi trong phiên</small></p></div><footer><span>${esc(reason)}</span>${cooldown}</footer>${lastFailure}</article>`;
+    const providerState = item.operationalState === "degraded" ? "degraded" : item.ready ? "ready" : "not-ready";
+    const providerStateLabel = providerState === "degraded" ? "SUY GIẢM" : item.ready ? "SẴN SÀNG" : "TẠM KHÓA";
+    return `<article class="provider-observability-card ${providerState}"><header><div><span class="provider-readiness-dot"></span><strong>${esc(copilotProviderLabels[item.providerKey] || item.providerKey)}</strong><small>${esc(item.model || "Chưa cấu hình")}</small></div><b>${providerStateLabel}</b></header><div class="provider-quota-metrics"><p><span>Token đã dùng</span><strong>${formatCount(item.quota?.tokensUsed || 0)}</strong><small>Helpdesk quan sát trong phiên</small></p><p><span>Token còn lại</span><strong>${esc(token.value)}</strong><small>${esc(token.source)}</small></p><p><span>Request còn lại</span><strong>${esc(providerRequestBalance(item))}</strong><small>${formatCount(item.quota?.requestsUsed || 0)} request đã gọi trong phiên</small></p></div><footer><span>${esc(reason)}</span>${cooldown}</footer>${lastFailure}</article>`;
   }).join("") : '<div class="empty-state compact-empty"><h3>Chưa có provider trong route</h3><p>Kiểm tra AI_PROVIDER_ORDER và feature flag của từng provider.</p></div>';
 }
 
@@ -631,7 +645,8 @@ async function openTicket(ticketId) {
   const reviewHtml = `<div class="ai-quality-ticket"><div class="ai-quality-head"><strong>Quality review</strong><span>${esc(quality.provider || analysis.source || "—")}</span></div>${reviewSummary}${reviewControls}</div>`;
   const copilotSuggestion = latestCopilot?.suggestion || null;
   const copilotList = (items, emptyText) => Array.isArray(items) && items.length ? `<ul>${items.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : `<p class="muted">${esc(emptyText)}</p>`;
-  const copilotStatusLabel = latestCopilot?.status === "completed" ? "Sẵn sàng" : latestCopilot?.status === "failed" ? "Thất bại" : latestCopilot?.status === "running" ? "Đang phân tích" : latestCopilot ? "Đang chờ" : "Chưa chạy";
+  const rulesFallback = latestCopilot?.suggestion?.analysisMode === "rules_fallback";
+  const copilotStatusLabel = latestCopilot?.status === "completed" ? (rulesFallback ? "Dự phòng Playbook" : "Cloud AI sẵn sàng") : latestCopilot?.status === "failed" ? "Thất bại" : latestCopilot?.status === "running" ? "Đang phân tích" : latestCopilot ? "Đang chờ" : "Chưa chạy";
   const copilotModelOptionHtml = [
     `<option value="auto" ${selectedProvider === "auto" ? "selected" : ""}>Tự động · route theo cấu hình</option>`,
     ...copilotModelOptions.map((item) => {
@@ -640,7 +655,7 @@ async function openTicket(ticketId) {
       return `<option value="${esc(item.providerKey)}" ${selectedProvider === item.providerKey ? "selected" : ""} ${item.ready ? "" : "disabled"}>${esc(label)} · ${esc(item.model || "chưa cấu hình")}${esc(readiness)} · ${esc(providerOptionQuotaLabel(item))}</option>`;
     }),
   ].join("");
-  const copilotModelPicker = writable ? `<div class="copilot-model-picker"><label for="copilotModelSelect"><span>Model hỗ trợ lần phân tích tiếp theo</span><select id="copilotModelSelect">${copilotModelOptionHtml}</select></label><small>“Tự động” dùng failover cloud. Chọn model cụ thể sẽ chỉ gọi model đó; nếu lỗi, Copilot dùng Rules/Playbook an toàn.</small></div>` : "";
+  const copilotModelPicker = writable ? `<div class="copilot-model-picker"><label for="copilotModelSelect"><span>Model ưu tiên cho lần phân tích tiếp theo</span><select id="copilotModelSelect">${copilotModelOptionHtml}</select></label><small>Model đã chọn được gọi trước. Nếu lỗi, router tự thử các Cloud provider còn lại rồi mới dùng Rules/Playbook an toàn.</small></div>` : "";
   const causesHtml = copilotSuggestion?.likelyCauses?.length ? `<div class="copilot-causes">${copilotSuggestion.likelyCauses.map((item) => `<div><span class="copilot-basis ${item.basis}">${item.basis === "playbook" ? `PLAYBOOK ${esc(item.playbookId || "")}` : "GIẢ THUYẾT AI"}</span><strong>${esc(item.description)}</strong><small>Độ tin cậy ${Math.round((item.confidence || 0) * 100)}%</small></div>`).join("")}</div>` : '<p class="muted">Chưa có giả thuyết nguyên nhân.</p>';
   const playbookActionsHtml = copilotSuggestion?.playbookActions?.length ? `<ol class="copilot-actions">${copilotSuggestion.playbookActions.map((item) => `<li><b>${item.stepNumber || "•"}</b><span><strong>${esc(item.text)}</strong><small>${esc(item.playbookId)} · ${esc(item.playbookTitle || "Playbook")}</small></span></li>`).join("")}</ol>` : '<p class="muted">Không có bước Playbook nào được chọn.</p>';
   const playbookAssessment = copilotSuggestion?.playbookAssessment || null;
@@ -656,8 +671,8 @@ async function openTicket(ticketId) {
   const solutionPathsHtml = independentAnalysis?.solutionPaths?.length
     ? `<div class="copilot-solutions">${independentAnalysis.solutionPaths.map((item, index) => `<article><div class="copilot-card-head"><span>HƯỚNG ${index + 1}</span><b class="risk-${esc(item.risk || "medium")}">${esc(solutionRiskLabels[item.risk] || solutionRiskLabels.medium)}</b></div><strong>${esc(item.title)}</strong><p>${esc(item.rationale)}</p><ol>${(item.steps || []).map((step) => `<li>${esc(step)}</li>`).join("")}</ol><div class="copilot-signals"><p><b>Tín hiệu thành công</b>${esc(item.successSignal)}</p><p><b>Điều kiện dừng / chuyển cấp</b>${esc(item.stopCondition)}</p></div></article>`).join("")}</div>`
     : '<p class="muted">Chưa có hướng giải quyết độc lập.</p>';
-  const analysisModeLabels = { hybrid: "HYBRID · PLAYBOOK + AI", ai_led: "AI-LED · NGOÀI PLAYBOOK", rules_fallback: "RULES FALLBACK" };
-  const copilotHtml = latestCopilot ? `<div class="copilot-run ${latestCopilot.status}">
+  const analysisModeLabels = { hybrid: "HYBRID · PLAYBOOK + AI", ai_led: "AI-LED · NGOÀI PLAYBOOK", rules_fallback: "DỰ PHÒNG · RULES + PLAYBOOK" };
+  const copilotHtml = latestCopilot ? `<div class="copilot-run ${latestCopilot.status}${rulesFallback ? " fallback" : ""}">
     <div class="copilot-run-head"><div><span class="copilot-status-dot"></span><strong>${copilotStatusLabel}</strong><small>Yêu cầu: ${latestCopilot.requestedProviderKey && latestCopilot.requestedProviderKey !== "auto" ? `${esc(copilotProviderLabels[latestCopilot.requestedProviderKey] || latestCopilot.requestedProviderKey)}${latestCopilot.requestedModel ? ` · ${esc(latestCopilot.requestedModel)}` : ""}` : "Tự động"}</small><small>Thực tế: ${esc(latestCopilot.provider || "Đang chọn provider")}${latestCopilot.model ? ` · ${esc(latestCopilot.model)}` : ""} · ${formatDate(latestCopilot.createdAt)}</small></div><div class="copilot-run-badges"><span class="badge">${Math.round((latestCopilot.confidence || 0) * 100)}%</span>${copilotSuggestion?.analysisMode ? `<span class="copilot-mode ${esc(copilotSuggestion.analysisMode)}">${esc(analysisModeLabels[copilotSuggestion.analysisMode] || copilotSuggestion.analysisMode)}</span>` : ""}</div></div>
     ${latestCopilot.error ? `<div class="agent-error">${esc(latestCopilot.error)}</div>` : ""}
     ${copilotSuggestion ? `<div class="copilot-section"><h4>Tóm tắt nội bộ</h4><p>${esc(copilotSuggestion.summary || "")}</p></div>

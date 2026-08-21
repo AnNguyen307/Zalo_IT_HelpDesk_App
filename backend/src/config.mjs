@@ -31,6 +31,18 @@ function numberEnv(name, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function outputTokenEnv(name, fallback = 4096) {
+  return Math.max(4096, Math.trunc(numberEnv(name, fallback)));
+}
+
+function openRouterModelEnv() {
+  const model = String(process.env.OPENROUTER_MODEL || "openrouter/free").trim();
+  // OpenRouter retired this free GPT-OSS slug. Keep existing Render/NAS
+  // environments working by treating it as a compatibility alias for the
+  // provider-maintained free router instead of returning HTTP 404 forever.
+  return !model || model === "openai/gpt-oss-120b:free" ? "openrouter/free" : model;
+}
+
 function enumEnv(name, allowed, fallback) {
   const value = String(process.env[name] || "").trim().toLowerCase();
   return allowed.includes(value) ? value : fallback;
@@ -204,7 +216,7 @@ export const config = {
   geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
   geminiTimeoutMs: numberEnv("GEMINI_TIMEOUT_MS", 60000),
   geminiTemperature: numberEnv("GEMINI_TEMPERATURE", 0.1),
-  geminiMaxOutputTokens: numberEnv("GEMINI_MAX_OUTPUT_TOKENS", 2048),
+  geminiMaxOutputTokens: outputTokenEnv("GEMINI_MAX_OUTPUT_TOKENS"),
   geminiEnabled: booleanEnv("GEMINI_ENABLED", true),
   geminiDailyRequestLimit: numberEnv("GEMINI_DAILY_REQUEST_LIMIT", 0),
   geminiDailyTokenLimit: numberEnv("GEMINI_DAILY_TOKEN_LIMIT", 0),
@@ -214,16 +226,16 @@ export const config = {
   groqModel: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
   groqTimeoutMs: numberEnv("GROQ_TIMEOUT_MS", 60000),
   groqTemperature: numberEnv("GROQ_TEMPERATURE", 0.1),
-  groqMaxOutputTokens: numberEnv("GROQ_MAX_OUTPUT_TOKENS", 2048),
+  groqMaxOutputTokens: outputTokenEnv("GROQ_MAX_OUTPUT_TOKENS"),
   groqDailyRequestLimit: numberEnv("GROQ_DAILY_REQUEST_LIMIT", 1000),
   groqDailyTokenLimit: numberEnv("GROQ_DAILY_TOKEN_LIMIT", 200000),
   openrouterEnabled: booleanEnv("OPENROUTER_ENABLED", false),
   openrouterBaseUrl: (process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, ""),
   openrouterApiKey: process.env.OPENROUTER_API_KEY || "",
-  openrouterModel: process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free",
+  openrouterModel: openRouterModelEnv(),
   openrouterTimeoutMs: numberEnv("OPENROUTER_TIMEOUT_MS", 60000),
   openrouterTemperature: numberEnv("OPENROUTER_TEMPERATURE", 0.1),
-  openrouterMaxOutputTokens: numberEnv("OPENROUTER_MAX_OUTPUT_TOKENS", 2048),
+  openrouterMaxOutputTokens: outputTokenEnv("OPENROUTER_MAX_OUTPUT_TOKENS"),
   openrouterDailyRequestLimit: numberEnv("OPENROUTER_DAILY_REQUEST_LIMIT", 50),
   openrouterDailyTokenLimit: numberEnv("OPENROUTER_DAILY_TOKEN_LIMIT", 0),
   sambanovaEnabled: booleanEnv("SAMBANOVA_ENABLED", false),
@@ -232,7 +244,7 @@ export const config = {
   sambanovaModel: process.env.SAMBANOVA_MODEL || "DeepSeek-V3.2",
   sambanovaTimeoutMs: numberEnv("SAMBANOVA_TIMEOUT_MS", 60000),
   sambanovaTemperature: numberEnv("SAMBANOVA_TEMPERATURE", 0.1),
-  sambanovaMaxOutputTokens: numberEnv("SAMBANOVA_MAX_OUTPUT_TOKENS", 2048),
+  sambanovaMaxOutputTokens: outputTokenEnv("SAMBANOVA_MAX_OUTPUT_TOKENS"),
   sambanovaDailyRequestLimit: numberEnv("SAMBANOVA_DAILY_REQUEST_LIMIT", 20),
   sambanovaDailyTokenLimit: numberEnv("SAMBANOVA_DAILY_TOKEN_LIMIT", 200000),
   agentHistoryMessages: numberEnv("AGENT_HISTORY_MESSAGES", 12),

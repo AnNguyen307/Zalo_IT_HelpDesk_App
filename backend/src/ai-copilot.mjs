@@ -1,4 +1,5 @@
 import { getAiModelOptions, requestAiProviderDecision, resolveAiProviderSelection } from "./ai-router.mjs";
+import { parseModelJson } from "./ai-json.mjs";
 import { config } from "./config.mjs";
 import { searchPlaybook } from "./playbook.mjs";
 import { readDb, updateDb } from "./store.mjs";
@@ -115,11 +116,6 @@ function compactStrings(values, maxItems = 8, maxChars = 800) {
   return values.map((value) => compactText(value, maxChars)).filter(Boolean).slice(0, maxItems);
 }
 
-function parseJsonContent(content) {
-  const text = String(content || "").trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
-  return JSON.parse(text);
-}
-
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
@@ -127,7 +123,7 @@ function hasText(value) {
 function validateCopilotDecision(content) {
   let parsed;
   try {
-    parsed = parseJsonContent(content);
+    parsed = parseModelJson(content);
   } catch (error) {
     const failure = new Error(`Copilot trả JSON không hợp lệ: ${error.message}`);
     failure.reasonCode = "invalid_json";

@@ -1,6 +1,7 @@
 import { config } from "./config.mjs";
 import { createAiDecisionRecord } from "./ai-quality.mjs";
 import { getAiProviderStatus, getAiRoute, requestAiProviderDecision } from "./ai-router.mjs";
+import { parseModelJson } from "./ai-json.mjs";
 import { searchKnowledgeBase } from "./kb.mjs";
 import { searchPlaybook } from "./playbook.mjs";
 import { clamp, normalizeText, nowIso } from "./utils.mjs";
@@ -247,15 +248,10 @@ const providerDecisionSchema = {
   required: ["category", "priority", "priorityDetermined", "risk", "confidence", "outcome", "summary", "reply", "questions", "canAutoHandle", "reason", "kbIds", "playbookIds", "selectedSteps"],
 };
 
-function parseJsonContent(content) {
-  const text = String(content || "").trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
-  return JSON.parse(text);
-}
-
 function validateProviderDecision(content) {
   let parsed;
   try {
-    parsed = parseJsonContent(content);
+    parsed = parseModelJson(content);
   } catch (error) {
     const failure = new Error(`Provider trả JSON không hợp lệ: ${error.message}`);
     failure.reasonCode = "invalid_json";

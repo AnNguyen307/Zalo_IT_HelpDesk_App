@@ -73,6 +73,9 @@ function providerSettings(name) {
   };
   if (name === "openrouter") return {
     ...common,
+    family: config.openrouterModel === "openrouter/free"
+      ? "openrouter-free"
+      : config.openrouterModel.includes("gpt-oss") ? "gpt-oss" : "openrouter",
     enabled: config.openrouterEnabled,
     baseUrl: config.openrouterBaseUrl,
     apiKey: config.openrouterApiKey,
@@ -203,6 +206,7 @@ export async function getAiModelOptions() {
       family: status.family,
       model: status.model,
       ready: status.ready,
+      operationalState: status.operationalState,
       configured: status.configured,
       error: status.error || null,
       reasonCode: status.reasonCode || null,
@@ -237,6 +241,7 @@ function baseStatus(settings) {
     reachable: settings.name === "rules" ? true : null,
     modelInstalled: settings.name === "rules" ? true : null,
     ready: settings.name === "rules",
+    operationalState: settings.name === "rules" ? "healthy" : "unavailable",
     cloudEnabled: config.aiCloudEnabled,
     redactionEnabled: settings.dataBoundary === "external" && config.aiRedactionEnabled,
     quota: quotaSnapshot(settings, state),
@@ -261,11 +266,14 @@ async function providerStatus(name) {
   if (name === "rules") return base;
   if (!base.configured) {
     const feature = settings.enabled ? "thiếu API key/model hoặc AI_CLOUD_ENABLED=false" : "feature flag đang tắt";
-    return { ...base, ready: false, reasonCode: settings.enabled ? "not_configured" : "feature_disabled", error: `${settings.id}: ${feature}.` };
+    return { ...base, ready: false, operationalState: "unavailable", reasonCode: settings.enabled ? "not_configured" : "feature_disabled", error: `${settings.id}: ${feature}.` };
   }
-  if (budgetExhausted(settings)) return { ...base, ready: false, reasonCode: "daily_budget_exhausted", error: "Đã chạm ngân sách miễn phí cấu hình trong ngày." };
-  if (base.circuit.open) return { ...base, ready: false, reasonCode: "circuit_open", error: `Circuit đang tạm mở đến ${base.circuit.openUntil}.` };
-  return { ...base, reachable: true, modelInstalled: true, ready: true, reasonCode: "eligible" };
+  if (budgetExhausted(settings)) return { ...base, ready: false, operationalState: "unavailable", reasonCode: "daily_budget_exhausted", error: "Đã chạm ngân sách miễn phí cấu hình trong ngày." };
+  if (base.circuit.open) return { ...base, ready: false, operationalState: "unavailable", reasonCode: "circuit_open", error: `Circuit đang tạm mở đến ${base.circuit.openUntil}.` };
+  const operationalState = base.circuit.consecutiveFailures > 0
+    ? "degraded"
+    : base.lastSuccessAt ? "healthy" : "ready";
+  return { ...base, reachable: true, modelInstalled: true, ready: true, operationalState, reasonCode: operationalState === "degraded" ? "recent_failures" : "eligible" };
 }
 
 export function getAiRoute() {
@@ -303,6 +311,11 @@ export async function getAiProviderStatus({ force = false } = {}) {
   const order = routeKeys();
   const providers = await Promise.all(order.map((name) => providerStatus(name)));
   const readyProviders = providers.filter((item) => item.ready);
+  const healthyProviders = readyProviders.filter((item) => item.operationalState === "healthy");
+  const degradedProviders = readyProviders.filter((item) => item.operationalState === "degraded");
+  const operationalState = healthyProviders.length
+    ? "healthy"
+    : degradedProviders.length ? "degraded" : readyProviders.length ? "ready" : "fallback";
   statusCache = {
     configured: providers.some((item) => item.configured),
     mode: "router",
@@ -311,11 +324,13 @@ export async function getAiProviderStatus({ force = false } = {}) {
     dataBoundary: "external",
     model: readyProviders[0]?.model || null,
     ready: readyProviders.length > 0,
+    operationalState,
+    cloudOperational: healthyProviders.length > 0,
     cloudEnabled: config.aiCloudEnabled,
     redactionEnabled: config.aiRedactionEnabled,
     routingPolicy: config.aiRoutingPolicy,
     order,
-    activeProvider: readyProviders[0]?.providerKey || null,
+    activeProvider: (healthyProviders[0] || readyProviders[0])?.providerKey || null,
     providers,
     error: readyProviders.length ? null : "Không có model provider sẵn sàng; hệ thống sẽ dùng Rules/HelpDesk.",
     checkedAt: nowIso(),
@@ -326,30 +341,40 @@ export async function getAiProviderStatus({ force = false } = {}) {
 
 async function requestGemini({ settings, system, payload, schema, signal }) {
   const model = encodeURIComponent(settings.model);
+  const generationConfig = {
+    maxOutputTokens: settings.maxOutputTokens,
+    responseMimeType: "application/json",
+    responseJsonSchema: schema,
+  };
+  // Gemini 3.x is tuned for its default temperature. Sending the historical
+  // 0.1 override can degrade structured output quality, so only older model
+  // families receive the explicit compatibility value.
+  if (!/^gemini-3(?:\.|-)/i.test(settings.model)) generationConfig.temperature = settings.temperature;
   const response = await fetch(`${settings.baseUrl}/models/${model}:generateContent`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": settings.apiKey,
-      "x-goog-api-client": "zalo-helpdesk/5.14.0",
+      "x-goog-api-client": "zalo-helpdesk/5.16.4",
     },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: JSON.stringify(payload) }] }],
-      generationConfig: {
-        temperature: settings.temperature,
-        maxOutputTokens: settings.maxOutputTokens,
-        responseMimeType: "application/json",
-        responseJsonSchema: schema,
-      },
+      generationConfig,
     }),
     signal,
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw providerHttpError(settings, response, body);
-  const content = (body?.candidates?.[0]?.content?.parts || []).map((part) => part?.text || "").join("").trim();
+  const candidate = body?.candidates?.[0] || {};
+  const content = (candidate?.content?.parts || []).map((part) => part?.text || "").join("").trim();
+  if (candidate.finishReason === "MAX_TOKENS") {
+    const error = providerError("Gemini dừng vì hết ngân sách output trước khi hoàn tất JSON", "output_truncated", true);
+    error.headers = response.headers;
+    throw error;
+  }
   if (!content) {
-    const reason = body?.promptFeedback?.blockReason || body?.candidates?.[0]?.finishReason || "no_candidate";
+    const reason = body?.promptFeedback?.blockReason || candidate?.finishReason || "no_candidate";
     throw providerError(`Gemini không trả về quyết định (${reason})`, "empty_response", false);
   }
   const usage = body?.usageMetadata || {};
@@ -366,21 +391,24 @@ async function requestGemini({ settings, system, payload, schema, signal }) {
   };
 }
 
-async function requestOpenAiCompatible({ settings, system, payload, schema, signal }) {
-  const strict = settings.name !== "sambanova";
+async function requestOpenAiCompatible({ settings, system, payload, schema, signal, attemptNumber = 1 }) {
+  const retryAsJsonObject = attemptNumber > 1;
+  const strict = settings.name === "groq";
+  const structuredSystem = retryAsJsonObject
+    ? `${system}\nLần trả lời trước không đạt structured output. Chỉ trả một JSON object hoàn chỉnh theo schema sau, không thêm markdown hoặc lời dẫn: ${JSON.stringify(schema)}`
+    : system;
   const bodyPayload = {
     model: settings.model,
     messages: [
-      { role: "system", content: system },
+      { role: "system", content: structuredSystem },
       { role: "user", content: JSON.stringify(payload) },
     ],
     temperature: settings.temperature,
     max_tokens: settings.maxOutputTokens,
     stream: false,
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: "helpdesk_decision", strict, schema },
-    },
+    response_format: retryAsJsonObject
+      ? { type: "json_object" }
+      : { type: "json_schema", json_schema: { name: "helpdesk_decision", strict, schema } },
   };
   if (settings.name === "openrouter") bodyPayload.provider = { require_parameters: true };
   const headers = {
@@ -424,7 +452,13 @@ function providerError(message, reasonCode = "provider_error", retryable = true)
 
 function providerHttpError(settings, response, body) {
   const message = body?.error?.message || body?.error || body?.message || `${settings.id} HTTP ${response.status}`;
-  const error = providerError(String(message), response.status === 429 ? "quota_or_rate_limit" : `http_${response.status}`, response.status === 429 || response.status >= 500);
+  const providerCode = String(body?.error?.code || body?.code || "");
+  const structuredOutputRejected = response.status === 400
+    && (providerCode === "failed_generation" || /failed_generation|generated json|json schema/i.test(String(message)));
+  const reasonCode = response.status === 429
+    ? "quota_or_rate_limit"
+    : structuredOutputRejected ? "structured_output_rejected" : `http_${response.status}`;
+  const error = providerError(String(message), reasonCode, structuredOutputRejected || response.status === 429 || response.status >= 500);
   error.httpStatus = response.status;
   error.retryAfter = response.headers.get("retry-after") || null;
   error.headers = response.headers;
@@ -518,6 +552,8 @@ function markSuccess(settings, result) {
   state.lastSuccessAt = nowIso();
   state.tokensUsed += Number(result?.usage?.totalTokens || 0);
   recordHeaders(settings, state, result?.headers);
+  statusCache = null;
+  statusCacheAt = 0;
 }
 
 function markFailure(settings, error) {
@@ -532,6 +568,8 @@ function markFailure(settings, error) {
     const retrySeconds = Number(error?.retryAfter);
     state.openUntil = Date.now() + (Number.isFinite(retrySeconds) ? retrySeconds * 1000 : config.aiCircuitCooldownMs);
   }
+  statusCache = null;
+  statusCacheAt = 0;
 }
 
 function skippedReason(settings) {
@@ -561,8 +599,11 @@ function attemptTelemetry(settings, detail = {}) {
 export async function requestAiProviderDecision({ system, payload, schema, validate, providerKey = "auto" }) {
   const attempts = [];
   const selection = resolveAiProviderSelection(providerKey);
-  const candidates = selection.providerKey === "auto" ? routeKeys() : [selection.providerKey];
-  const routingPolicy = selection.providerKey === "auto" ? config.aiRoutingPolicy : "staff_selected";
+  const route = routeKeys();
+  const candidates = selection.providerKey === "auto" || !config.aiRouterEnabled
+    ? selection.providerKey === "auto" ? route : [selection.providerKey]
+    : [selection.providerKey, ...route.filter((name) => name !== selection.providerKey)];
+  const routingPolicy = selection.providerKey === "auto" ? config.aiRoutingPolicy : config.aiRouterEnabled ? "staff_preferred_with_failover" : "staff_selected";
   const rejectedFamilies = new Set();
   for (const name of candidates) {
     const settings = providerSettings(name);
@@ -591,6 +632,7 @@ export async function requestAiProviderDecision({ system, payload, schema, valid
           payload: prepared.value,
           schema,
           signal: controller.signal,
+          attemptNumber,
         });
         const latencyMs = Date.now() - started;
         const telemetry = attemptTelemetry(settings, {
@@ -610,6 +652,8 @@ export async function requestAiProviderDecision({ system, payload, schema, valid
           failure.retryable = false;
           attempts.push({ ...telemetry, status: "rejected", reasonCode: failure.reasonCode, error: failure.message });
           markFailure(settings, failure);
+          const retryableValidation = ["invalid_json", "schema_mismatch", "invalid_response"].includes(failure.reasonCode);
+          if (retryableValidation && attemptNumber < maxAttempts) continue;
           if (["invalid_json", "schema_mismatch", "low_confidence", "invalid_response", "unsafe_output"].includes(failure.reasonCode)) {
             rejectedFamilies.add(settings.family);
           }

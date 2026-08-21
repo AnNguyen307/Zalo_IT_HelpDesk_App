@@ -24,9 +24,9 @@ test("Admin AI workspace exposes quality metrics, provider routing and review co
   assert.match(script, /providerReasonLabels/);
 });
 
-test("v5.16.3 Admin assets are cache-busted", async () => {
+test("v5.16.4 Admin assets are cache-busted", async () => {
   const html = await readFile(publicFile("admin.html"), "utf8");
-  assert.match(html, /\/admin\.css\?v=5\.16\.3/);
-  assert.match(html, /\/admin\.js\?v=5\.16\.3/);
-  assert.match(html, /<span>v5\.16\.3<\/span>/);
+  assert.match(html, /\/admin\.css\?v=5\.16\.4/);
+  assert.match(html, /\/admin\.js\?v=5\.16\.4/);
+  assert.match(html, /<span>v5\.16\.4<\/span>/);
 });
