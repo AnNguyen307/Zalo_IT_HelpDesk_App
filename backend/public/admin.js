@@ -135,6 +135,12 @@ function setHealth(dotSelector, textSelector, ready, text) {
   const dot = $(dotSelector); const label = $(textSelector);
   dot.classList.remove("pending", "ready", "error"); dot.classList.add(ready ? "ready" : "error"); label.textContent = text;
 }
+function renderOverviewSignals() {
+  const agent = state.agent || {}; const playbook = state.playbook || {}; const overdue = Number(state.stats?.overdue || 0);
+  if ($("#overviewAgentSignal")) $("#overviewAgentSignal").textContent = agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Handoff an toàn";
+  if ($("#overviewPlaybookSignal")) $("#overviewPlaybookSignal").textContent = playbook.ready ? `${playbook.totalEntries || 0} procedure` : "Đang kiểm tra";
+  if ($("#overviewSlaSignal")) $("#overviewSlaSignal").textContent = overdue ? `${overdue} ticket quá hạn` : "Trong ngưỡng";
+}
 function switchTab(name) {
   if (name === "staff" && state.user?.role !== "admin") name = "tickets";
   state.activeTab = name;
@@ -224,6 +230,7 @@ function renderStats() {
   $("#stats").innerHTML = items.map(([label, value, style], index) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${statIcons[index]}</b></div><strong>${esc(value)}</strong><small>${index === 3 && Number(value) ? "Cần xử lý" : ""}</small></article>`).join("");
   const openCount = (byStatus.open || 0) + (byStatus.in_progress || 0) + (byStatus.waiting_user || 0);
   setNavCountBadge("#openTicketBadge", openCount);
+  renderOverviewSignals();
 }
 
 function setNavCountBadge(selector, value) {
@@ -270,7 +277,6 @@ function renderStaff() {
   if (!$("#staffList") || state.user?.role !== "admin") return;
   const counts = Object.fromEntries(["admin", "technician", "viewer"].map((role) => [role, state.staff.filter((item) => item.role === role && item.active).length]));
   $("#staffSummary").innerHTML = `<article class="staff-summary-item active"><b>${state.staff.filter((item) => item.active).length}</b><span>Đang hoạt động</span><small>Có thể đăng nhập HelpDesk</small></article><article class="staff-summary-item admin"><b>${counts.admin}</b><span>Quản trị viên</span><small>Toàn quyền quản trị</small></article><article class="staff-summary-item technician"><b>${counts.technician}</b><span>Kỹ thuật viên</span><small>Tiếp nhận và xử lý</small></article><article class="staff-summary-item viewer"><b>${counts.viewer}</b><span>Chỉ xem</span><small>Theo dõi, không chỉnh sửa</small></article>`;
-  $("#legacyLoginNotice").classList.toggle("hidden", !state.legacyLoginEnabled);
   $("#staffList").innerHTML = state.staff.map((account) => `<article class="staff-card ${account.active ? "" : "inactive"}"><span class="staff-avatar" aria-hidden="true">${esc(initials(account.displayName))}</span><div class="staff-card-main"><div class="staff-name-line"><strong>${esc(account.displayName)}</strong><span class="staff-account-status ${account.active ? "active" : "inactive"}">${account.active ? "Đang hoạt động" : "Đã khóa"}</span></div><p>@${esc(account.username)}</p><small>${account.lastLoginAt ? `Đăng nhập gần nhất ${formatDate(account.lastLoginAt)}` : "Chưa đăng nhập lần nào"}</small></div><div class="staff-card-side"><span class="role-chip ${esc(account.role)}">${esc(staffRoleLabels[account.role] || account.role)}</span><button type="button" class="button staff-secondary-button compact" data-staff-edit="${esc(account.id)}" aria-label="Chỉnh sửa tài khoản ${esc(account.displayName)}">Chỉnh sửa</button></div></article>`).join("") || '<div class="empty-state staff-empty"><h3>Chưa có tài khoản riêng</h3><p>Thêm nhân sự đầu tiên và kiểm tra đăng nhập trước khi tắt tài khoản dùng chung.</p></div>';
   $$('[data-staff-edit]').forEach((button) => { button.onclick = () => openStaffEditor(button.dataset.staffEdit); });
 }
@@ -396,7 +402,12 @@ function renderPlaybook() {
     ["Semantic index", playbook.semanticEnabled ? (playbook.indexCurrent ? "Đã cập nhật" : (playbook.indexExists ? "Cần cập nhật" : "Chưa tạo")) : "Không bắt buộc", !playbook.semanticEnabled || playbook.indexCurrent ? "ready" : "not-ready"],
   ];
   $("#playbookStatus").innerHTML = items.map(([label, value, style]) => healthCard(label, value, style)).join("") + (playbook.error ? `<div class="agent-error">${esc(playbook.error)}</div>` : "");
+  const heroState = $("#playbookHeroState");
+  if (heroState) { heroState.className = `playbook-state-chip ${playbook.ready ? "ready" : "not-ready"}`; heroState.innerHTML = `<i></i>${playbook.ready ? "Sẵn sàng" : "Chưa sẵn sàng"}`; }
+  if ($("#playbookHeroCount")) $("#playbookHeroCount").textContent = formatCount(playbook.totalEntries ?? 0);
+  if ($("#playbookHeroMode")) $("#playbookHeroMode").textContent = (playbook.retrievalMode || "lexical").toUpperCase();
   setHealth("#topPlaybookState", "#topPlaybookText", Boolean(playbook.ready), playbook.ready ? `${playbook.totalEntries || 0} procedure sẵn sàng` : "Chưa sẵn sàng");
+  renderOverviewSignals();
 }
 function renderPlaybookMatches(entries) {
   $("#playbookSearchResult").innerHTML = entries.length ? entries.map((entry) => `<article class="playbook-result-card"><div><span class="badge">${esc(labels[entry.category] || entry.category)}</span> <span class="badge ${entry.risk}">${esc(entry.risk)}</span> <span class="badge">${esc(entry.audience)}</span> ${entry.autoEligible ? '<span class="badge guide">AUTO-ELIGIBLE</span>' : '<span class="badge escalate">TECHNICIAN</span>'}</div><h3>${esc(entry.id)} — ${esc(entry.title)}</h3><p>${esc(entry.summary)}</p><div class="playbook-score">Độ phù hợp ${Math.round((entry.score || 0) * 100)}%${entry.semanticUsed ? ` · semantic ${Math.round((entry.semanticScore || 0) * 100)}%` : " · lexical"}</div>${entry.steps?.length ? `<details><summary>Các bước được phép (${entry.steps.length})</summary><ol>${entry.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol></details>` : ""}${entry.forbiddenSteps?.length ? `<details><summary>Điểm dừng / thao tác cấm</summary><ul>${entry.forbiddenSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul></details>` : ""}</article>`).join("") : '<div class="empty-state compact-empty"><span>↗</span><h3>Không có procedure phù hợp</h3><p>Trong Strict Mode, tình huống này sẽ được chuyển kỹ thuật viên ngay.</p></div>';
@@ -511,7 +522,12 @@ function renderAgent() {
   ];
   $("#agentStatus").innerHTML = items.map(([label, value, style]) => healthCard(label, value, style)).join("") + (agent.error ? `<div class="agent-error">${esc(agent.error)}</div>` : "");
   renderProviderObservability(agent.providers || []);
+  const heroState = $("#aiHeroState");
+  if (heroState) { heroState.className = `ai-state-chip ${agent.ready ? "ready" : "not-ready"}`; heroState.innerHTML = `<i></i>${agent.ready ? "AI sẵn sàng" : "Đang handoff"}`; }
+  if ($("#aiHeroRoute")) $("#aiHeroRoute").textContent = (agent.activeProvider || agent.providerKey || "RULES").toUpperCase();
+  if ($("#aiHeroModel")) $("#aiHeroModel").textContent = agent.ready ? `${agent.provider || "AI"} · ${agent.model || "Rules"} đang phục vụ` : "Provider chưa sẵn sàng; HelpDesk fallback vẫn hoạt động.";
   setHealth("#topAgentState", "#topAgentText", Boolean(agent.ready), agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Đang dùng handoff an toàn");
+  renderOverviewSignals();
 }
 
 const providerReasonLabels = {
@@ -899,7 +915,7 @@ $("#newKbBtn").onclick = () => editKb(); $$("[data-close-kb]").forEach((button) 
 $("#kbForm").onsubmit = async (event) => { event.preventDefault(); const entryId = $("#kbId").value; const payload = { title: $("#kbTitle").value, category: $("#kbCategory").value, risk: $("#kbRisk").value, keywords: $("#kbKeywords").value.split(",").map((item) => item.trim()).filter(Boolean), summary: $("#kbSummary").value, steps: $("#kbSteps").value.split("\n").map((item) => item.trim()).filter(Boolean), autoEligible: $("#kbAuto").checked, active: $("#kbActive").checked }; try { await api(entryId ? `/api/admin/knowledge-base/${entryId}` : "/api/admin/knowledge-base", { method: entryId ? "PATCH" : "POST", body: JSON.stringify(payload) }); $("#kbDialog").close(); toast("Đã lưu Knowledge Base"); await load(); } catch (error) { toast(error.message); } };
 
 $("#refreshPlaybookBtn").onclick = async () => { try { const result = await api("/api/admin/playbook/status?force=1"); state.playbook = result.playbook; renderPlaybook(); toast(state.playbook.ready ? "Playbook đã sẵn sàng" : "Playbook chưa sẵn sàng"); } catch (error) { toast(error.message); } };
-$("#reindexPlaybookBtn").onclick = async () => { const button = $("#reindexPlaybookBtn"); button.disabled = true; button.textContent = "Đang index…"; try { const result = await api("/api/admin/playbook/reindex", { method: "POST", body: JSON.stringify({}) }); state.playbook = result.playbook; renderPlaybook(); toast(`Đã index ${result.index.entries} procedure`); } catch (error) { toast(error.message); } finally { button.disabled = false; button.textContent = "Re-index semantic"; } };
+$("#reindexPlaybookBtn").onclick = async () => { const button = $("#reindexPlaybookBtn"); button.disabled = true; button.textContent = "Đang cập nhật…"; try { const result = await api("/api/admin/playbook/reindex", { method: "POST", body: JSON.stringify({}) }); state.playbook = result.playbook; renderPlaybook(); toast(`Đã index ${result.index.entries} procedure`); } catch (error) { toast(error.message); } finally { button.disabled = false; button.textContent = "Cập nhật semantic index"; } };
 $("#playbookSearchForm").onsubmit = async (event) => { event.preventDefault(); const q = $("#playbookSearchPrompt").value.trim(); if (!q) return; $("#playbookSearchResult").innerHTML = '<div class="empty-state compact-empty"><span>↻</span><h3>Đang tra cứu…</h3><p>Semantic search đang đối chiếu procedure.</p></div>'; try { const result = await api(`/api/admin/playbook/search?q=${encodeURIComponent(q)}&audience=${encodeURIComponent($("#playbookAudience").value)}`); renderPlaybookMatches(result.entries || []); } catch (error) { $("#playbookSearchResult").innerHTML = `<div class="agent-error">${esc(error.message)}</div>`; } };
 
 

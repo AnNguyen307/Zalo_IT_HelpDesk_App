@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.16.2 — Staff & Playbook Governance UI
+# Zalo IT HelpDesk v5.16.3 — Admin Visual Refresh
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.2 mở rộng ngôn ngữ Warm Industrial + Signal System sang Tài khoản HelpDesk và Quy trình Playbook: danh tính/role đang dùng luôn hiện ở header, thẻ nhân sự dễ quét hơn, luồng phê duyệt được Việt hóa và dải thống kê 5 cột không còn ô trống. API, luồng mã mời và nghiệp vụ Playbook không thay đổi.
+v5.16.3 làm mới các vùng vận hành chính của Admin: Tổng quan có banner tín hiệu động phản ánh trạng thái thật, Playbook được tổ chức theo luồng sẵn sàng → tra cứu → kết quả, và Hệ thống & AI ưu tiên sức khỏe runtime/provider trước dữ liệu chất lượng và sandbox. Các banner nguyên tắc/chuyển đổi cứng nhắc đã được loại bỏ; API và nghiệp vụ không thay đổi.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,9 +14,9 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend: `5.16.2`
+- Backend: `5.16.3`
 - Mini App metadata: `5.16.0`
-- UI/UX: đồng bộ vùng tài khoản HelpDesk, danh tính header và vòng đời Playbook theo Warm Industrial + Signal System
+- UI/UX: banner vận hành động, Playbook workspace và AI Control Plane theo Warm Industrial + Signal System
 - SQL Server: schema `10`, không có migration mới
 - PostgreSQL pilot: state schema `1`, không thay đổi
 - Mini App không cần build hoặc deploy lại cho bản Admin-only này
@@ -100,7 +100,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
-- Thay đổi UI Backend v5.16.2: [docs/releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md](docs/releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md)
+- Thay đổi UI Backend v5.16.3: [docs/releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md](docs/releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md)
 - Release/rollback: [docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md](docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md)
 - Working agreement cho Agent: [AGENTS.md](AGENTS.md)
 
