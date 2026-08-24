@@ -28,9 +28,9 @@ export function HomePage() {
             </span>
             <span className="service-status"><i aria-hidden="true" />Đang trực</span>
           </div>
-          <span className="service-plate">IT SERVICE WORKSHOP / 01</span>
-          <h1>Có sự cố, luôn biết ai đang xử lý.</h1>
-          <p>Tạo yêu cầu, theo dõi SLA và xem rõ bước tiếp theo ngay trong Zalo.</p>
+          <span className="service-plate">IT HELPDESK</span>
+          <h1>Hỗ trợ IT trong Zalo</h1>
+          <p>Tạo yêu cầu và theo dõi tiến độ xử lý.</p>
           <div className="hero-actions">
             <button className="primary" onClick={() => navigate("new")}>
               <Icon name="plus" /> Tạo yêu cầu hỗ trợ
@@ -53,8 +53,8 @@ export function HomePage() {
             fetchPriority="high"
           />
         </picture>
-        <div className="hero-trust" aria-label="Cam kết hỗ trợ">
-          <span>Đúng Playbook</span>
+        <div className="hero-trust" aria-label="Thông tin hỗ trợ">
+          <span>Hướng dẫn Playbook</span>
           <span>Theo dõi SLA</span>
         </div>
       </section>
@@ -114,8 +114,8 @@ export function HomePage() {
             <span>
               <Icon name="check" size={30} />
             </span>
-            <h3>Mọi thứ đang ổn</h3>
-            <p>Chưa có yêu cầu hỗ trợ nào.</p>
+            <h3>Chưa có yêu cầu</h3>
+            <p>Tạo yêu cầu khi bạn cần IT hỗ trợ.</p>
             <button className="primary" onClick={() => navigate("new")}>
               Tạo ticket đầu tiên
             </button>
@@ -141,7 +141,7 @@ export function HomePage() {
       <section className="process-card">
         <div className="process-copy">
           <span className="eyebrow">CÁCH HOẠT ĐỘNG</span>
-          <h2>Gọn trong 3 bước</h2>
+          <h2>Gửi yêu cầu trong 3 bước</h2>
           <ol>
             <li>
               <b>1</b> Gửi mô tả và ảnh lỗi

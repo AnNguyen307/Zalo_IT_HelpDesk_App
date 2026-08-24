@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.16.5 — Functional Admin UI
+# Zalo IT HelpDesk v5.16.5 — Functional UI
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.5 thay đồ họa tín hiệu trừu tượng ở Tổng quan bằng minh họa bàn điều phối HelpDesk, thêm chuyển động nhẹ có hỗ trợ Reduce Motion và rút gọn tiêu đề/mô tả trong toàn bộ Admin về nội dung chức năng. Backend, API, dữ liệu, AI Router và Mini App không đổi hành vi.
+v5.16.5 thay đồ họa tín hiệu trừu tượng ở Tổng quan bằng minh họa bàn điều phối HelpDesk, thêm chuyển động nhẹ có hỗ trợ Reduce Motion và rút gọn tiêu đề/mô tả trong Admin lẫn Mini App về nội dung chức năng. API, dữ liệu và AI Router không đổi hành vi.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -15,11 +15,11 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 ## Trạng thái release
 
 - Backend: `5.16.5`
-- Mini App metadata: `5.16.0`
+- Mini App metadata: `5.16.5`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
 - SQL Server: schema `10`, không có migration mới
 - PostgreSQL pilot: state schema `1`, không thay đổi
-- Mini App không cần build hoặc deploy lại cho bản Backend/Admin-only này
+- Mini App cần build và publish lại để phát hành phần functional copy cho người dùng
 
 ## Kiến trúc
 
@@ -94,7 +94,7 @@ USER_INVITE_TTL_HOURS=24
 RATE_LIMIT_INVITE_MAX=10
 ```
 
-Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Mini App v5.16.0 không gửi Zalo access token và không phụ thuộc vị trí IP của Backend.
+Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Mini App v5.16.5 không gửi Zalo access token và không phụ thuộc vị trí IP của Backend.
 
 ## Triển khai
 

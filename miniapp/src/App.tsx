@@ -14,9 +14,9 @@ export default function App() {
   if (loading) return (
     <div className="splash system-state-screen">
       <div className="splash-logo"><Icon name="shield" size={34} /></div>
-      <span className="state-kicker">IT SERVICE WORKSHOP</span>
-      <h1>Đang chuẩn bị bàn hỗ trợ</h1>
-      <p>Kết nối yêu cầu, tiến độ và kỹ thuật viên của bạn…</p>
+      <span className="state-kicker">IT HELPDESK</span>
+      <h1>Đang tải HelpDesk</h1>
+      <p>Đang kết nối dữ liệu hỗ trợ…</p>
       <span className="splash-loader" />
     </div>
   );

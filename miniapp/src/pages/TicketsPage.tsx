@@ -35,9 +35,9 @@ export function TicketsPage() {
     <>
       <section className="page-title page-title-row">
         <div>
-          <span className="eyebrow">PHIẾU CÔNG VIỆC</span>
+          <span className="eyebrow">TICKET</span>
           <h1>Yêu cầu của tôi</h1>
-          <p>Rõ trạng thái, người phụ trách và bước tiếp theo.</p>
+          <p>Theo dõi trạng thái và người phụ trách.</p>
         </div>
         <button className="compact-create" onClick={() => navigate("new")}>
           <Icon name="plus" /> Tạo mới

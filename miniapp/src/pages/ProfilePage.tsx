@@ -49,7 +49,7 @@ export function ProfilePage() {
           </span>
           <div>
             <h3>Thông tin liên hệ</h3>
-            <small>Giúp IT tìm đúng vị trí và liên hệ nhanh</small>
+            <small>Phòng ban và số điện thoại liên hệ</small>
           </div>
         </div>
         <label>

@@ -26,9 +26,9 @@ export function InviteLoginPage() {
       <section className="invite-brand-panel" aria-hidden="true">
         <span className="invite-brand-mark">IT</span>
         <div>
-          <span className="state-kicker">IT SERVICE WORKSHOP</span>
-          <h1>Hỗ trợ đúng người.<br />Theo dõi đúng việc.</h1>
-          <p>Gửi yêu cầu, nhận phản hồi và theo dõi tiến độ trong một luồng an toàn.</p>
+          <span className="state-kicker">IT HELPDESK</span>
+          <h1>IT HelpDesk<br />trong Zalo</h1>
+          <p>Tạo yêu cầu và theo dõi tiến độ hỗ trợ.</p>
         </div>
         <div className="invite-trust-row"><span><Icon name="shield" size={17} /> Thiết bị được ghi nhớ</span><span>Phiên tự gia hạn</span></div>
       </section>
