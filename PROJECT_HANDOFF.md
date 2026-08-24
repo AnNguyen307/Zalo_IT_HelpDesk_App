@@ -1,6 +1,6 @@
 # Project Handoff — Zalo IT HelpDesk
 
-> Historical handoff through v5.12.0. For the current Backend / Mini App v5.16.5 source, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.16.5 updates presentation and copy only; v5.16.4 remains the source of truth for Cloud AI reliability and supersedes the historical single-provider selection rule.
+> Historical handoff through v5.12.0. For the current Backend v5.16.5 / Mini App v5.16.6 source, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.16.6 hardens Mini App dependencies only; v5.16.5 remains the UI source of truth and v5.16.4 remains the source of truth for Cloud AI reliability.
 
 > Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
 
