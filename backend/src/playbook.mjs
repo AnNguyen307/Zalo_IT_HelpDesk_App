@@ -87,7 +87,7 @@ async function loadFilePlaybook({ force = false } = {}) {
 export async function loadPlaybook({ force = false } = {}) {
   const cacheFresh = playbookCache && Date.now() - playbookCacheCheckedAt < config.playbookGovernanceCacheMs;
   if (!force && cacheFresh) return playbookCache;
-  if (config.playbookGovernanceEnabled && config.dbProvider === "sqlserver") {
+  if (config.playbookGovernanceEnabled && ["sqlserver", "postgres"].includes(config.dbProvider)) {
     try {
       const managed = await loadPublishedManagedPlaybook();
       if (managed?.entries?.length) {
@@ -362,7 +362,11 @@ export async function getPlaybookStatus({ force = false } = {}) {
       enabled: config.playbookEnabled,
       name: playbook.metadata.name || "Enterprise Playbook",
       version: playbook.metadata.version || "",
-      file: playbook.source === "sqlserver-governance" ? "SQL Server / helpdesk.playbook_*" : path.relative(config.backendRoot, config.playbookFile).replaceAll("\\", "/"),
+      file: playbook.source === "sqlserver-governance"
+        ? "SQL Server / helpdesk.playbook_*"
+        : playbook.source === "postgres-governance"
+          ? "PostgreSQL / public.helpdesk_playbook_*"
+          : path.relative(config.backendRoot, config.playbookFile).replaceAll("\\", "/"),
       source: playbook.source || "file",
       totalEntries: playbook.entries.length,
       byAudience,

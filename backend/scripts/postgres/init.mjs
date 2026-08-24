@@ -7,7 +7,7 @@ if (config.dbProvider !== "postgres") {
 
 try {
   await initializePostgresSchema();
-  console.log("PostgreSQL state schema 1 is ready.");
+  console.log("PostgreSQL state schema 1 and Playbook Governance schema 1 are ready.");
 } finally {
   await closeStore().catch(() => undefined);
 }

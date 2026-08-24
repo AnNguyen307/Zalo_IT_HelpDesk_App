@@ -27,7 +27,7 @@ export function getPostgresConnectionConfig() {
     connectionTimeoutMillis: config.postgresConnectionTimeoutMs,
     idleTimeoutMillis: config.postgresIdleTimeoutMs,
     statement_timeout: config.postgresStatementTimeoutMs,
-    application_name: "zalo-helpdesk-v5.16.9",
+    application_name: "zalo-helpdesk-v5.17.0",
   };
 }
 
@@ -140,8 +140,11 @@ function adapter() {
 }
 
 export async function initializePostgresSchema() {
-  const migration = path.join(config.backendRoot, "sql", "postgres", "001_state_store.sql");
-  await adapter().initializeSchema(await fs.readFile(migration, "utf8"));
+  const migrations = ["001_state_store.sql", "002_playbook_governance.sql"];
+  for (const migration of migrations) {
+    const migrationPath = path.join(config.backendRoot, "sql", "postgres", migration);
+    await adapter().initializeSchema(await fs.readFile(migrationPath, "utf8"));
+  }
 }
 
 export const initializeStore = (...args) => adapter().initializeStore(...args);

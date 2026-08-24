@@ -1,6 +1,6 @@
 {
   "name": "zalo-helpdesk-zero-cost-backend",
-  "version": "5.16.9",
+  "version": "5.17.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/server.mjs",
     "dev": "node --watch src/server.mjs",
-    "check": "node --check src/server.mjs && node --check src/errors.mjs && node --check src/handoff.mjs && node --check src/auth.mjs && node --check src/rate-limit.mjs && node --check src/retention.mjs && node --check src/ai-agent.mjs && node --check src/ai-copilot.mjs && node --check src/ai-router.mjs && node --check src/ai-json.mjs && node --check src/ai-redaction.mjs && node --check src/ai-quality.mjs && node --check src/embeddings.mjs && node --check src/ticket-priority.mjs && node --check src/config.mjs && node --check src/playbook.mjs && node --check src/playbook-governance.mjs && node --check src/store.mjs && node --check src/store-json.mjs && node --check src/store-postgres.mjs && node --check src/store-sqlserver.mjs && node --check src/attachment-storage.mjs && node --check src/staff-accounts.mjs && node --check src/operations.mjs && node --check scripts/postgres/init.mjs && node --check scripts/sqlserver/migrate.mjs && node --check scripts/sqlserver/seed-playbook-governance.mjs && node --check scripts/sqlserver/import-json.mjs && node --check scripts/sqlserver/export-json.mjs && node --check scripts/index-playbook.mjs && node --check scripts/benchmark-playbook.mjs && node --check src/attachments.mjs && node --check src/sla.mjs && node --check public/admin-staff.js && node --check public/admin.js",
+    "check": "node --check src/server.mjs && node --check src/errors.mjs && node --check src/handoff.mjs && node --check src/auth.mjs && node --check src/rate-limit.mjs && node --check src/retention.mjs && node --check src/ai-agent.mjs && node --check src/ai-copilot.mjs && node --check src/ai-router.mjs && node --check src/ai-json.mjs && node --check src/ai-redaction.mjs && node --check src/ai-quality.mjs && node --check src/embeddings.mjs && node --check src/ticket-priority.mjs && node --check src/config.mjs && node --check src/playbook.mjs && node --check src/playbook-governance-core.mjs && node --check src/playbook-governance-postgres.mjs && node --check src/playbook-governance.mjs && node --check src/store.mjs && node --check src/store-json.mjs && node --check src/store-postgres.mjs && node --check src/store-sqlserver.mjs && node --check src/attachment-storage.mjs && node --check src/staff-accounts.mjs && node --check src/operations.mjs && node --check scripts/postgres/init.mjs && node --check scripts/sqlserver/migrate.mjs && node --check scripts/sqlserver/seed-playbook-governance.mjs && node --check scripts/sqlserver/import-json.mjs && node --check scripts/sqlserver/export-json.mjs && node --check scripts/index-playbook.mjs && node --check scripts/benchmark-playbook.mjs && node --check src/attachments.mjs && node --check src/sla.mjs && node --check public/admin-staff.js && node --check public/admin.js",
     "test": "node --test test/*.test.mjs",
     "playbook:index": "node scripts/index-playbook.mjs",
     "playbook:index:force": "node scripts/index-playbook.mjs --force",

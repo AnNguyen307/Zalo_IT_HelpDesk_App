@@ -72,6 +72,7 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md](./releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md)
 - [releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md](./releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md)
 - [releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md](./releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md)
+- [releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md](./releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
