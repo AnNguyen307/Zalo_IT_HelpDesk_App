@@ -18,7 +18,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="app-header">
         <button className="brand-button" onClick={() => navigate("home")} aria-label="Về trang chủ">
           <span className="brand-logo"><Icon name="shield" size={22} /></span>
-          <span><strong>Zalo IT HelpDesk</strong><small>Service workshop</small></span>
+          <span><strong>Zalo IT HelpDesk</strong><small>Hỗ trợ nội bộ</small></span>
         </button>
         <div className="header-actions">
           <button className="icon-button" onClick={() => navigate("notifications")} aria-label="Mở thông báo">

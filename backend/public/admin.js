@@ -29,13 +29,13 @@ const escalationLabels = {
 };
 const historyLabels = { created: "Tạo ticket", status: "Đổi trạng thái", category: "Đổi danh mục", priority: "Đổi ưu tiên", risk: "Đổi rủi ro", assignment: "Phân công", message: "Trao đổi", attachment: "Đính kèm", ai_handoff: "Bàn giao cho HelpDesk", ai_review: "Đánh giá quyết định AI", sla_warning: "SLA sắp đến hạn", sla_overdue: "Cảnh báo SLA", reopen: "Mở lại", rating: "Đánh giá" };
 const tabMeta = {
-  tickets: ["Tổng quan Ticket", "Theo dõi yêu cầu, SLA và quyết định xử lý theo thời gian thực."],
-  operations: ["Hiệu quả vận hành", "Theo dõi phản hồi, xử lý, SLA, mở lại và mức hài lòng."],
-  staff: ["Tài khoản HelpDesk", "Quản lý danh tính, vai trò và quyền truy cập của nhân sự."],
-  knowledge: ["Knowledge Base", "Quản lý checklist ngắn hỗ trợ kỹ thuật viên và Playbook."],
-  governance: ["Quy trình Playbook", "Tạo, duyệt, phát hành và rollback procedure với lịch sử đầy đủ."],
-  playbook: ["Enterprise Playbook", "Kiểm tra nguồn quy trình chính thức và semantic index."],
-  agent: ["AI HelpDesk Agent", "Đo chất lượng quyết định, giám sát provider và kiểm soát Cloud staging."],
+  tickets: ["Tổng quan Ticket", "Theo dõi số lượng, trạng thái, SLA và người phụ trách."],
+  operations: ["Báo cáo", "Xem hiệu quả xử lý ticket theo thời gian."],
+  staff: ["Nhân sự", "Quản lý tài khoản HelpDesk và truy cập Mini App."],
+  knowledge: ["Kiến thức", "Tra cứu và cập nhật hướng dẫn hỗ trợ kỹ thuật."],
+  governance: ["Quy trình", "Tạo, duyệt và phát hành procedure Playbook."],
+  playbook: ["Playbook", "Tra cứu procedure theo tình huống hỗ trợ."],
+  agent: ["Hệ thống & AI", "Kiểm tra cấu hình, provider và chất lượng AI Agent."],
 };
 const statIcons = ["▦", "◉", "↻", "!", "✓", "★"];
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
@@ -135,15 +135,6 @@ function setHealth(dotSelector, textSelector, ready, text) {
   const dot = $(dotSelector); const label = $(textSelector);
   dot.classList.remove("pending", "ready", "error"); dot.classList.add(ready ? "ready" : "error"); label.textContent = text;
 }
-function renderOverviewSignals() {
-  const agent = state.agent || {}; const playbook = state.playbook || {}; const overdue = Number(state.stats?.overdue || 0);
-  const agentSignal = agent.operationalState === "degraded"
-    ? "Cloud AI suy giảm"
-    : agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Handoff an toàn";
-  if ($("#overviewAgentSignal")) $("#overviewAgentSignal").textContent = agentSignal;
-  if ($("#overviewPlaybookSignal")) $("#overviewPlaybookSignal").textContent = playbook.ready ? `${playbook.totalEntries || 0} procedure` : "Đang kiểm tra";
-  if ($("#overviewSlaSignal")) $("#overviewSlaSignal").textContent = overdue ? `${overdue} ticket quá hạn` : "Trong ngưỡng";
-}
 function switchTab(name) {
   if (name === "staff" && state.user?.role !== "admin") name = "tickets";
   state.activeTab = name;
@@ -233,7 +224,6 @@ function renderStats() {
   $("#stats").innerHTML = items.map(([label, value, style], index) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${statIcons[index]}</b></div><strong>${esc(value)}</strong><small>${index === 3 && Number(value) ? "Cần xử lý" : ""}</small></article>`).join("");
   const openCount = (byStatus.open || 0) + (byStatus.in_progress || 0) + (byStatus.waiting_user || 0);
   setNavCountBadge("#openTicketBadge", openCount);
-  renderOverviewSignals();
 }
 
 function setNavCountBadge(selector, value) {
@@ -410,7 +400,6 @@ function renderPlaybook() {
   if ($("#playbookHeroCount")) $("#playbookHeroCount").textContent = formatCount(playbook.totalEntries ?? 0);
   if ($("#playbookHeroMode")) $("#playbookHeroMode").textContent = (playbook.retrievalMode || "lexical").toUpperCase();
   setHealth("#topPlaybookState", "#topPlaybookText", Boolean(playbook.ready), playbook.ready ? `${playbook.totalEntries || 0} procedure sẵn sàng` : "Chưa sẵn sàng");
-  renderOverviewSignals();
 }
 function renderPlaybookMatches(entries) {
   $("#playbookSearchResult").innerHTML = entries.length ? entries.map((entry) => `<article class="playbook-result-card"><div><span class="badge">${esc(labels[entry.category] || entry.category)}</span> <span class="badge ${entry.risk}">${esc(entry.risk)}</span> <span class="badge">${esc(entry.audience)}</span> ${entry.autoEligible ? '<span class="badge guide">AUTO-ELIGIBLE</span>' : '<span class="badge escalate">TECHNICIAN</span>'}</div><h3>${esc(entry.id)} — ${esc(entry.title)}</h3><p>${esc(entry.summary)}</p><div class="playbook-score">Độ phù hợp ${Math.round((entry.score || 0) * 100)}%${entry.semanticUsed ? ` · semantic ${Math.round((entry.semanticScore || 0) * 100)}%` : " · lexical"}</div>${entry.steps?.length ? `<details><summary>Các bước được phép (${entry.steps.length})</summary><ol>${entry.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol></details>` : ""}${entry.forbiddenSteps?.length ? `<details><summary>Điểm dừng / thao tác cấm</summary><ul>${entry.forbiddenSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul></details>` : ""}</article>`).join("") : '<div class="empty-state compact-empty"><span>↗</span><h3>Không có procedure phù hợp</h3><p>Trong Strict Mode, tình huống này sẽ được chuyển kỹ thuật viên ngay.</p></div>';
@@ -538,7 +527,6 @@ function renderAgent() {
   topAgentDot.classList.remove("pending", "ready", "error");
   topAgentDot.classList.add(degraded ? "pending" : agent.ready ? "ready" : "error");
   $("#topAgentText").textContent = degraded ? "Cloud AI suy giảm · failover đang bật" : agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Đang dùng handoff an toàn";
-  renderOverviewSignals();
 }
 
 const providerReasonLabels = {
@@ -590,7 +578,7 @@ function renderProviderObservability(providers) {
     const providerState = item.operationalState === "degraded" ? "degraded" : item.ready ? "ready" : "not-ready";
     const providerStateLabel = providerState === "degraded" ? "SUY GIẢM" : item.ready ? "SẴN SÀNG" : "TẠM KHÓA";
     return `<article class="provider-observability-card ${providerState}"><header><div><span class="provider-readiness-dot"></span><strong>${esc(copilotProviderLabels[item.providerKey] || item.providerKey)}</strong><small>${esc(item.model || "Chưa cấu hình")}</small></div><b>${providerStateLabel}</b></header><div class="provider-quota-metrics"><p><span>Token đã dùng</span><strong>${formatCount(item.quota?.tokensUsed || 0)}</strong><small>Helpdesk quan sát trong phiên</small></p><p><span>Token còn lại</span><strong>${esc(token.value)}</strong><small>${esc(token.source)}</small></p><p><span>Request còn lại</span><strong>${esc(providerRequestBalance(item))}</strong><small>${formatCount(item.quota?.requestsUsed || 0)} request đã gọi trong phiên</small></p></div><footer><span>${esc(reason)}</span>${cooldown}</footer>${lastFailure}</article>`;
-  }).join("") : '<div class="empty-state compact-empty"><h3>Chưa có provider trong route</h3><p>Kiểm tra AI_PROVIDER_ORDER và feature flag của từng provider.</p></div>';
+  }).join("") : '<div class="empty-state compact-empty"><h3>Chưa có provider</h3><p>Kiểm tra thứ tự provider và các cờ kích hoạt.</p></div>';
 }
 
 function renderAiQuality() {
@@ -605,7 +593,7 @@ function renderAiQuality() {
   ];
   $("#aiQualityMetrics").innerHTML = metrics.map(([label, value, note]) => `<article class="operation-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`).join("");
   const providerEntries = Object.entries(report.byProvider || {});
-  $("#aiProviderQuality").innerHTML = providerEntries.length ? providerEntries.map(([provider, item]) => `<div class="ai-provider-row"><div><strong>${esc(provider)}</strong><small>${item.total} quyết định · ${item.incorrect} cần sửa · ${item.unavailable} lỗi</small></div><span>${item.averageLatencyMs == null ? "—" : `${Math.round(item.averageLatencyMs)} ms`}</span></div>`).join("") : '<div class="empty-state compact-empty"><h3>Chưa có decision record</h3><p>Ticket mới của v5.9 sẽ bắt đầu tạo dữ liệu.</p></div>';
+  $("#aiProviderQuality").innerHTML = providerEntries.length ? providerEntries.map(([provider, item]) => `<div class="ai-provider-row"><div><strong>${esc(provider)}</strong><small>${item.total} quyết định · ${item.incorrect} cần sửa · ${item.unavailable} lỗi</small></div><span>${item.averageLatencyMs == null ? "—" : `${Math.round(item.averageLatencyMs)} ms`}</span></div>`).join("") : '<div class="empty-state compact-empty"><h3>Chưa có dữ liệu đánh giá</h3><p>Dữ liệu sẽ xuất hiện sau khi AI Agent xử lý ticket.</p></div>';
   renderBreakdown("#aiCategoryIssues", report.categoryIssues || {});
   $("#aiReviewCoverage").textContent = `${summary.reviewCoverageRate || 0}% đã đánh giá`;
   const recent = report.recent || [];

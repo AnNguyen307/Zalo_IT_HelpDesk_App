@@ -12,19 +12,19 @@ async function adminAssets() {
   ]);
 }
 
-test("Overview uses a live signal banner with runtime status and reduced-motion support", async () => {
+test("Overview uses the supplied workflow GIF without the previous copy or runtime overlays", async () => {
   const [html, css, script] = await adminAssets();
 
-  assert.match(html, /class="operations-signal-banner"/);
-  assert.match(html, /id="overviewAgentSignal"/);
-  assert.match(html, /id="overviewPlaybookSignal"/);
-  assert.match(html, /id="overviewSlaSignal"/);
+  assert.match(html, /class="operations-workflow-banner"/);
+  assert.doesNotMatch(html, /id="overviewAgentSignal"/);
+  assert.doesNotMatch(html, /id="overviewPlaybookSignal"/);
+  assert.doesNotMatch(html, /id="overviewSlaSignal"/);
   assert.doesNotMatch(html, /VẬN HÀNH CÓ KIỂM SOÁT/);
   assert.doesNotMatch(html, /class="policy-banner"/);
-  assert.match(css, /@keyframes signal-travel/);
-  assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
-  assert.match(script, /function renderOverviewSignals\(\)/);
-  assert.match(script, /ticket quá hạn/);
+  assert.doesNotMatch(html, /class="signal-banner-copy"/);
+  assert.match(html, /helpdesk-workflow-v5165\.gif/);
+  assert.match(css, /\.operations-workflow-banner img\{/);
+  assert.doesNotMatch(script, /function renderOverviewSignals\(\)/);
 });
 
 test("Playbook is organized as command, readiness, search and ranked-result zones", async () => {

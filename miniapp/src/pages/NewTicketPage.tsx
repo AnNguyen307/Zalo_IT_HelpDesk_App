@@ -117,9 +117,9 @@ export function NewTicketPage() {
         <Icon name="arrow-left" /> Trang chủ
       </button>
       <section className="page-title">
-        <span className="eyebrow">PHIẾU HỖ TRỢ MỚI</span>
-        <h1>Bạn cần hỗ trợ gì?</h1>
-        <p>Mô tả trước; nhóm gợi ý chỉ giúp bạn bắt đầu nhanh hơn.</p>
+        <span className="eyebrow">YÊU CẦU MỚI</span>
+        <h1>Tạo yêu cầu hỗ trợ</h1>
+        <p>Mô tả sự cố hoặc chọn mẫu có sẵn.</p>
       </section>
       <section className="new-ticket-visual">
         <img
@@ -130,7 +130,7 @@ export function NewTicketPage() {
           decoding="async"
         />
         <div>
-          <strong>Ảnh rõ, xử lý nhanh</strong>
+          <strong>Ảnh chụp lỗi</strong>
           <span>Chụp toàn màn hình và mã lỗi.</span>
         </div>
       </section>

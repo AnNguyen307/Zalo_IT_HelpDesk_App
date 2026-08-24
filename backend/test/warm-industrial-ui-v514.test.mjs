@@ -12,8 +12,10 @@ test("Admin uses Warm Industrial tokens and a three-zone ticket workspace", asyn
     readFile(publicFile("admin.js"), "utf8"),
   ]);
 
-  assert.match(html, /IT SERVICE WORKSHOP/);
-  assert.match(html, /Mỗi yêu cầu đều có <span>một bước tiếp theo rõ ràng\.<\/span>/);
+  assert.match(html, /class="operations-workflow-banner"/);
+  assert.match(html, /helpdesk-workflow-v5165\.gif/);
+  assert.doesNotMatch(html, /<h2>Hoạt động HelpDesk<\/h2>/);
+  assert.doesNotMatch(html, /Mỗi yêu cầu đều có/);
   assert.match(css, /--canvas:#f7f5f0/);
   assert.match(css, /\.smart-queue\.active\{[\s\S]*background:#eaf1ff;[\s\S]*color:var\(--brand2\);[\s\S]*box-shadow:inset 0 -3px 0 var\(--brand\)/);
   assert.match(css, /grid-template-columns:245px minmax\(420px,1fr\) 370px/);

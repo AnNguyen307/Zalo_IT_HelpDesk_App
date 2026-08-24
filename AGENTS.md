@@ -90,7 +90,7 @@ If a gate cannot run, state exactly why and do not claim it passed.
 - Add meaningful health feature flags for major capabilities so the deployed runtime can be verified without inference.
 - Keep release notes under `docs/releases/<version>/`.
 - Never add a database migration for a UI-only release.
-- Current Backend release: `v5.16.4`; Mini App release: `v5.16.0`. Cloud AI reliability now retries malformed structured output and treats a staff-selected model as the preferred first provider with cloud failover before Rules/Playbook.
+- Current Backend and Mini App release: `v5.16.5`. Admin and employee-facing copy is functional and concise, while the Admin Overview uses an optimized HelpDesk illustration with accessible motion. Cloud AI reliability still retries malformed structured output and treats a staff-selected model as the preferred first provider with cloud failover before Rules/Playbook.
 - SQL Server/NAS schema is `10`; free-hosting PostgreSQL remains state schema `1`.
 - Changing the hosted backend URL requires a Mini App rebuild/deploy even when UI code is unchanged.
 
