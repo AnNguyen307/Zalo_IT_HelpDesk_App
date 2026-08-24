@@ -135,15 +135,6 @@ function setHealth(dotSelector, textSelector, ready, text) {
   const dot = $(dotSelector); const label = $(textSelector);
   dot.classList.remove("pending", "ready", "error"); dot.classList.add(ready ? "ready" : "error"); label.textContent = text;
 }
-function renderOverviewSignals() {
-  const agent = state.agent || {}; const playbook = state.playbook || {}; const overdue = Number(state.stats?.overdue || 0);
-  const agentSignal = agent.operationalState === "degraded"
-    ? "Cloud AI suy giảm"
-    : agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Handoff an toàn";
-  if ($("#overviewAgentSignal")) $("#overviewAgentSignal").textContent = agentSignal;
-  if ($("#overviewPlaybookSignal")) $("#overviewPlaybookSignal").textContent = playbook.ready ? `${playbook.totalEntries || 0} procedure` : "Đang kiểm tra";
-  if ($("#overviewSlaSignal")) $("#overviewSlaSignal").textContent = overdue ? `${overdue} ticket quá hạn` : "Trong ngưỡng";
-}
 function switchTab(name) {
   if (name === "staff" && state.user?.role !== "admin") name = "tickets";
   state.activeTab = name;
@@ -233,7 +224,6 @@ function renderStats() {
   $("#stats").innerHTML = items.map(([label, value, style], index) => `<article class="stat-card ${style}"><div class="stat-top"><span>${esc(label)}</span><b class="stat-icon">${statIcons[index]}</b></div><strong>${esc(value)}</strong><small>${index === 3 && Number(value) ? "Cần xử lý" : ""}</small></article>`).join("");
   const openCount = (byStatus.open || 0) + (byStatus.in_progress || 0) + (byStatus.waiting_user || 0);
   setNavCountBadge("#openTicketBadge", openCount);
-  renderOverviewSignals();
 }
 
 function setNavCountBadge(selector, value) {
@@ -410,7 +400,6 @@ function renderPlaybook() {
   if ($("#playbookHeroCount")) $("#playbookHeroCount").textContent = formatCount(playbook.totalEntries ?? 0);
   if ($("#playbookHeroMode")) $("#playbookHeroMode").textContent = (playbook.retrievalMode || "lexical").toUpperCase();
   setHealth("#topPlaybookState", "#topPlaybookText", Boolean(playbook.ready), playbook.ready ? `${playbook.totalEntries || 0} procedure sẵn sàng` : "Chưa sẵn sàng");
-  renderOverviewSignals();
 }
 function renderPlaybookMatches(entries) {
   $("#playbookSearchResult").innerHTML = entries.length ? entries.map((entry) => `<article class="playbook-result-card"><div><span class="badge">${esc(labels[entry.category] || entry.category)}</span> <span class="badge ${entry.risk}">${esc(entry.risk)}</span> <span class="badge">${esc(entry.audience)}</span> ${entry.autoEligible ? '<span class="badge guide">AUTO-ELIGIBLE</span>' : '<span class="badge escalate">TECHNICIAN</span>'}</div><h3>${esc(entry.id)} — ${esc(entry.title)}</h3><p>${esc(entry.summary)}</p><div class="playbook-score">Độ phù hợp ${Math.round((entry.score || 0) * 100)}%${entry.semanticUsed ? ` · semantic ${Math.round((entry.semanticScore || 0) * 100)}%` : " · lexical"}</div>${entry.steps?.length ? `<details><summary>Các bước được phép (${entry.steps.length})</summary><ol>${entry.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol></details>` : ""}${entry.forbiddenSteps?.length ? `<details><summary>Điểm dừng / thao tác cấm</summary><ul>${entry.forbiddenSteps.map((step) => `<li>${esc(step)}</li>`).join("")}</ul></details>` : ""}</article>`).join("") : '<div class="empty-state compact-empty"><span>↗</span><h3>Không có procedure phù hợp</h3><p>Trong Strict Mode, tình huống này sẽ được chuyển kỹ thuật viên ngay.</p></div>';
@@ -538,7 +527,6 @@ function renderAgent() {
   topAgentDot.classList.remove("pending", "ready", "error");
   topAgentDot.classList.add(degraded ? "pending" : agent.ready ? "ready" : "error");
   $("#topAgentText").textContent = degraded ? "Cloud AI suy giảm · failover đang bật" : agent.ready ? `${agent.provider || "AI"} sẵn sàng` : "Đang dùng handoff an toàn";
-  renderOverviewSignals();
 }
 
 const providerReasonLabels = {

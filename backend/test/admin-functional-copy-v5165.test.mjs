@@ -4,21 +4,22 @@ import test from "node:test";
 
 const publicFile = (name) => new URL(`../public/${name}`, import.meta.url);
 
-test("overview uses a lightweight HelpDesk illustration with accessible motion", async () => {
+test("overview uses the supplied animated HelpDesk workflow as the complete banner", async () => {
   const [html, css, asset] = await Promise.all([
     readFile(publicFile("admin.html"), "utf8"),
     readFile(publicFile("admin.css"), "utf8"),
-    stat(publicFile("assets/helpdesk-operations-v5165.webp")),
+    stat(publicFile("assets/helpdesk-workflow-v5165.gif")),
   ]);
 
-  assert.match(html, /<h2>Hoạt động HelpDesk<\/h2>/);
-  assert.match(html, /src="\/assets\/helpdesk-operations-v5165\.webp"/);
-  assert.match(html, /width="1200" height="800" decoding="async"/);
-  assert.match(css, /@keyframes helpdesk-visual-drift/);
-  assert.match(css, /@keyframes helpdesk-visual-scan/);
-  assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
-  assert.match(css, /\.signal-banner-media\{min-height:176px\}/);
-  assert.ok(asset.size < 100 * 1024, `overview illustration is ${asset.size} bytes`);
+  assert.match(html, /class="operations-workflow-banner"/);
+  assert.match(html, /src="\/assets\/helpdesk-workflow-v5165\.gif"/);
+  assert.match(html, /width="1200" height="560" decoding="async"/);
+  assert.match(html, /alt="Quy trình IT HelpDesk:/);
+  assert.doesNotMatch(html, /class="signal-banner-copy"/);
+  assert.doesNotMatch(html, /helpdesk-operations-v5165\.webp/);
+  assert.match(css, /\.operations-workflow-banner img\{/);
+  assert.match(css, /aspect-ratio:15\/7/);
+  assert.ok(asset.size < 1024 * 1024, `overview animation is ${asset.size} bytes`);
 });
 
 test("Admin tabs use short functional headings instead of slogans", async () => {

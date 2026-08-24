@@ -2,14 +2,13 @@
 
 ## Kết quả
 
-Admin và Mini App dùng tiêu đề, mô tả ngắn để giải thích trực tiếp chức năng của từng màn hình. Banner Tổng quan Admin hiển thị một bàn điều phối HelpDesk thay cho đồ họa quỹ đạo trừu tượng.
+Admin và Mini App dùng tiêu đề, mô tả ngắn để giải thích trực tiếp chức năng của từng màn hình. Banner Tổng quan Admin hiển thị trực tiếp GIF quy trình HelpDesk do chủ ứng dụng cung cấp.
 
 ## Thay đổi chính
 
-- Thêm minh họa `helpdesk-operations-v5165.webp` kích thước 1.200 × 800, dung lượng dưới 100 KB.
-- Tạo chuyển động pan/zoom và scan nhẹ bằng CSS thay vì đóng gói GIF nặng.
-- Giữ ảnh hiển thị trên điện thoại; tự tắt chuyển động khi thiết bị bật `prefers-reduced-motion`.
-- Đổi banner Tổng quan thành `Hoạt động HelpDesk` với mô tả trạng thái AI Agent, Playbook và SLA.
+- Dùng `helpdesk-workflow-v5165.gif` kích thước 1.200 × 560 làm toàn bộ banner Tổng quan.
+- Loại bỏ toàn bộ slogan, trạng thái nhanh, lớp scan và minh họa cũ bên trong khung.
+- Giữ đúng toàn bộ khung hình GIF trên desktop và điện thoại, không cắt nội dung.
 - Rút gọn nội dung tại Đăng nhập, Tổng quan, Báo cáo, Nhân sự, Kiến thức, Quy trình, Playbook, Hệ thống & AI và các dialog quản trị.
 - Thay các slogan còn lại trong Mini App tại màn hình tải, đăng nhập mã mời, Trang chủ, danh sách ticket và tạo yêu cầu bằng nhãn chức năng ngắn.
 - Bổ sung regression test ngăn các slogan cũ quay lại và kiểm tra tài sản ảnh, cache busting, responsive motion.
@@ -28,8 +27,8 @@ Admin và Mini App dùng tiêu đề, mô tả ngắn để giải thích trực
 - Kiểm tra cú pháp trực tiếp toàn bộ backend, script và Admin JavaScript: đạt. Wrapper `npm run check` bị Work Mode ngắt trước khi phê duyệt nên đã chạy chính các lệnh `node --check` tương đương.
 - `node --test test/*.test.mjs`: **125/125 test đạt**.
 - `npm run build` trong `miniapp`: đạt.
-- Tài sản WebP: 1.200 × 800, khoảng 60 KB; có kích thước khai báo và không gây layout shift.
-- Regression riêng cho functional copy, animation, responsive mobile, Reduce Motion và cache busting: đạt.
+- Tài sản GIF: 1.200 × 560, khoảng 892 KB; có kích thước khai báo và không gây layout shift.
+- Regression riêng cho functional copy, banner GIF, responsive mobile và cache busting: đạt.
 - Credential scan và `git diff --check` trên intended diff: đạt.
 - Cloud Browser không mở được URL local `127.0.0.1` do `ERR_BLOCKED_BY_CLIENT`; visual review vẫn cần thực hiện trên preview/deployment sau khi mở PR nháp.
 
