@@ -25,6 +25,7 @@ Gate cũng xác nhận mã mời và refresh token không được lưu dạng r
   - dùng `one-time-invite` cho user login.
 - Đồng bộ Backend/Admin và Mini App source metadata lên `5.17.1`.
 - Cache-bust Admin asset ở `5.17.1`.
+- Tự dựng lại RAG index cục bộ khi PostgreSQL Governance sẵn sàng, giúp container Render mới phục hồi `indexCurrent` dù filesystem cũ đã bị thay thế.
 - Thêm checklist pilot thực tế cho Zalo WebView và Render.
 
 ## Triển khai
