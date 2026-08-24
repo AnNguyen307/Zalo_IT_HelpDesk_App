@@ -1,6 +1,6 @@
 {
   "name": "zalo-it-helpdesk-miniapp",
-  "version": "5.16.5",
+  "version": "5.16.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,14 +13,14 @@
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zmp-sdk": "^2.43.0"
+    "zmp-sdk": "^2.53.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.6.3",
-    "vite": "^5.4.10",
+    "vite": "^6.4.3",
     "zmp-developer-token": "^3.1.0"
   }
 }
