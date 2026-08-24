@@ -83,7 +83,7 @@ test("v5.17.1 Production Pilot covers invite through rated HelpDesk resolution",
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.17.1");
+  assert.equal(health.version, "5.18.0");
   assert.ok(health.features.includes("production-pilot-e2e"));
   assert.equal(health.authentication.userLogin, "one-time-invite");
 
@@ -223,19 +223,20 @@ test("v5.17.1 Production Pilot covers invite through rated HelpDesk resolution",
   assert.equal(persisted.includes(refreshed.body.refreshToken), false);
 });
 
-test("v5.17.1 deploy gate requires a matching ready Backend before Zalo Testing", async () => {
-  const [backendManifestText, miniAppManifestText, workflow, releaseNote, checklist] = await Promise.all([
+test("v5.17.1 Mini App deploy gate accepts the current ready v5.18.0 Backend", async () => {
+  const [backendManifestText, miniAppManifestText, workflow, releaseNote, checklist, botRelease] = await Promise.all([
     readFile(path.join(backendRoot, "package.json"), "utf8"),
     readFile(path.join(repositoryRoot, "miniapp", "package.json"), "utf8"),
     readFile(path.join(repositoryRoot, ".github", "workflows", "zalo-miniapp-deploy.yml"), "utf8"),
     readFile(path.join(repositoryRoot, "docs", "releases", "v5.17.1", "CHANGES_V5_17_1_PRODUCTION_PILOT.md"), "utf8"),
     readFile(path.join(repositoryRoot, "docs", "releases", "v5.17.1", "PRODUCTION_PILOT_CHECKLIST.md"), "utf8"),
+    readFile(path.join(repositoryRoot, "docs", "releases", "v5.18.0", "CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md"), "utf8"),
   ]);
   const backendManifest = JSON.parse(backendManifestText);
   const miniAppManifest = JSON.parse(miniAppManifestText);
 
-  assert.equal(backendManifest.version, "5.17.1");
-  assert.equal(miniAppManifest.version, backendManifest.version);
+  assert.equal(backendManifest.version, "5.18.0");
+  assert.equal(miniAppManifest.version, "5.17.1");
   assert.match(miniAppManifest.devDependencies.vite, /^\^5\./, "ZMP CLI 4.0.3 currently requires the official Vite 5 project baseline");
   assert.equal(backendManifest.scripts["test:pilot"], "node --test test/production-pilot-v5171.test.mjs");
   assert.match(workflow, /Run Production Pilot E2E gate/);
@@ -246,4 +247,5 @@ test("v5.17.1 deploy gate requires a matching ready Backend before Zalo Testing"
   assert.match(workflow, /Deployment type: Testing/);
   assert.match(releaseNote, /Không chạy migration/);
   assert.match(checklist, /Mini App không thấy nội dung Copilot/);
+  assert.match(botRelease, /Mini App build\/deployment: not required/);
 });

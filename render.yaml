@@ -41,6 +41,18 @@ services:
         value: "4185582976193315701"
       - key: ZALO_OPEN_API_KEY
         sync: false
+      - key: ZALO_BOT_ENABLED
+        value: "false"
+      - key: ZALO_BOT_TOKEN
+        sync: false
+      - key: ZALO_BOT_WEBHOOK_SECRET
+        sync: false
+      - key: ZALO_BOT_GENERATIVE_FALLBACK
+        value: "true"
+      - key: ZALO_BOT_GENERATIVE_MIN_CONFIDENCE
+        value: "0.55"
+      - key: ZALO_BOT_MAX_SELF_SERVICE_ATTEMPTS
+        value: "3"
       - key: LEGACY_STAFF_LOGIN_ENABLED
         value: "true"
       - key: USER_ACCESS_TTL_MINUTES

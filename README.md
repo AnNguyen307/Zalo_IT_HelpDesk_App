@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.17.1 — Zalo Mini App Production Pilot Readiness
+# Zalo IT HelpDesk Backend v5.18.0 — Zalo Bot Assistant
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.17.1 bổ sung quality gate Production Pilot chạy xuyên suốt mã mời → session → ticket → attachment → AI/handoff → HelpDesk reply → resolve → rating, đồng thời chặn deploy Mini App Testing nếu Backend public chưa đúng version/capability. Nền PostgreSQL Playbook Governance của v5.17.0 vẫn giữ nguyên.
+v5.18.0 bổ sung Zalo Bot Assistant như một kênh tự phục vụ tùy chọn: Bot ưu tiên Playbook, dùng AI linh hoạt khi không có Playbook, giữ quyền tạo ticket chủ động cho người dùng và tự tạo ticket khi hướng dẫn thất bại. Mini App vẫn ở v5.17.1 trong thời gian xét duyệt; PostgreSQL Playbook Governance v5.17.0 và Production Pilot v5.17.1 vẫn giữ nguyên.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|

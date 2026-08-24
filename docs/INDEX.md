@@ -75,6 +75,7 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md](./releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md)
 - [releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md](./releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md)
 - [releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md](./releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md)
+- [releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md](./releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
