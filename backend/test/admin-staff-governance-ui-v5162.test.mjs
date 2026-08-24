@@ -4,21 +4,32 @@ import test from "node:test";
 
 const publicFile = (name) => new URL(`../public/${name}`, import.meta.url);
 
-test("Admin header identifies the signed-in HelpDesk account and role", async () => {
-  const [html, script, css] = await Promise.all([
+test("Admin header opens compact account settings and an expandable action menu", async () => {
+  const [html, script, css, server] = await Promise.all([
     readFile(publicFile("admin.html"), "utf8"),
     readFile(publicFile("admin.js"), "utf8"),
     readFile(publicFile("admin.css"), "utf8"),
+    readFile(new URL("../src/server.mjs", import.meta.url), "utf8"),
   ]);
 
-  assert.match(html, /id="headerIdentity" class="header-identity"/);
-  assert.match(html, /id="headerIdentityName"/);
-  assert.match(html, /id="headerIdentityRole"/);
+  assert.match(html, /id="headerIdentity" class="header-account-trigger"/);
+  assert.match(html, /<strong>Tài khoản<\/strong>/);
+  assert.match(html, /id="accountMenuToggle"[^>]*aria-haspopup="menu"[^>]*aria-expanded="false"/);
+  assert.match(html, /id="accountMenu" class="account-menu hidden" role="menu"/);
+  assert.match(html, /data-settings-view="app"/);
+  assert.match(html, /data-settings-view="account"/);
+  assert.match(html, /id="switchAccountBtn"/);
+  assert.match(html, /id="logoutBtn"/);
+  assert.match(html, /id="settingsDialog" class="form-dialog settings-dialog"/);
   assert.match(script, /const staffRoleLabels = \{ admin: "Quản trị viên", technician: "Kỹ thuật viên", viewer: "Chỉ xem" \}/);
-  assert.match(script, /Đang đăng nhập: \$\{displayName\}, \$\{accountContext\}/);
-  assert.match(script, /headerIdentityRole"\)\.textContent = accountContext/);
-  assert.match(css, /\.header-identity\{/);
-  assert.match(css, /\.header-identity-copy strong\{[^}]*font-size:13px/);
+  assert.match(script, /headerIdentity"\)\.onclick = \(\) => openSettings\("account"\)/);
+  assert.match(script, /function setAccountMenuOpen\(open\)/);
+  assert.match(script, /function endStaffSession\(\{ switchAccount = false \} = \{\}\)/);
+  assert.match(script, /state\.autoRefreshEnabled/);
+  assert.match(css, /\.header-account-trigger\{/);
+  assert.match(css, /\.account-menu\{/);
+  assert.match(css, /\.settings-dialog-body\{/);
+  assert.match(server, /"compact-account-menu"/);
 });
 
 test("HelpDesk accounts use readable summaries and neutral secondary actions", async () => {

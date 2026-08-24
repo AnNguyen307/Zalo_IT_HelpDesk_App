@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.16.7" />
+  <link rel="stylesheet" href="/admin.css?v=5.16.8" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -62,13 +62,30 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.7</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.8</span></div>
     </aside>
 
     <div class="admin-main">
       <header class="main-header">
         <div class="header-copy"><span class="overline">HELPDESK</span><h1 id="activeSectionTitle">Tổng quan Ticket</h1><p id="activeSectionDescription">Theo dõi số lượng, trạng thái, SLA và người phụ trách.</p></div>
-        <div class="header-actions"><div id="headerIdentity" class="header-identity" aria-live="polite"><span id="headerIdentityAvatar" class="header-identity-avatar" aria-hidden="true">IT</span><span class="header-identity-copy"><strong id="headerIdentityName">Đang tải tài khoản…</strong><small id="headerIdentityRole">Đang xác định vai trò</small></span></div><button id="refreshBtn" class="button icon-button" title="Làm mới" aria-label="Làm mới dữ liệu"><span>↻</span></button><button id="logoutBtn" class="button subtle-button"><span>Đăng xuất</span><b>↗</b></button></div>
+        <div class="header-actions">
+          <button id="headerIdentity" class="header-account-trigger" type="button" aria-label="Mở cài đặt tài khoản" aria-live="polite">
+            <span id="headerIdentityAvatar" class="header-identity-avatar" aria-hidden="true">IT</span>
+            <span class="header-account-copy"><strong>Tài khoản</strong><small id="headerAccountName">Đang tải…</small></span>
+          </button>
+          <div class="header-account-menu-wrap">
+            <button id="accountMenuToggle" class="account-menu-toggle" type="button" title="Mở rộng" aria-label="Mở menu tài khoản" aria-haspopup="menu" aria-expanded="false" aria-controls="accountMenu"><span aria-hidden="true">⌄</span></button>
+            <div id="accountMenu" class="account-menu hidden" role="menu" aria-label="Cài đặt và tài khoản">
+              <div class="account-menu-summary"><strong id="accountMenuName">Đang tải tài khoản…</strong><small id="accountMenuMeta">Đang xác định vai trò</small></div>
+              <button type="button" class="account-menu-item" data-settings-view="app" role="menuitem"><span aria-hidden="true">◫</span><span><strong>Cài đặt ứng dụng</strong><small>Dữ liệu và cập nhật</small></span></button>
+              <button type="button" class="account-menu-item" data-settings-view="account" role="menuitem"><span aria-hidden="true">◎</span><span><strong>Cài đặt tài khoản</strong><small>Thông tin đăng nhập</small></span></button>
+              <button id="refreshBtn" type="button" class="account-menu-item" role="menuitem"><span aria-hidden="true">↻</span><span><strong>Làm mới dữ liệu</strong><small>Cập nhật Dashboard ngay</small></span></button>
+              <div class="account-menu-divider" role="separator"></div>
+              <button id="switchAccountBtn" type="button" class="account-menu-item" role="menuitem"><span aria-hidden="true">⇄</span><span><strong>Đổi tài khoản</strong><small>Quay lại màn hình đăng nhập</small></span></button>
+              <button id="logoutBtn" type="button" class="account-menu-item account-menu-danger" role="menuitem"><span aria-hidden="true">↗</span><span><strong>Đăng xuất</strong><small>Kết thúc phiên hiện tại</small></span></button>
+            </div>
+          </div>
+        </div>
       </header>
 
       <div class="main-content">
@@ -189,6 +206,30 @@
     </div>
   </section>
 
+  <dialog id="settingsDialog" class="form-dialog settings-dialog" aria-labelledby="settingsDialogTitle">
+    <div class="dialog-head"><div><span class="overline">CÀI ĐẶT CHUNG</span><h2 id="settingsDialogTitle">Tài khoản</h2><p class="muted">Quản lý trải nghiệm ứng dụng và phiên đăng nhập.</p></div><button type="button" class="dialog-close" data-close-settings aria-label="Đóng">×</button></div>
+    <div class="settings-dialog-body">
+      <nav class="settings-tabs" aria-label="Nhóm cài đặt">
+        <button type="button" data-settings-tab="app" aria-selected="false"><span aria-hidden="true">◫</span> Ứng dụng</button>
+        <button type="button" class="active" data-settings-tab="account" aria-selected="true"><span aria-hidden="true">◎</span> Tài khoản</button>
+      </nav>
+      <div class="settings-panels">
+        <section class="settings-panel hidden" data-settings-panel="app" role="tabpanel" aria-label="Cài đặt ứng dụng">
+          <div class="settings-section-heading"><span class="settings-section-icon" aria-hidden="true">↻</span><div><h3>Dữ liệu Dashboard</h3><p>Kiểm soát cách trang quản trị cập nhật dữ liệu vận hành.</p></div></div>
+          <label class="settings-switch" for="autoRefreshSetting"><span><strong>Tự động làm mới</strong><small>Cập nhật ticket và trạng thái hệ thống mỗi 30 giây.</small></span><input id="autoRefreshSetting" type="checkbox" role="switch" checked /><i aria-hidden="true"></i></label>
+          <button id="settingsRefreshBtn" type="button" class="button subtle-button full">↻ Làm mới dữ liệu ngay</button>
+          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.16.8</strong></div>
+        </section>
+        <section class="settings-panel active" data-settings-panel="account" role="tabpanel" aria-label="Cài đặt tài khoản">
+          <div class="settings-account-profile"><span id="settingsAccountAvatar" class="header-identity-avatar" aria-hidden="true">IT</span><div><strong id="settingsAccountName">Đang tải tài khoản…</strong><small id="settingsAccountMeta">Đang xác định vai trò</small></div><span class="settings-session-state"><i></i> Đang đăng nhập</span></div>
+          <dl class="settings-account-details"><div><dt>Tên đăng nhập</dt><dd id="settingsAccountUsername">—</dd></div><div><dt>Vai trò</dt><dd id="settingsAccountRole">—</dd></div></dl>
+          <button id="manageStaffAccountsBtn" type="button" class="button subtle-button full admin-only">Quản lý tài khoản nhân sự</button>
+          <div class="settings-account-actions"><button id="settingsSwitchAccountBtn" type="button" class="button subtle-button">⇄ Đổi tài khoản</button><button id="settingsLogoutBtn" type="button" class="button danger-button">Đăng xuất ↗</button></div>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="ticketDialog" class="ticket-dialog">
     <form method="dialog" class="dialog-head"><div><span class="overline">CHI TIẾT TICKET</span><h2 id="dialogTicketCode">Ticket</h2></div><button class="dialog-close" aria-label="Đóng">×</button></form>
     <div id="ticketDetail"></div>
@@ -278,6 +319,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.16.7"></script>
+  <script type="module" src="/admin.js?v=5.16.8"></script>
 </body>
 </html>

@@ -1,8 +1,13 @@
 import { buildStaffAccountPayload, staffActivePresentation, staffErrorFieldId } from "./admin-staff.js";
 
+const AUTO_REFRESH_STORAGE_KEY = "hd_admin_auto_refresh";
+function savedAutoRefreshPreference() {
+  try { return localStorage.getItem(AUTO_REFRESH_STORAGE_KEY) !== "false"; } catch { return true; }
+}
+
 const state = {
   token: sessionStorage.getItem("hd_admin") || "",
-  user: null, tickets: [], stats: null, kb: [], agent: null, aiQuality: null, playbook: null, governance: null, procedures: [], staff: [], userAccess: { invites: [], users: [] }, directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets",
+  user: null, tickets: [], stats: null, kb: [], agent: null, aiQuality: null, playbook: null, governance: null, procedures: [], staff: [], userAccess: { invites: [], users: [] }, directory: [], report: null, legacyLoginEnabled: true, activeQueue: "all", activeTab: "tickets", autoRefreshEnabled: savedAutoRefreshPreference(),
 };
 const COPILOT_PROVIDER_STORAGE_KEY = "hd_copilot_provider";
 const copilotProviderLabels = { gemini: "Gemini", groq: "Groq", openrouter: "OpenRouter", sambanova: "SambaNova" };
@@ -129,7 +134,65 @@ function toast(message) {
   if (element.parentElement !== host) host.appendChild(element);
   element.textContent = message; element.classList.remove("hidden"); clearTimeout(toast.timer); toast.timer = setTimeout(() => element.classList.add("hidden"), 2800);
 }
-function show() { $("#loginView").classList.toggle("hidden", Boolean(state.token)); $("#appView").classList.toggle("hidden", !state.token); }
+function show() {
+  $("#loginView").classList.toggle("hidden", Boolean(state.token));
+  $("#appView").classList.toggle("hidden", !state.token);
+  if (!state.token) {
+    setAccountMenuOpen(false);
+    if ($("#settingsDialog")?.open) $("#settingsDialog").close();
+  }
+}
+
+function setAccountMenuOpen(open) {
+  const menu = $("#accountMenu"); const toggle = $("#accountMenuToggle");
+  if (!menu || !toggle) return;
+  menu.classList.toggle("hidden", !open);
+  toggle.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function selectSettingsView(view = "account") {
+  const activeView = view === "app" ? "app" : "account";
+  $$('[data-settings-tab]').forEach((button) => {
+    const active = button.dataset.settingsTab === activeView;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  $$('[data-settings-panel]').forEach((panel) => {
+    const active = panel.dataset.settingsPanel === activeView;
+    panel.classList.toggle("active", active);
+    panel.classList.toggle("hidden", !active);
+  });
+  $("#settingsDialogTitle").textContent = activeView === "app" ? "Ứng dụng" : "Tài khoản";
+}
+
+function openSettings(view = "account") {
+  setAccountMenuOpen(false);
+  selectSettingsView(view);
+  $("#autoRefreshSetting").checked = state.autoRefreshEnabled;
+  if (!$("#settingsDialog").open) $("#settingsDialog").showModal();
+}
+
+function setAutoRefreshPreference(enabled) {
+  state.autoRefreshEnabled = Boolean(enabled);
+  try { localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(state.autoRefreshEnabled)); } catch {}
+  $("#autoRefreshSetting").checked = state.autoRefreshEnabled;
+}
+
+function endStaffSession({ switchAccount = false } = {}) {
+  setAccountMenuOpen(false);
+  if ($("#settingsDialog").open) $("#settingsDialog").close();
+  state.token = ""; state.user = null;
+  sessionStorage.removeItem("hd_admin");
+  if (switchAccount) { $("#staffUsername").value = ""; $("#password").value = ""; }
+  show();
+  if (switchAccount) window.requestAnimationFrame(() => $("#staffUsername").focus());
+}
+
+async function refreshDashboard() {
+  setAccountMenuOpen(false);
+  try { await load(); toast("Dữ liệu đã được làm mới"); }
+  catch (error) { toast(error.message); }
+}
 
 function setHealth(dotSelector, textSelector, ready, text) {
   const dot = $(dotSelector); const label = $(textSelector);
@@ -183,11 +246,18 @@ function applyRoleVisibility() {
   if ($("#staffIdentity")) $("#staffIdentity").textContent = `${displayName} · ${roleLabel}`;
   if ($("#headerIdentity")) {
     $("#headerIdentity").dataset.role = role;
-    $("#headerIdentity").setAttribute("aria-label", `Đang đăng nhập: ${displayName}, ${accountContext}`);
+    $("#headerIdentity").setAttribute("aria-label", `Mở cài đặt tài khoản: ${displayName}, ${accountContext}`);
   }
   if ($("#headerIdentityAvatar")) $("#headerIdentityAvatar").textContent = initials(displayName);
-  if ($("#headerIdentityName")) $("#headerIdentityName").textContent = displayName;
-  if ($("#headerIdentityRole")) $("#headerIdentityRole").textContent = accountContext;
+  if ($("#headerAccountName")) $("#headerAccountName").textContent = displayName;
+  if ($("#accountMenuName")) $("#accountMenuName").textContent = displayName;
+  if ($("#accountMenuMeta")) $("#accountMenuMeta").textContent = accountContext;
+  if ($("#settingsAccountAvatar")) $("#settingsAccountAvatar").textContent = initials(displayName);
+  if ($("#settingsAccountName")) $("#settingsAccountName").textContent = displayName;
+  if ($("#settingsAccountMeta")) $("#settingsAccountMeta").textContent = accountContext;
+  if ($("#settingsAccountUsername")) $("#settingsAccountUsername").textContent = state.user?.legacy ? "Tài khoản dùng chung" : state.user?.username ? `@${state.user.username}` : "Chưa có tên đăng nhập";
+  if ($("#settingsAccountRole")) $("#settingsAccountRole").textContent = roleLabel;
+  if ($("#settingsAccountAvatar")?.parentElement) $("#settingsAccountAvatar").parentElement.dataset.role = role;
 }
 
 const queueMeta = [
@@ -857,8 +927,22 @@ function editKb(id = "") {
 }
 
 $("#loginForm").onsubmit = async (event) => { event.preventDefault(); $("#loginError").textContent = ""; try { const result = await api("/api/auth/staff", { method: "POST", body: JSON.stringify({ username: $("#staffUsername").value, password: $("#password").value }) }); state.token = result.token; sessionStorage.setItem("hd_admin", result.token); show(); await load(); } catch (error) { $("#loginError").textContent = error.message; } };
-$("#logoutBtn").onclick = () => { state.token = ""; state.user = null; sessionStorage.removeItem("hd_admin"); show(); };
-$("#refreshBtn").onclick = async () => { try { await load(); toast("Dữ liệu đã được làm mới"); } catch (error) { toast(error.message); } };
+$("#headerIdentity").onclick = () => openSettings("account");
+$("#accountMenuToggle").onclick = (event) => { event.stopPropagation(); setAccountMenuOpen($("#accountMenuToggle").getAttribute("aria-expanded") !== "true"); };
+$$('[data-settings-view]').forEach((button) => { button.onclick = () => openSettings(button.dataset.settingsView); });
+$$('[data-settings-tab]').forEach((button) => { button.onclick = () => selectSettingsView(button.dataset.settingsTab); });
+$$('[data-close-settings]').forEach((button) => { button.onclick = () => $("#settingsDialog").close(); });
+$("#settingsDialog").onclick = (event) => { if (event.target === $("#settingsDialog")) $("#settingsDialog").close(); };
+$("#autoRefreshSetting").onchange = (event) => { setAutoRefreshPreference(event.target.checked); toast(event.target.checked ? "Đã bật tự động làm mới" : "Đã tắt tự động làm mới"); };
+$("#refreshBtn").onclick = refreshDashboard;
+$("#settingsRefreshBtn").onclick = refreshDashboard;
+$("#switchAccountBtn").onclick = () => endStaffSession({ switchAccount: true });
+$("#settingsSwitchAccountBtn").onclick = () => endStaffSession({ switchAccount: true });
+$("#logoutBtn").onclick = () => endStaffSession();
+$("#settingsLogoutBtn").onclick = () => endStaffSession();
+$("#manageStaffAccountsBtn").onclick = () => { $("#settingsDialog").close(); switchTab("staff"); };
+document.addEventListener("click", (event) => { if (!(event.target instanceof Element) || !event.target.closest(".header-account-menu-wrap")) setAccountMenuOpen(false); });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") setAccountMenuOpen(false); });
 $("#search").oninput = renderTickets; $("#statusFilter").onchange = renderTickets; $("#priorityFilter").onchange = renderTickets; $("#categoryFilter").onchange = renderTickets;
 $("#resetFiltersBtn").onclick = () => { $("#search").value = ""; $("#statusFilter").value = ""; $("#priorityFilter").value = ""; $("#categoryFilter").value = ""; renderTickets(); };
 $$(".tab").forEach((tab) => { tab.onclick = () => switchTab(tab.dataset.tab); });
@@ -949,4 +1033,4 @@ $("#agentTestForm").onsubmit = async (event) => { event.preventDefault(); const 
 
 show(); switchTab("tickets");
 if (state.token) load().catch(() => { state.token = ""; sessionStorage.removeItem("hd_admin"); show(); });
-setInterval(() => { if (state.token && !$("#ticketDialog").open) load().catch(() => undefined); }, 30000);
+setInterval(() => { if (state.token && state.autoRefreshEnabled && !$("#ticketDialog").open && !$("#settingsDialog").open) load().catch(() => undefined); }, 30000);

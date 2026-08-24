@@ -1,6 +1,6 @@
 {
   "name": "zalo-helpdesk-zero-cost-backend",
-  "version": "5.16.7",
+  "version": "5.16.8",
   "private": true,
   "type": "module",
   "engines": {

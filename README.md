@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.16.7 — Overview Banner Fit
+# Zalo IT HelpDesk v5.16.8 — Compact Account Menu
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.7 thu gọn và căn giữa GIF quy trình trên Tổng quan Admin để hàng đợi ticket xuất hiện sớm hơn trong khung nhìn. Toàn bộ nội dung ảnh động vẫn được giữ nguyên; API, dữ liệu, AI Router và Mini App không đổi hành vi.
+v5.16.8 tinh gọn cụm tài khoản ở header Admin thành nút Tài khoản và một menu mở rộng. Người dùng có thể mở thẳng cài đặt tài khoản hoặc truy cập cài đặt ứng dụng, làm mới dữ liệu, đổi tài khoản và đăng xuất từ cùng một vị trí.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend/Admin: `5.16.7`
+- Backend/Admin: `5.16.8`
 - Mini App metadata: `5.16.6`
 - Mini App dependency baseline: Vite `6.4.3`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
@@ -101,6 +101,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
+- Menu Tài khoản Admin v5.16.8: [docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md](docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md)
 - Banner Tổng quan Admin v5.16.7: [docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md](docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md)
 - Bảo trì dependency Mini App v5.16.6: [docs/releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md](docs/releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md)
 - UI Admin v5.16.5: [docs/releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md](docs/releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md)
