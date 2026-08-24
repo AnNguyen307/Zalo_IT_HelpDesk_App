@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.17.0 — PostgreSQL Playbook Governance
+# Zalo IT HelpDesk v5.17.1 — Zalo Mini App Production Pilot Readiness
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.17.0 đưa toàn bộ vòng đời Playbook lên PostgreSQL cho profile Render/Supabase: Draft → Submitted → Admin Review → Published, lịch sử phiên bản bất biến, audit event, rollback và nguồn RAG chỉ đọc procedure `Published + Active`. Migration và baseline seed đều idempotent; state JSONB hiện có vẫn giữ schema `1`.
+v5.17.1 bổ sung quality gate Production Pilot chạy xuyên suốt mã mời → session → ticket → attachment → AI/handoff → HelpDesk reply → resolve → rating, đồng thời chặn deploy Mini App Testing nếu Backend public chưa đúng version/capability. Nền PostgreSQL Playbook Governance của v5.17.0 vẫn giữ nguyên.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,13 +14,13 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend/Admin: `5.17.0`
-- Mini App metadata: `5.16.6`
+- Backend/Admin: `5.17.1`
+- Mini App metadata: `5.17.1`
 - Mini App dependency baseline: Vite `6.4.3`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
 - SQL Server: schema `10`, không có migration mới
 - PostgreSQL pilot: state schema `1` giữ nguyên; thêm Playbook Governance schema `1`
-- Mini App giữ nguyên bản `5.16.6`; không cần build/publish lại cho thay đổi backend này
+- Mini App cần build/deploy Testing để chạy Production Pilot; không tự publish Production
 
 ## Kiến trúc
 
@@ -95,12 +95,14 @@ USER_INVITE_TTL_HOURS=24
 RATE_LIMIT_INVITE_MAX=10
 ```
 
-Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Mini App v5.16.6 không gửi Zalo access token và không phụ thuộc vị trí IP của Backend.
+Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Mini App v5.17.1 không gửi Zalo access token và không phụ thuộc vị trí IP của Backend.
 
 ## Triển khai
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
+- Production Pilot v5.17.1: [docs/releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md](docs/releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md)
+- Checklist pilot v5.17.1: [docs/releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md](docs/releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md)
 - PostgreSQL Playbook Governance v5.17.0: [docs/releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md](docs/releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md)
 - Sidebar thích ứng Admin v5.16.9: [docs/releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md](docs/releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md)
 - Menu Tài khoản Admin v5.16.8: [docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md](docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md)

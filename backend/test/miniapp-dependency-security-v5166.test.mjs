@@ -26,11 +26,11 @@ test("Mini App v5.16.6 removes high dependency advisories without unsafe vendor 
   const lock = JSON.parse(lockText);
   const appConfig = JSON.parse(appConfigText);
 
-  assert.equal(manifest.version, "5.16.6");
+  assert.ok(versionAtLeast(manifest.version, "5.16.6"));
   assert.equal(manifest.devDependencies.vite, "^6.4.3");
   assert.equal(manifest.dependencies["zmp-sdk"], "^2.53.0");
   assert.equal(manifest.overrides, undefined, "do not force an incompatible Sentry major into ZMP SDK");
-  assert.equal(lock.version, "5.16.6");
+  assert.equal(lock.version, manifest.version);
 
   for (const [path, minimum] of [
     ["node_modules/vite", "6.4.3"],
