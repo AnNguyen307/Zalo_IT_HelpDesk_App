@@ -30,9 +30,9 @@ test("zero-value ticket and review badges stay out of the sidebar", async () => 
   assert.match(script, /badge\.setAttribute\("aria-hidden", count === 0 \? "true" : "false"\)/);
 });
 
-test("Admin asset URLs are cache-busted for v5.16.7", async () => {
+test("Admin asset URLs are cache-busted for v5.16.8", async () => {
   const html = await readFile(publicFile("admin.html"), "utf8");
 
-  assert.match(html, /\/admin\.css\?v=5\.16\.7/);
-  assert.match(html, /\/admin\.js\?v=5\.16\.7/);
+  assert.match(html, /\/admin\.css\?v=5\.16\.8/);
+  assert.match(html, /\/admin\.js\?v=5\.16\.8/);
 });

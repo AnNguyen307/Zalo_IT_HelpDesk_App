@@ -1,6 +1,6 @@
 # Project Handoff — Zalo IT HelpDesk
 
-> Historical handoff through v5.12.0. For the current Backend/Admin v5.16.7 / Mini App v5.16.6 source, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.7/`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.16.7 fits the complete Overview workflow animation to the desktop workspace; v5.16.6 remains the Mini App dependency baseline and v5.16.4 remains the source of truth for Cloud AI reliability.
+> Historical handoff through v5.12.0. For the current Backend/Admin v5.16.8 / Mini App v5.16.6 source, read `AGENTS.md`, `README.md`, `docs/releases/v5.16.8/`, `docs/releases/v5.16.7/`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.16.8 is the Admin account/settings header source of truth; v5.16.7 fits the Overview workflow animation, v5.16.6 remains the Mini App dependency baseline and v5.16.4 remains the source of truth for Cloud AI reliability.
 
 > Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
 
