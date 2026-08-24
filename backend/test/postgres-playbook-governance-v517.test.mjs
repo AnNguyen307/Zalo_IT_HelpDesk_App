@@ -171,7 +171,10 @@ test("v5.17.0 wires PostgreSQL governance into startup, RAG and Render", async (
   assert.match(playbook, /\["sqlserver", "postgres"\]\.includes\(config\.dbProvider\)/);
   assert.match(playbook, /PostgreSQL \/ public\.helpdesk_playbook_\*/);
   assert.match(server, /governance\.counts\?\.procedures === 0/);
-  assert.match(server, /seeded\.inserted > 0 && config\.playbookAutoReindexOnPublish/);
+  assert.match(server, /if \(governance\.ready\)/);
+  assert.match(server, /reindexRequestedBy = "PostgreSQL Startup Recovery"/);
+  assert.match(server, /if \(config\.playbookAutoReindexOnPublish\)/);
+  assert.match(server, /queuePlaybookReindex\(\{ requestedBy: reindexRequestedBy \}\)/);
   assert.match(render, /key: PLAYBOOK_GOVERNANCE_ENABLED\n\s+value: "true"/);
   assert.match(healthSource, /"postgres-playbook-governance"/);
   assert.match(healthSource, /version: "5\.17\.1"/);

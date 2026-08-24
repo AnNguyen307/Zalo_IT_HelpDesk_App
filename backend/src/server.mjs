@@ -72,11 +72,15 @@ await initializeStore();
 if (config.dbProvider === "postgres" && config.playbookGovernanceEnabled) {
   try {
     const governance = await getPlaybookGovernanceStatus();
-    if (governance.ready && governance.counts?.procedures === 0) {
-      const seeded = await seedManagedPlaybookFromFile({ sub: "system", name: "Baseline Seeder", role: "admin" });
-      console.log(`[Playbook Governance] PostgreSQL baseline ready: inserted=${seeded.inserted}, skipped=${seeded.skipped}`);
-      if (seeded.inserted > 0 && config.playbookAutoReindexOnPublish) {
-        queuePlaybookReindex({ requestedBy: "Baseline Seeder" });
+    if (governance.ready) {
+      let reindexRequestedBy = "PostgreSQL Startup Recovery";
+      if (governance.counts?.procedures === 0) {
+        const seeded = await seedManagedPlaybookFromFile({ sub: "system", name: "Baseline Seeder", role: "admin" });
+        console.log(`[Playbook Governance] PostgreSQL baseline ready: inserted=${seeded.inserted}, skipped=${seeded.skipped}`);
+        if (seeded.inserted > 0) reindexRequestedBy = "Baseline Seeder";
+      }
+      if (config.playbookAutoReindexOnPublish) {
+        queuePlaybookReindex({ requestedBy: reindexRequestedBy });
       }
     }
   } catch (error) {
