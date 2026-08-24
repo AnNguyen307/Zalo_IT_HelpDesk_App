@@ -51,6 +51,7 @@ import { audit, closeStore, getStoreStatus, initializeStore, pushHistory, readDb
 import { plainSystemText } from "./system-text.mjs";
 import { DEFAULT_TICKET_PRIORITY, priorityFromAgentAnalysis } from "./ticket-priority.mjs";
 import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
+import { enqueueZaloBotWebhook, recoverZaloBotQueue, zaloBotStatus } from "./zalo-bot.mjs";
 import { handleZaloWebhookEvent, processZaloPrivacyCleanups, zaloWebhookStatus } from "./zalo-webhook.mjs";
 
 let retentionCleanupQueue = Promise.resolve();
@@ -98,6 +99,8 @@ for (const failure of recoveredPrivacy.failed) {
 }
 await seedKnowledgeBase(KB_SEED);
 await recoverCopilotQueue();
+const recoveredBot = await recoverZaloBotQueue({ createTicket, appendMessage });
+if (recoveredBot.recovered) console.log(`[ZALO BOT] Recovered ${recoveredBot.recovered} durable inbox event(s).`);
 
 const STATUSES = ["open", "waiting_user", "in_progress", "resolved", "closed"];
 const PRIORITIES = ["low", "normal", "high", "urgent"];
@@ -219,7 +222,7 @@ function agentDisplayName(analysis) {
   return "HelpDesk Escalation";
 }
 
-async function createTicket(session, body) {
+async function createTicket(session, body, options = {}) {
   const input = validateTicketInput(body);
   const db = await readDb();
   assertTicketSlotAvailable(db, config.maxStoredTickets);
@@ -231,12 +234,25 @@ async function createTicket(session, body) {
 
 ${input.description}`, createdAt,
   };
-  const analysis = await analyzeTicket(input, db.knowledgeBase, {
+  let analysis = await analyzeTicket(input, db.knowledgeBase, {
     latestUserMessage: input.description,
     messages: [userMessage],
     attachments: [],
-    trigger: "ticket_created",
+    trigger: options.source === "zalo_bot" ? "zalo_bot_ticket_created" : "ticket_created",
   });
+  if (options.forceHumanHandoff) {
+    analysis = {
+      ...analysis,
+      outcome: "escalate",
+      canAutoHandle: false,
+      escalated: true,
+      escalationCode: String(options.escalationCode || "forced_human_handoff").slice(0, 100),
+      reply: "Đã chuyển yêu cầu cho kỹ thuật viên.",
+      reason: options.source === "zalo_bot"
+        ? "Zalo Bot đã thử tự hỗ trợ nhưng không xử lý được hoặc người dùng yêu cầu tạo ticket."
+        : analysis.reason,
+    };
+  }
   const priority = priorityFromAgentAnalysis(analysis);
   const status = analysis.canAutoHandle ? "waiting_user" : "open";
   const ticket = {
@@ -287,9 +303,9 @@ ${input.description}`, createdAt,
     pushHistory(target, {
       ticketId: ticket.id, actorId: session.sub, actorName: session.name || "Người dùng",
       type: "created", from: null, to: status,
-      note: analysis.priorityDetermined
+      note: `${options.source ? `Nguồn=${options.source}; ` : ""}${analysis.priorityDetermined
         ? `Ticket mặc định ${DEFAULT_TICKET_PRIORITY}; AI Agent xác định ưu tiên ${ticket.priority}; agent=${analysis.source}`
-        : `Ticket mặc định ${DEFAULT_TICKET_PRIORITY}; AI Agent chưa xác định chắc chắn nên giữ ${DEFAULT_TICKET_PRIORITY}; agent=${analysis.source}`,
+        : `Ticket mặc định ${DEFAULT_TICKET_PRIORITY}; AI Agent chưa xác định chắc chắn nên giữ ${DEFAULT_TICKET_PRIORITY}; agent=${analysis.source}`}`,
     });
     if (ticket.aiHandoffLocked) {
       pushHistory(target, {
@@ -315,7 +331,12 @@ ${input.description}`, createdAt,
       console.warn(`[RETENTION] Attachment cleanup will be retried: ${error.message}`);
     }
   }
-  await audit(session.sub, "create", "ticket", ticket.id, { code: ticket.code, source: analysis.source, model: analysis.model || null });
+  await audit(session.sub, "create", "ticket", ticket.id, {
+    code: ticket.code,
+    channel: options.source || "miniapp",
+    source: analysis.source,
+    model: analysis.model || null,
+  });
   const decisionDetail = aiDecisionAuditDetail(analysis);
   if (decisionDetail) await audit("ai-agent", "ai_decision", "ticket", ticket.id, decisionDetail);
   if (ticket.aiHandoffLocked) {
@@ -664,10 +685,11 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.17.1",
+      version: "5.18.0",
       time: nowIso(),
-      features: ["zalo-consent-revocation-webhook", "signed-webhook-verification", "privacy-data-erasure", "production-pilot-e2e", "postgres-playbook-governance", "normalized-playbook-lifecycle", "transactional-playbook-publishing", "published-active-rag-source", "30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      features: ["zalo-bot-assistant", "zalo-bot-durable-inbox", "zalo-bot-generative-fallback", "zalo-bot-auto-ticket-on-failure", "zalo-consent-revocation-webhook", "signed-webhook-verification", "privacy-data-erasure", "production-pilot-e2e", "postgres-playbook-governance", "normalized-playbook-lifecycle", "transactional-playbook-publishing", "published-active-rag-source", "30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
       privacy: zaloWebhookStatus(),
+      bot: zaloBotStatus(),
       authentication: {
         userLogin: "one-time-invite",
         deviceSessionDays: config.userRefreshTtlDays,
@@ -697,6 +719,19 @@ async function handleApi(req, res, url, headers) {
   if (req.method === "POST" && pathname === "/api/webhooks/zalo") {
     const result = await handleZaloWebhookEvent(await readJson(req, 16 * 1024), req.headers["x-zevent-signature"]);
     return json(res, result.ignored ? 202 : 200, result, headers);
+  }
+
+  if (req.method === "GET" && pathname === "/api/webhooks/zalo-bot") {
+    return json(res, 200, { ok: true, ...zaloBotStatus() }, headers);
+  }
+
+  if (req.method === "POST" && pathname === "/api/webhooks/zalo-bot") {
+    const result = await enqueueZaloBotWebhook(
+      await readJson(req, 64 * 1024),
+      req.headers["x-bot-api-secret-token"],
+      { createTicket, appendMessage },
+    );
+    return json(res, 202, result, headers);
   }
 
   if (req.method === "POST" && pathname === "/api/auth/zalo") {

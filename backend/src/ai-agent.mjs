@@ -24,7 +24,7 @@ const CATEGORY_RULES = [
 const HIGH_RISK = [
   "mat khau", "password", "otp", "account locked", "tai khoan bi khoa", "ransomware", "virus",
   "phishing", "mat du lieu", "data loss", "format", "blue screen", "bsod", "bios", "server",
-  "switch", "firewall", "domain controller", "admin account", "chay dien", "khoi", "mui khet",
+  "switch", "firewall", "domain controller", "admin account", "chay dien", "boc khoi", "co khoi", "mui khoi", "mui khet",
 ];
 
 const URGENT = ["toan cong ty", "nhieu nguoi", "khong the lam viec", "server down", "mat mang ca", "production", "khach hang dang cho"];

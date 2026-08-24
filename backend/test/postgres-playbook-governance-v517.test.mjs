@@ -177,5 +177,5 @@ test("v5.17.0 wires PostgreSQL governance into startup, RAG and Render", async (
   assert.match(server, /queuePlaybookReindex\(\{ requestedBy: reindexRequestedBy \}\)/);
   assert.match(render, /key: PLAYBOOK_GOVERNANCE_ENABLED\n\s+value: "true"/);
   assert.match(healthSource, /"postgres-playbook-governance"/);
-  assert.match(healthSource, /version: "5\.17\.1"/);
+  assert.match(healthSource, /version: "5\.18\.0"/);
 });
