@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.16.8" />
+  <link rel="stylesheet" href="/admin.css?v=5.16.9" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -45,24 +45,29 @@
 
   <section id="appView" class="admin-layout hidden">
     <aside class="sidebar">
-      <div class="sidebar-brand"><span class="brand-symbol">IT</span><div><strong>HelpDesk</strong><small>Service workshop</small></div></div>
+      <div class="sidebar-brand">
+        <span class="brand-symbol">IT</span>
+        <div class="sidebar-brand-copy"><strong>HelpDesk</strong><small>Service workshop</small></div>
+        <button id="sidebarToggle" class="sidebar-toggle" type="button" title="Thu gọn thanh điều hướng" aria-label="Thu gọn thanh điều hướng" aria-expanded="true"><span aria-hidden="true">‹</span></button>
+      </div>
       <nav class="sidebar-nav" aria-label="Điều hướng quản trị">
         <span class="nav-label">VẬN HÀNH</span>
-        <button class="tab active" data-tab="tickets"><span class="nav-icon">▦</span><span>Tổng quan</span><b id="openTicketBadge" class="hidden" aria-hidden="true"></b></button>
-        <button class="tab" data-tab="operations"><span class="nav-icon">◩</span><span>Báo cáo</span></button>
+        <button class="tab active" data-tab="tickets" data-label="Tổng quan" title="Tổng quan" aria-current="page"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg></span><span class="nav-copy"><strong>Tổng quan</strong><small>Ticket &amp; SLA</small></span><b id="openTicketBadge" class="hidden" aria-hidden="true"></b></button>
+        <button class="tab" data-tab="operations" data-label="Báo cáo" title="Báo cáo"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg></span><span class="nav-copy"><strong>Báo cáo</strong><small>Hiệu suất vận hành</small></span></button>
         <span class="nav-label">TRI THỨC</span>
-        <button class="tab" data-tab="governance"><span class="nav-icon">◫</span><span>Quy trình</span><b id="reviewBadge" class="hidden" aria-hidden="true"></b></button>
-        <button class="tab" data-tab="playbook"><span class="nav-icon">▤</span><span>Playbook</span></button>
-        <button class="tab" data-tab="knowledge"><span class="nav-icon">◇</span><span>Kiến thức</span></button>
+        <button class="tab" data-tab="governance" data-label="Quy trình" title="Quy trình"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4h12v5H6zM4 15h6v5H4zM14 15h6v5h-6zM12 9v3m-5 0h10M7 12v3m10-3v3"/></svg></span><span class="nav-copy"><strong>Quy trình</strong><small>Soạn &amp; phê duyệt</small></span><b id="reviewBadge" class="hidden" aria-hidden="true"></b></button>
+        <button class="tab" data-tab="playbook" data-label="Playbook" title="Playbook"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg></span><span class="nav-copy"><strong>Playbook</strong><small>Tra cứu procedure</small></span></button>
+        <button class="tab" data-tab="knowledge" data-label="Kiến thức" title="Kiến thức"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 8 6-8 6-8-6zM4 14l8 6 8-6"/></svg></span><span class="nav-copy"><strong>Kiến thức</strong><small>Hướng dẫn kỹ thuật</small></span></button>
         <span class="nav-label">QUẢN TRỊ</span>
-        <button class="tab admin-only" data-tab="staff"><span class="nav-icon">◎</span><span>Nhân sự</span></button>
-        <button class="tab" data-tab="agent"><span class="nav-icon">✦</span><span>Hệ thống &amp; AI</span></button>
+        <button class="tab admin-only" data-tab="staff" data-label="Nhân sự" title="Nhân sự"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 10A3.5 3.5 0 1 0 9.5 3a3.5 3.5 0 0 0 0 7ZM17 8h4m-2-2v4"/></svg></span><span class="nav-copy"><strong>Nhân sự</strong><small>Tài khoản &amp; quyền</small></span></button>
+        <button class="tab" data-tab="agent" data-label="Hệ thống &amp; AI" title="Hệ thống &amp; AI"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg></span><span class="nav-copy"><strong>Hệ thống &amp; AI</strong><small>Trạng thái dịch vụ</small></span></button>
       </nav>
       <div class="sidebar-health">
+        <span class="sidebar-health-title">TRẠNG THÁI HỆ THỐNG</span>
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.8</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.16.9</span></div>
     </aside>
 
     <div class="admin-main">
@@ -218,7 +223,7 @@
           <div class="settings-section-heading"><span class="settings-section-icon" aria-hidden="true">↻</span><div><h3>Dữ liệu Dashboard</h3><p>Kiểm soát cách trang quản trị cập nhật dữ liệu vận hành.</p></div></div>
           <label class="settings-switch" for="autoRefreshSetting"><span><strong>Tự động làm mới</strong><small>Cập nhật ticket và trạng thái hệ thống mỗi 30 giây.</small></span><input id="autoRefreshSetting" type="checkbox" role="switch" checked /><i aria-hidden="true"></i></label>
           <button id="settingsRefreshBtn" type="button" class="button subtle-button full">↻ Làm mới dữ liệu ngay</button>
-          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.16.8</strong></div>
+          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.16.9</strong></div>
         </section>
         <section class="settings-panel active" data-settings-panel="account" role="tabpanel" aria-label="Cài đặt tài khoản">
           <div class="settings-account-profile"><span id="settingsAccountAvatar" class="header-identity-avatar" aria-hidden="true">IT</span><div><strong id="settingsAccountName">Đang tải tài khoản…</strong><small id="settingsAccountMeta">Đang xác định vai trò</small></div><span class="settings-session-state"><i></i> Đang đăng nhập</span></div>
@@ -319,6 +324,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.16.8"></script>
+  <script type="module" src="/admin.js?v=5.16.9"></script>
 </body>
 </html>

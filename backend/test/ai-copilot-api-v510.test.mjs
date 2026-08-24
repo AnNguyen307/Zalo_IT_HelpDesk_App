@@ -71,7 +71,7 @@ test("explicit User handoff queues an isolated staff-only Copilot run", { timeou
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.16.8");
+  assert.equal(health.version, "5.16.9");
   assert.ok(health.features.includes("copilot-independent-reasoning"));
   assert.ok(health.features.includes("copilot-no-playbook-analysis"));
   assert.ok(health.features.includes("copilot-multi-path-solutions"));
