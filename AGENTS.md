@@ -27,13 +27,13 @@ For fixes, backend behavior, tests, observability, documentation, refactors, sec
 
 For new layouts, visual language, navigation, interaction patterns, information hierarchy, or other material UI/UX decisions:
 
-1. Implement and verify on a review branch.
-2. Publish a draft PR for visual review.
-3. Stop before merge until the owner explicitly approves the UI/UX.
-4. Specific feedback on a reviewed component authorizes that requested adjustment on the draft branch, but does not authorize merging the whole PR.
-5. Once the owner explicitly approves the UI, mark the PR ready and merge after final validation.
+1. Implement and verify on a focused branch.
+2. Publish a ready PR after the relevant UI, responsive, regression, accessibility and credential checks pass.
+3. Merge autonomously when the PR is mergeable, its head SHA is unchanged, required checks are not failing, and no actionable review thread remains.
+4. Deploy Backend/Admin UI releases automatically to the owner's existing approved Render service after merge, then verify the deployed version and health metadata.
+5. Do not stop for a separate visual approval unless the owner explicitly asks to review that specific change before release.
 
-Do not deploy to an external environment, publish the Zalo Mini App, rotate credentials, delete data, or run destructive database operations unless the owner explicitly requests that action.
+The owner has granted standing authorization for safe UI/UX merges and deployments to the existing Backend/Admin Render service. This authorization does not cover Mini App publication, another external environment, credential rotation, data deletion, destructive database operations, or a materially expanded deployment target; those actions still require an explicit request.
 
 ## 3. GitHub workflow
 
@@ -41,7 +41,7 @@ Do not deploy to an external environment, publish the Zalo Mini App, rotate cred
 - Use local Git for status, diff review, staging, commits, and verification. Preserve unrelated owner changes.
 - Inspect `git status -sb`, the full intended diff, the current branch, and the remote base before publishing.
 - Keep every PR focused. Never silently include unrelated files, `.env` files, credentials, generated secrets, backups, or local data.
-- Default UI/UX work to a draft PR. Non-UI work may proceed through ready and merge under the autonomy rule above.
+- Publish verified UI/UX and non-UI work as ready PRs and proceed through merge under the autonomy rules above.
 - Before merge, verify the PR is mergeable, its head SHA has not moved, required checks are not failing, and there are no unresolved actionable review threads.
 - Use the expected head SHA when merging so a moved PR cannot be merged accidentally.
 - After merge, verify `main`, the merge commit, application version, health metadata, schema state, and PR status.
@@ -90,7 +90,7 @@ If a gate cannot run, state exactly why and do not claim it passed.
 - Add meaningful health feature flags for major capabilities so the deployed runtime can be verified without inference.
 - Keep release notes under `docs/releases/<version>/`.
 - Never add a database migration for a UI-only release.
-- Current Backend/Admin release: `v5.16.8`; current Mini App source release: `v5.16.6`. v5.16.8 replaces the wide Admin header identity/refresh/logout group with a compact Account trigger, expandable application/account menu and shared settings dialog. v5.16.7 keeps the complete Overview workflow GIF constrained to a centered `980px` maximum width. The Mini App dependency baseline uses Vite `6.4.3`, ZMP SDK `2.53.0` and Nano ID `3.3.18`; the remaining moderate Sentry advisory is inherited from the official ZMP SDK and must not be hidden with an incompatible major override. Admin and employee-facing copy remains functional and concise, while Cloud AI reliability still retries malformed structured output and treats a staff-selected model as the preferred first provider with cloud failover before Rules/Playbook.
+- Current Backend/Admin release: `v5.16.9`; current Mini App source release: `v5.16.6`. v5.16.9 provides an adaptive Admin sidebar with a persistent compact mode, clear navigation hierarchy, consistent SVG icons and a horizontally scrollable mobile taskbar. v5.16.8 owns the compact Account trigger and settings dialog; v5.16.7 keeps the complete Overview workflow GIF constrained to a centered `980px` maximum width. The Mini App dependency baseline uses Vite `6.4.3`, ZMP SDK `2.53.0` and Nano ID `3.3.18`; the remaining moderate Sentry advisory is inherited from the official ZMP SDK and must not be hidden with an incompatible major override. Admin and employee-facing copy remains functional and concise, while Cloud AI reliability still retries malformed structured output and treats a staff-selected model as the preferred first provider with cloud failover before Rules/Playbook.
 - SQL Server/NAS schema is `10`; free-hosting PostgreSQL remains state schema `1`.
 - Changing the hosted backend URL requires a Mini App rebuild/deploy even when UI code is unchanged.
 

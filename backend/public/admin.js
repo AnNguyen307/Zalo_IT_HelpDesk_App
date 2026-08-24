@@ -1,8 +1,12 @@
 import { buildStaffAccountPayload, staffActivePresentation, staffErrorFieldId } from "./admin-staff.js";
 
 const AUTO_REFRESH_STORAGE_KEY = "hd_admin_auto_refresh";
+const SIDEBAR_STORAGE_KEY = "hd_admin_sidebar_compact";
 function savedAutoRefreshPreference() {
   try { return localStorage.getItem(AUTO_REFRESH_STORAGE_KEY) !== "false"; } catch { return true; }
+}
+function savedSidebarPreference() {
+  try { return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true"; } catch { return false; }
 }
 
 const state = {
@@ -19,6 +23,18 @@ function saveCopilotProvider(value) {
 }
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+function setSidebarCompact(compact, { persist = true } = {}) {
+  const layout = $("#appView"); const toggle = $("#sidebarToggle");
+  if (!layout || !toggle) return;
+  layout.classList.toggle("sidebar-compact", Boolean(compact));
+  toggle.setAttribute("aria-expanded", compact ? "false" : "true");
+  toggle.setAttribute("aria-label", compact ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng");
+  toggle.title = compact ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng";
+  toggle.querySelector("span").textContent = compact ? "›" : "‹";
+  if (persist) {
+    try { localStorage.setItem(SIDEBAR_STORAGE_KEY, String(Boolean(compact))); } catch {}
+  }
+}
 const labels = {
   open: "Mới mở", waiting_user: "Chờ người dùng", in_progress: "Đang xử lý", resolved: "Đã xử lý", closed: "Đã đóng",
   urgent: "Khẩn cấp", high: "Cao", normal: "Bình thường", low: "Thấp",
@@ -201,7 +217,11 @@ function setHealth(dotSelector, textSelector, ready, text) {
 function switchTab(name) {
   if (name === "staff" && state.user?.role !== "admin") name = "tickets";
   state.activeTab = name;
-  $$(".tab").forEach((item) => item.classList.toggle("active", item.dataset.tab === name));
+  $$(".tab").forEach((item) => {
+    const active = item.dataset.tab === name;
+    item.classList.toggle("active", active);
+    if (active) item.setAttribute("aria-current", "page"); else item.removeAttribute("aria-current");
+  });
   ["tickets", "operations", "staff", "knowledge", "governance", "playbook", "agent"].forEach((tab) => $(`#${tab}Tab`)?.classList.toggle("hidden", tab !== name));
   const [title, description] = tabMeta[name] || tabMeta.tickets;
   $("#activeSectionTitle").textContent = title; $("#activeSectionDescription").textContent = description;
@@ -946,6 +966,7 @@ document.addEventListener("keydown", (event) => { if (event.key === "Escape") se
 $("#search").oninput = renderTickets; $("#statusFilter").onchange = renderTickets; $("#priorityFilter").onchange = renderTickets; $("#categoryFilter").onchange = renderTickets;
 $("#resetFiltersBtn").onclick = () => { $("#search").value = ""; $("#statusFilter").value = ""; $("#priorityFilter").value = ""; $("#categoryFilter").value = ""; renderTickets(); };
 $$(".tab").forEach((tab) => { tab.onclick = () => switchTab(tab.dataset.tab); });
+$("#sidebarToggle").onclick = () => setSidebarCompact(!$("#appView").classList.contains("sidebar-compact"));
 $("#reportDays").onchange = async () => { try { const result = await api(`/api/admin/operations?days=${encodeURIComponent($("#reportDays").value)}`); state.report = result.report; renderOperations(); } catch (error) { toast(error.message); } };
 $("#exportReportBtn").onclick = async () => {
   try {
@@ -1031,6 +1052,7 @@ $("#refreshAgentBtn").onclick = async () => { try { await refreshAiControlPlane(
 $("#aiQualityDays").onchange = async () => { try { await refreshAiControlPlane(); } catch (error) { toast(error.message); } };
 $("#agentTestForm").onsubmit = async (event) => { event.preventDefault(); const prompt = $("#agentTestPrompt").value.trim(); if (!prompt) return; const button = $("#agentTestForm button"); button.disabled = true; button.textContent = "AI đang phân tích…"; $("#agentTestResult").textContent = "Đang đối chiếu Enterprise Playbook và chính sách an toàn…"; try { const result = await api("/api/admin/agent/test", { method: "POST", body: JSON.stringify({ prompt }) }); const a = result.analysis || {}; $("#agentTestResult").textContent = `${a.canAutoHandle ? "✓ HƯỚNG DẪN THEO PLAYBOOK" : "↗ ESCALATE NGAY"}\n\n${result.reply}\n\n────────────────────────────────\nsource: ${a.source || "—"}\nmodel: ${a.model || "rules"}\nconfidence: ${Math.round((a.confidence || 0) * 100)}%\nlatency: ${a.latencyMs || 0} ms\nescalation: ${a.escalationCode || "none"}\nplaybook: ${(a.playbookIds || []).join(", ") || "none"}`; } catch (error) { $("#agentTestResult").textContent = `Lỗi: ${error.message}`; } finally { button.disabled = false; button.textContent = "✦ Phân tích bằng AI Agent"; } };
 
+setSidebarCompact(savedSidebarPreference(), { persist: false });
 show(); switchTab("tickets");
 if (state.token) load().catch(() => { state.token = ""; sessionStorage.removeItem("hd_admin"); show(); });
 setInterval(() => { if (state.token && state.autoRefreshEnabled && !$("#ticketDialog").open && !$("#settingsDialog").open) load().catch(() => undefined); }, 30000);

@@ -27,7 +27,7 @@ export function getPostgresConnectionConfig() {
     connectionTimeoutMillis: config.postgresConnectionTimeoutMs,
     idleTimeoutMillis: config.postgresIdleTimeoutMs,
     statement_timeout: config.postgresStatementTimeoutMs,
-    application_name: "zalo-helpdesk-v5.16.8",
+    application_name: "zalo-helpdesk-v5.16.9",
   };
 }
 

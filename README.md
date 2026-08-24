@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.16.8 — Compact Account Menu
+# Zalo IT HelpDesk v5.16.9 — Adaptive Admin Sidebar
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.8 tinh gọn cụm tài khoản ở header Admin thành nút Tài khoản và một menu mở rộng. Người dùng có thể mở thẳng cài đặt tài khoản hoặc truy cập cài đặt ứng dụng, làm mới dữ liệu, đổi tài khoản và đăng xuất từ cùng một vị trí.
+v5.16.9 tối ưu thanh điều hướng Admin với icon SVG nhất quán, nhãn chức năng rõ ràng, mô tả ngắn, trạng thái hệ thống gọn hơn và chế độ thu gọn có ghi nhớ. Trên laptop thanh điều hướng tự chuyển thành rail; trên điện thoại nó trở thành taskbar đáy có thể cuộn ngang.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend/Admin: `5.16.8`
+- Backend/Admin: `5.16.9`
 - Mini App metadata: `5.16.6`
 - Mini App dependency baseline: Vite `6.4.3`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
@@ -101,6 +101,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
+- Sidebar thích ứng Admin v5.16.9: [docs/releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md](docs/releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md)
 - Menu Tài khoản Admin v5.16.8: [docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md](docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md)
 - Banner Tổng quan Admin v5.16.7: [docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md](docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md)
 - Bảo trì dependency Mini App v5.16.6: [docs/releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md](docs/releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md)
@@ -110,7 +111,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 - Release/rollback: [docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md](docs/releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md)
 - Working agreement cho Agent: [AGENTS.md](AGENTS.md)
 
-`render.yaml` để `autoDeployTrigger: off`: merge GitHub không tự ý phát hành. `deploy/nas/compose.yaml` chỉ bind backend vào `127.0.0.1:8080`; HTTPS cần named tunnel/reverse proxy riêng.
+`render.yaml` để `autoDeployTrigger: off`; workflow phát hành UI/UX sẽ chủ động deploy dịch vụ Render đã được chủ dự án phê duyệt sau khi merge và kiểm thử đạt. `deploy/nas/compose.yaml` chỉ bind backend vào `127.0.0.1:8080`; HTTPS cần named tunnel/reverse proxy riêng.
 
 ## Lưu ý free tier
 
