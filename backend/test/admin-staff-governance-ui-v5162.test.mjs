@@ -28,7 +28,7 @@ test("HelpDesk accounts use readable summaries and neutral secondary actions", a
     readFile(publicFile("admin.css"), "utf8"),
   ]);
 
-  assert.match(html, /QUẢN LÝ TRUY CẬP/);
+  assert.match(html, /<span class="overline">TÀI KHOẢN<\/span>/);
   assert.match(script, /class="staff-summary-item active"/);
   assert.match(script, /Toàn quyền quản trị/);
   assert.match(script, /Theo dõi, không chỉnh sửa/);

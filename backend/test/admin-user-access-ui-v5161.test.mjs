@@ -11,7 +11,7 @@ test("employee invite administration has a readable information hierarchy", asyn
     readFile(publicFile("admin.css"), "utf8"),
   ]);
 
-  assert.match(html, /TRUY CẬP MINI APP/);
+  assert.match(html, /<span class="overline">MINI APP<\/span>/);
   assert.match(html, /Mã còn hiệu lực và lịch sử xác nhận/);
   assert.match(html, /Nhân viên đã xác nhận và phiên đang hoạt động/);
   assert.match(html, /class="access-summary"/);

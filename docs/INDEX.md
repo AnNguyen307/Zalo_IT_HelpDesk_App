@@ -67,6 +67,7 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md](./releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md)
 - [releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md](./releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md)
 - [releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md](./releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md)
+- [releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md](./releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)

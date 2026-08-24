@@ -12,7 +12,7 @@ async function adminAssets() {
   ]);
 }
 
-test("Overview uses a live signal banner with runtime status and reduced-motion support", async () => {
+test("Overview uses an animated HelpDesk illustration with runtime status and reduced-motion support", async () => {
   const [html, css, script] = await adminAssets();
 
   assert.match(html, /class="operations-signal-banner"/);
@@ -21,7 +21,9 @@ test("Overview uses a live signal banner with runtime status and reduced-motion 
   assert.match(html, /id="overviewSlaSignal"/);
   assert.doesNotMatch(html, /VẬN HÀNH CÓ KIỂM SOÁT/);
   assert.doesNotMatch(html, /class="policy-banner"/);
-  assert.match(css, /@keyframes signal-travel/);
+  assert.match(html, /class="signal-banner-media"/);
+  assert.match(html, /helpdesk-operations-v5165\.webp/);
+  assert.match(css, /@keyframes helpdesk-visual-drift/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
   assert.match(script, /function renderOverviewSignals\(\)/);
   assert.match(script, /ticket quá hạn/);

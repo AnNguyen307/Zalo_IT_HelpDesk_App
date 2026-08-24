@@ -1561,9 +1561,9 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
 /* v5.16.3 — live operations, Playbook search and AI control refresh */
 .operations-signal-banner{
   position:relative;
-  min-height:206px;
+  min-height:230px;
   display:grid;
-  grid-template-columns:minmax(0,1.12fr) minmax(360px,.88fr);
+  grid-template-columns:minmax(360px,.82fr) minmax(460px,1.18fr);
   overflow:hidden;
   margin:16px 0 18px;
   border:1px solid #a9bce0;
@@ -1577,9 +1577,7 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
   position:absolute;
   inset:0;
   pointer-events:none;
-  background-image:linear-gradient(rgba(23,105,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(23,105,255,.055) 1px,transparent 1px);
-  background-size:28px 28px;
-  mask-image:linear-gradient(90deg,transparent 5%,#000 76%,#000);
+  background:linear-gradient(110deg,rgba(23,105,255,.035),transparent 50%);
 }
 .signal-banner-copy{
   position:relative;
@@ -1587,13 +1585,12 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
   display:flex;
   flex-direction:column;
   justify-content:center;
-  padding:26px clamp(25px,3vw,42px);
+  padding:28px clamp(25px,3vw,42px);
   background:rgba(251,250,247,.9);
 }
 .signal-banner-eyebrow{display:flex;align-items:center;gap:9px;color:var(--brand2);font-size:10px;font-weight:850;letter-spacing:.14em}
 .signal-banner-eyebrow i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(72,168,104,.13);animation:signal-live 2.2s ease-in-out infinite}
-.signal-banner-copy h2{max-width:720px;margin:13px 0 8px;color:var(--soft-black);font-size:clamp(25px,2.35vw,36px);line-height:1.13;letter-spacing:-.045em}
-.signal-banner-copy h2 span{color:var(--brand2)}
+.signal-banner-copy h2{max-width:720px;margin:13px 0 8px;color:var(--soft-black);font-size:clamp(25px,2.35vw,34px);line-height:1.13;letter-spacing:-.04em}
 .signal-banner-copy>p{max-width:670px;margin:0;color:#566174;font-size:13px;line-height:1.65}
 .signal-banner-status{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
 .signal-banner-status>div{min-width:132px;padding:8px 11px;border-left:3px solid var(--line);background:#f7f5f0}
@@ -1603,24 +1600,10 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
 .signal-banner-status small,.signal-banner-status strong{display:block}
 .signal-banner-status small{color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
 .signal-banner-status strong{overflow:hidden;margin-top:3px;color:var(--ink);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
-.signal-banner-visual{position:relative;min-height:206px;overflow:hidden;border-left:1px solid #b8c4d8;background:#e7ebf2}
-.signal-banner-visual:before,.signal-banner-visual:after{content:"";position:absolute;border:1px solid rgba(23,105,255,.22);border-radius:50%;animation:signal-orbit 9s linear infinite}
-.signal-banner-visual:before{width:255px;height:255px;right:24px;top:-25px}
-.signal-banner-visual:after{width:165px;height:165px;right:69px;top:20px;animation-direction:reverse;animation-duration:7s}
-.signal-core{position:absolute;z-index:4;right:115px;top:69px;width:76px;height:76px;display:grid;place-content:center;text-align:center;border:1px solid #23262c;border-radius:50%;background:var(--ink);color:#fff;box-shadow:0 0 0 9px rgba(23,105,255,.09),0 10px 22px rgba(32,33,36,.18)}
-.signal-core i{position:absolute;right:10px;top:8px;width:8px;height:8px;border-radius:50%;background:#70d692;box-shadow:0 0 0 4px rgba(112,214,146,.15)}
-.signal-core strong,.signal-core small{display:block}
-.signal-core strong{font-size:15px;letter-spacing:.14em}
-.signal-core small{margin-top:2px;color:#aebfe4;font-size:7px;letter-spacing:.16em}
-.signal-node{position:absolute;z-index:3;min-width:77px;padding:8px 10px;border:1px solid #aab5c8;border-radius:5px;background:rgba(251,250,247,.94);box-shadow:0 5px 14px rgba(45,52,66,.08)}
-.signal-node b,.signal-node small{display:block}.signal-node b{color:var(--brand2);font-size:12px}.signal-node small{margin-top:2px;color:#626d80;font-size:7px;font-weight:850;letter-spacing:.12em}
-.node-ticket{left:25px;top:27px}.node-playbook{left:48px;bottom:26px}.node-owner{right:18px;bottom:31px}
-.signal-rail{position:absolute;z-index:1;height:1px;background:#8fa7d3;transform-origin:left center}
-.rail-one{left:95px;top:56px;width:210px;transform:rotate(10deg)}
-.rail-two{left:118px;bottom:58px;width:190px;transform:rotate(-13deg)}
-.rail-three{right:58px;bottom:72px;width:110px;transform:rotate(-60deg)}
-.signal-pulse{position:absolute;z-index:2;width:9px;height:9px;border:2px solid #fff;border-radius:50%;background:var(--brand);box-shadow:0 0 0 3px rgba(23,105,255,.14);animation:signal-travel 3.8s ease-in-out infinite}
-.pulse-one{left:102px;top:51px}.pulse-two{left:124px;bottom:53px;animation-delay:-1.35s}.pulse-three{right:48px;bottom:67px;animation-delay:-2.45s}
+.signal-banner-media{position:relative;min-height:230px;overflow:hidden;border-left:1px solid #b8c4d8;background:#dfe6ef;isolation:isolate}
+.signal-banner-media:after{content:"";position:absolute;inset:0;z-index:2;background:linear-gradient(90deg,rgba(241,244,249,.16),transparent 28%,rgba(13,44,82,.08));pointer-events:none}
+.signal-banner-media img{position:absolute;inset:-4% -3%;width:106%;height:108%;object-fit:cover;object-position:center 58%;filter:saturate(.9) contrast(.98);transform:scale(1.02);animation:helpdesk-visual-drift 14s ease-in-out infinite alternate;will-change:transform}
+.signal-banner-scan{position:absolute;z-index:3;left:-28%;top:0;width:24%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:skewX(-12deg);animation:helpdesk-visual-scan 8s ease-in-out infinite;pointer-events:none}
 
 .playbook-command-deck,.ai-command-deck{
   position:relative;
@@ -1685,32 +1668,32 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
 .ai-sandbox-workspace{display:grid;grid-template-columns:minmax(330px,.72fr) minmax(480px,1.28fr);gap:14px}.ai-query-card{padding:20px;border-top:4px solid var(--brand)}.ai-query-card label{margin-top:0;font-size:12px}.ai-query-card textarea{min-height:190px;background:#f8f6f1;font-size:13px}.ai-sandbox-workspace .agent-test-result{min-height:310px;border-left:4px solid var(--brand);font-size:12px}
 
 @keyframes signal-live{0%,100%{transform:scale(.9);opacity:.7}50%{transform:scale(1.15);opacity:1}}
-@keyframes signal-orbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes signal-travel{0%{transform:translate(0,0);opacity:.2}45%,55%{opacity:1}100%{transform:translate(175px,18px);opacity:.2}}
+@keyframes helpdesk-visual-drift{0%{transform:scale(1.02) translate3d(-.7%,0,0)}100%{transform:scale(1.08) translate3d(1.6%,-1%,0)}}
+@keyframes helpdesk-visual-scan{0%,24%{transform:translateX(0) skewX(-12deg);opacity:0}42%{opacity:.8}64%,100%{transform:translateX(660%) skewX(-12deg);opacity:0}}
 @keyframes ai-route{0%{transform:translateX(-88px);opacity:.15}45%,55%{opacity:1}100%{transform:translateX(88px);opacity:.15}}
 
 @media(max-width:1320px){
-  .operations-signal-banner{grid-template-columns:minmax(0,1.08fr) minmax(315px,.92fr)}
+  .operations-signal-banner{grid-template-columns:minmax(330px,.9fr) minmax(390px,1.1fr)}
   .playbook-command-deck{grid-template-columns:minmax(320px,1fr) auto}.playbook-command-actions{grid-column:1/-1;display:flex;justify-content:flex-end}.playbook-command-actions .button{width:auto}
   .playbook-status-grid{grid-template-columns:repeat(3,minmax(130px,1fr))}
   .ai-command-deck{grid-template-columns:minmax(390px,1fr) minmax(250px,.7fr)}.ai-command-controls{grid-column:1/-1;display:flex;align-items:end;justify-content:flex-end}.ai-command-controls label{min-width:160px}
   .ai-readiness-grid{grid-template-columns:1fr}.ai-status-grid{grid-template-columns:repeat(4,minmax(120px,1fr))}
 }
 @media(max-width:1040px){
-  .operations-signal-banner{grid-template-columns:1fr}.signal-banner-visual{min-height:178px;border-top:1px solid #b8c4d8;border-left:0}
+  .operations-signal-banner{grid-template-columns:1fr}.signal-banner-media{min-height:240px;border-top:1px solid #b8c4d8;border-left:0}
   .playbook-command-deck,.ai-command-deck{grid-template-columns:1fr}.playbook-command-snapshot{border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0}.playbook-command-actions{grid-column:auto;justify-content:flex-start}
   .playbook-search-workspace,.ai-sandbox-workspace{grid-template-columns:1fr}.playbook-query-card{position:static}.playbook-result-panel{min-height:360px}
   .ai-route-visual{max-width:480px}.ai-command-controls{grid-column:auto;justify-content:flex-start}.ai-status-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}
 }
 @media(max-width:680px){
-  .operations-signal-banner{margin-top:12px;border-radius:8px}.signal-banner-copy{padding:22px 18px}.signal-banner-copy h2{font-size:27px}.signal-banner-status{display:grid;grid-template-columns:1fr}.signal-banner-status>div{min-width:0}.signal-banner-visual{min-height:160px}.signal-core{right:calc(50% - 38px);top:42px}.node-ticket{left:14px;top:17px}.node-playbook{left:25px;bottom:15px}.node-owner{right:13px;bottom:18px}
+  .operations-signal-banner{margin-top:12px;border-radius:8px}.signal-banner-copy{padding:22px 18px}.signal-banner-copy h2{font-size:27px}.signal-banner-status{display:grid;grid-template-columns:1fr}.signal-banner-status>div{min-width:0}.signal-banner-media{min-height:210px}
   .playbook-command-deck,.ai-command-deck{gap:16px;padding:20px 17px}.playbook-command-copy h2,.ai-command-copy h2{font-size:27px}.playbook-command-snapshot{grid-template-columns:1fr 1fr}.playbook-command-actions{display:grid}.playbook-command-actions .button{width:100%}
   .playbook-panel-heading,.ai-section-heading{display:grid}.playbook-panel-heading p,.ai-section-heading p{text-align:left}.playbook-status-grid,.ai-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.playbook-readiness-panel,.ai-status-panel,.ai-quality-section,.ai-sandbox-section{padding:14px}
   .playbook-result-panel>.playbook-panel-heading{padding:16px}.playbook-query-card{padding:18px}.playbook-result-card{padding:17px}
   .ai-route-visual{min-height:86px;gap:4px;padding:11px}.ai-route-visual span,.ai-route-visual b{padding:6px 5px;font-size:7px}.ai-route-visual i{width:13px}.ai-command-controls{display:grid}.ai-command-controls label{min-width:0}.ai-readiness-grid .provider-observability-grid{grid-template-columns:1fr}.ai-quality-section .ai-quality-metrics{grid-template-columns:1fr 1fr}.ai-sandbox-workspace .agent-test-result{min-height:270px}
 }
 @media(max-width:440px){
-  .signal-banner-visual{display:none}.signal-banner-copy h2{font-size:24px}.signal-banner-eyebrow{font-size:8px}
+  .signal-banner-media{min-height:176px}.signal-banner-copy h2{font-size:24px}.signal-banner-eyebrow{font-size:8px}
   .playbook-status-grid,.ai-status-grid,.ai-quality-section .ai-quality-metrics{grid-template-columns:1fr}.playbook-command-snapshot{grid-template-columns:1fr}.playbook-command-snapshot>span{grid-column:auto}
   .ai-route-visual{display:none}
 }
@@ -1721,5 +1704,6 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
 .ai-state-chip.degraded{border-color:#e2c272;background:#fff7df;color:#8b6200}
 .ai-state-chip.degraded i{background:#d79a12;box-shadow:0 0 0 3px rgba(215,154,18,.13)}
 @media(prefers-reduced-motion:reduce){
-  .signal-banner-eyebrow i,.signal-banner-visual:before,.signal-banner-visual:after,.signal-pulse,.ai-route-visual em{animation:none!important}
+  .signal-banner-eyebrow i,.signal-banner-media img,.signal-banner-scan,.ai-route-visual em{animation:none!important}
+  .signal-banner-media img{transform:scale(1.02)}
 }
