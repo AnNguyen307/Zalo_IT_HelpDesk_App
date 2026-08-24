@@ -178,6 +178,8 @@ export const config = {
   zaloAuthMode: enumEnv("ZALO_AUTH_MODE", ["development", "remote", "zalo"], "development"),
   zaloTokenVerifyUrl: process.env.ZALO_TOKEN_VERIFY_URL || "",
   zaloAppSecret: process.env.ZALO_APP_SECRET || "",
+  zaloMiniAppId: String(process.env.ZALO_MINI_APP_ID || "").trim(),
+  zaloOpenApiKey: String(process.env.ZALO_OPEN_API_KEY || "").trim(),
   zaloProfileUrl: process.env.ZALO_PROFILE_URL || "https://graph.zalo.me/v2.0/me",
   zaloVerifyTimeoutMs: numberEnv("ZALO_VERIFY_TIMEOUT_MS", 7000),
 
@@ -312,6 +314,12 @@ export function runtimeConfigIssues(candidate = config) {
     } catch {
       issues.push(issue("zalo-profile-url", "Hosted direct authentication only sends tokens to https://graph.zalo.me."));
     }
+  }
+  if (!candidate.zaloMiniAppId) {
+    issues.push(issue("zalo-mini-app-id", "ZALO_MINI_APP_ID is required for the consent-revocation webhook."));
+  }
+  if (!candidate.zaloOpenApiKey) {
+    issues.push(issue("zalo-open-api-key", "Set ZALO_OPEN_API_KEY after Zalo generates it; signed webhook POSTs remain disabled until then.", "warning"));
   }
   if (candidate.aiCloudEnabled && !candidate.aiRedactionEnabled) {
     issues.push(issue("ai-redaction", "AI_REDACTION_ENABLED must be true when cloud AI is enabled."));

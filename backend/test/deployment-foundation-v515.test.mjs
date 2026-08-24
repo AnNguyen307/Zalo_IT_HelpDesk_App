@@ -23,6 +23,8 @@ function validHostedConfig(overrides = {}) {
     allowedOrigins: ["https://h5.zdn.vn"],
     zaloAuthMode: "zalo",
     zaloAppSecret: "zalo-secret",
+    zaloMiniAppId: "4185582976193315701",
+    zaloOpenApiKey: "test-only-open-api-key",
     aiCloudEnabled: false,
     aiRedactionEnabled: true,
     dbProvider: "postgres",

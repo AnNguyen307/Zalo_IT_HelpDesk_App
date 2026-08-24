@@ -51,6 +51,7 @@ import { audit, closeStore, getStoreStatus, initializeStore, pushHistory, readDb
 import { plainSystemText } from "./system-text.mjs";
 import { DEFAULT_TICKET_PRIORITY, priorityFromAgentAnalysis } from "./ticket-priority.mjs";
 import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
+import { handleZaloWebhookEvent, processZaloPrivacyCleanups, zaloWebhookStatus } from "./zalo-webhook.mjs";
 
 let retentionCleanupQueue = Promise.resolve();
 
@@ -90,6 +91,10 @@ if (config.dbProvider === "postgres" && config.playbookGovernanceEnabled) {
 const recoveredRetention = await flushRetentionStorageCleanup();
 for (const failure of recoveredRetention.failed) {
   console.warn(`[RETENTION] Pending attachment cleanup ${failure.cleanupId} will be retried: ${failure.error}`);
+}
+const recoveredPrivacy = await processZaloPrivacyCleanups();
+for (const failure of recoveredPrivacy.failed) {
+  console.warn(`[PRIVACY] Pending attachment cleanup ${failure.cleanupId} will be retried: ${failure.error}`);
 }
 await seedKnowledgeBase(KB_SEED);
 await recoverCopilotQueue();
@@ -661,7 +666,8 @@ async function handleApi(req, res, url, headers) {
       service: "zalo-helpdesk-zero-cost",
       version: "5.17.1",
       time: nowIso(),
-      features: ["production-pilot-e2e", "postgres-playbook-governance", "normalized-playbook-lifecycle", "transactional-playbook-publishing", "published-active-rag-source", "30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      features: ["zalo-consent-revocation-webhook", "signed-webhook-verification", "privacy-data-erasure", "production-pilot-e2e", "postgres-playbook-governance", "normalized-playbook-lifecycle", "transactional-playbook-publishing", "published-active-rag-source", "30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      privacy: zaloWebhookStatus(),
       authentication: {
         userLogin: "one-time-invite",
         deviceSessionDays: config.userRefreshTtlDays,
@@ -682,6 +688,15 @@ async function handleApi(req, res, url, headers) {
       playbookGovernance,
       database,
     }, headers);
+  }
+
+  if (req.method === "GET" && pathname === "/api/webhooks/zalo") {
+    return json(res, 200, { ok: true, ...zaloWebhookStatus() }, headers);
+  }
+
+  if (req.method === "POST" && pathname === "/api/webhooks/zalo") {
+    const result = await handleZaloWebhookEvent(await readJson(req, 16 * 1024), req.headers["x-zevent-signature"]);
+    return json(res, result.ignored ? 202 : 200, result, headers);
   }
 
   if (req.method === "POST" && pathname === "/api/auth/zalo") {

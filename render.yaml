@@ -37,6 +37,10 @@ services:
         value: zalo
       - key: ZALO_APP_SECRET
         sync: false
+      - key: ZALO_MINI_APP_ID
+        value: "4185582976193315701"
+      - key: ZALO_OPEN_API_KEY
+        sync: false
       - key: LEGACY_STAFF_LOGIN_ENABLED
         value: "true"
       - key: USER_ACCESS_TTL_MINUTES
