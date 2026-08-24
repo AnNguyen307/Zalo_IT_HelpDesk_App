@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk v5.16.6 — Mini App Dependency Security
+# Zalo IT HelpDesk v5.16.7 — Overview Banner Fit
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.6 cập nhật chuỗi build và SDK của Mini App để loại bỏ toàn bộ cảnh báo dependency mức cao đang có ở v5.16.5. Giao diện Functional UI, API, dữ liệu và AI Router không đổi hành vi.
+v5.16.7 thu gọn và căn giữa GIF quy trình trên Tổng quan Admin để hàng đợi ticket xuất hiện sớm hơn trong khung nhìn. Toàn bộ nội dung ảnh động vẫn được giữ nguyên; API, dữ liệu, AI Router và Mini App không đổi hành vi.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,13 +14,13 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend: `5.16.5`
+- Backend/Admin: `5.16.7`
 - Mini App metadata: `5.16.6`
 - Mini App dependency baseline: Vite `6.4.3`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
 - SQL Server: schema `10`, không có migration mới
 - PostgreSQL pilot: state schema `1`, không thay đổi
-- Mini App cần build và publish lại để phát hành phần functional copy cho người dùng
+- Mini App giữ nguyên bản `5.16.6`; không cần build/publish lại cho thay đổi Admin này
 
 ## Kiến trúc
 
@@ -101,6 +101,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
+- Banner Tổng quan Admin v5.16.7: [docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md](docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md)
 - Bảo trì dependency Mini App v5.16.6: [docs/releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md](docs/releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md)
 - UI Admin v5.16.5: [docs/releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md](docs/releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md)
 - Độ ổn định Cloud AI v5.16.4: [docs/releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md](docs/releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md)

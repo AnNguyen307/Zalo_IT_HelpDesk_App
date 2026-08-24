@@ -18,6 +18,7 @@ test("overview uses the supplied animated HelpDesk workflow as the complete bann
   assert.doesNotMatch(html, /class="signal-banner-copy"/);
   assert.doesNotMatch(html, /helpdesk-operations-v5165\.webp/);
   assert.match(css, /\.operations-workflow-banner img\{/);
+  assert.match(css, /\.operations-workflow-banner\{[^}]*width:min\(100%,980px\);[^}]*margin:14px auto 18px;/s);
   assert.match(css, /aspect-ratio:15\/7/);
   assert.ok(asset.size < 1024 * 1024, `overview animation is ${asset.size} bytes`);
 });

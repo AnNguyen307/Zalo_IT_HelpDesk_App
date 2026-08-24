@@ -59,7 +59,7 @@ test("one-time invite creates a rolling device session that can be revoked immed
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.16.5");
+  assert.equal(health.version, "5.16.7");
   assert.deepEqual(health.authentication, { userLogin: "one-time-invite", deviceSessionDays: 90, accessTokenMinutes: 60, immediateRevocation: true });
 
   async function request(pathname, { method = "GET", token = "", body } = {}) {
