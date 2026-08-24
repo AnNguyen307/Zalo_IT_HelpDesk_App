@@ -1558,10 +1558,11 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
   .main-header>.header-actions .subtle-button span{display:none}
 }
 
-/* v5.16.3 — live operations, Playbook search and AI control refresh */
+/* v5.16.7 — keep the overview workflow visible without pushing the queue below the fold */
 .operations-workflow-banner{
+  width:min(100%,980px);
   overflow:hidden;
-  margin:16px 0 18px;
+  margin:14px auto 18px;
   border:1px solid #26364f;
   border-radius:10px;
   background:#0b101b;
