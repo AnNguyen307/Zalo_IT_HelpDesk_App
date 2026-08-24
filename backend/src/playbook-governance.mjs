@@ -2,97 +2,25 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import sql from "mssql";
 import { config } from "./config.mjs";
+import * as postgresGovernance from "./playbook-governance-postgres.mjs";
 import { getSqlServerPool } from "./store-sqlserver.mjs";
-import { id, normalizeText, nowIso, slug } from "./utils.mjs";
+import {
+  CATEGORIES,
+  PRIORITIES,
+  PROCEDURE_STATUSES,
+  RISKS,
+  VERSION_STATUSES,
+  actorValues,
+  boundedString as string,
+  httpError,
+  normalizePlaybookContent,
+  parseJson,
+  redactSensitiveText,
+  validatePlaybookContent,
+} from "./playbook-governance-core.mjs";
+import { id, normalizeText, nowIso } from "./utils.mjs";
 
-const VERSION_STATUSES = new Set(["draft", "submitted", "rejected", "published", "superseded", "archived"]);
-const PROCEDURE_STATUSES = new Set(["active", "deprecated", "archived"]);
-const CATEGORIES = new Set(["network", "printer", "windows", "office", "account", "software", "hardware", "other"]);
-const AUDIENCES = new Set(["employee", "technician", "both"]);
-const RISKS = new Set(["low", "medium", "high"]);
-const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
-
-function httpError(message, status = 400) {
-  return Object.assign(new Error(message), { status });
-}
-
-function string(value, max = 1000) {
-  return String(value ?? "").trim().slice(0, max);
-}
-
-function stringArray(value, maxItems = 30, maxChars = 500) {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => string(item, maxChars)).filter(Boolean).slice(0, maxItems);
-}
-
-export function redactSensitiveText(value = "") {
-  return String(value)
-    .replace(/\b(password|passwd|pwd|secret|token|api[_ -]?key|private[_ -]?key|wpa[-_ ]?passphrase|pre[-_ ]?shared[-_ ]?key|snmp[_ -]?community|radius[_ -]?key)\b\s*[:=]\s*[^\s,;]+/gi, "$1=<REDACTED>")
-    .replace(/\b[A-Fa-f0-9]{40,}\b/g, "<REDACTED_HEX>")
-    .replace(/-----BEGIN [^-]+-----[\s\S]*?-----END [^-]+-----/g, "<REDACTED_PRIVATE_BLOCK>");
-}
-
-function normalizeSourceRefs(value) {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, 20).map((item) => ({
-    document: string(item?.document, 240),
-    section: string(item?.section, 160),
-    title: string(item?.title, 240),
-  })).filter((item) => item.document || item.title);
-}
-
-export function normalizePlaybookContent(payload = {}, { code = "", title = "" } = {}) {
-  const risk = RISKS.has(payload.risk) ? payload.risk : "medium";
-  const audience = AUDIENCES.has(payload.audience) ? payload.audience : "technician";
-  let autoEligible = Boolean(payload.autoEligible);
-  if (risk === "high" || audience === "technician") autoEligible = false;
-
-  const entry = {
-    id: string(payload.id || code || slug(title || payload.title), 100),
-    title: string(payload.title || title, 220),
-    category: CATEGORIES.has(payload.category) ? payload.category : "other",
-    audience,
-    risk,
-    priority: PRIORITIES.has(payload.priority) ? payload.priority : "normal",
-    autoEligible,
-    approved: false,
-    active: true,
-    version: string(payload.version || "1.0", 30),
-    sourceType: string(payload.sourceType || "managed-playbook", 80),
-    summary: string(payload.summary, 2000),
-    symptoms: stringArray(payload.symptoms, 30, 400),
-    requiredQuestions: stringArray(payload.requiredQuestions, 30, 500),
-    steps: stringArray(payload.steps, 40, 1000),
-    commands: stringArray(payload.commands, 20, 1000),
-    forbiddenSteps: stringArray(payload.forbiddenSteps, 30, 1000),
-    keywords: stringArray(payload.keywords, 50, 200),
-    sourceRefs: normalizeSourceRefs(payload.sourceRefs),
-    notes: string(payload.notes, 3000),
-  };
-  entry.content = [entry.summary, ...entry.requiredQuestions, ...entry.steps, ...entry.forbiddenSteps].filter(Boolean).join("\n");
-  return entry;
-}
-
-export function validatePlaybookContent(entry, { publishing = false } = {}) {
-  const errors = [];
-  if (!entry.id || entry.id.length < 3) errors.push("Mã procedure phải có ít nhất 3 ký tự");
-  if (!entry.title || entry.title.length < 5) errors.push("Tiêu đề phải có ít nhất 5 ký tự");
-  if (!entry.summary || entry.summary.length < 15) errors.push("Tóm tắt phải có ít nhất 15 ký tự");
-  if (!entry.steps.length) errors.push("Phải có ít nhất một bước xử lý");
-  if (!entry.keywords.length) errors.push("Phải có ít nhất một từ khóa hoặc triệu chứng");
-  if (publishing && entry.risk === "high" && !entry.forbiddenSteps.length) errors.push("Procedure rủi ro cao phải có bước bị cấm/cảnh báo an toàn");
-  if (entry.audience === "technician" && entry.autoEligible) errors.push("Procedure chỉ dành cho kỹ thuật viên không được auto-eligible");
-  if (entry.risk === "high" && entry.autoEligible) errors.push("Procedure rủi ro cao không được auto-eligible");
-  if (publishing && entry.audience === "employee" && entry.autoEligible && !entry.requiredQuestions.length) {
-    errors.push("Procedure tự hướng dẫn người dùng phải có câu hỏi khoanh vùng bắt buộc");
-  }
-  if (errors.length) throw httpError(errors.join("; "), 422);
-  return entry;
-}
-
-function parseJson(value, fallback = null) {
-  try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
-}
+export { normalizePlaybookContent, redactSensitiveText, validatePlaybookContent } from "./playbook-governance-core.mjs";
 
 function mapProcedure(row) {
   const content = parseJson(row.content_json, null);
@@ -132,21 +60,15 @@ function mapProcedure(row) {
   };
 }
 
-function actorValues(session) {
-  return {
-    id: string(session?.sub || "system", 64),
-    name: string(session?.name || "Hệ thống", 200),
-    role: string(session?.role || "system", 30),
-  };
-}
-
 async function tableExists(pool) {
   const result = await pool.request().query("SELECT CASE WHEN OBJECT_ID(N'helpdesk.playbook_procedures', N'U') IS NULL THEN 0 ELSE 1 END AS ready");
   return Boolean(result.recordset?.[0]?.ready);
 }
 
 export async function isPlaybookGovernanceReady() {
-  if (config.dbProvider !== "sqlserver" || !config.playbookGovernanceEnabled) return false;
+  if (!config.playbookGovernanceEnabled) return false;
+  if (config.dbProvider === "postgres") return postgresGovernance.isPlaybookGovernanceReady();
+  if (config.dbProvider !== "sqlserver") return false;
   try { return await tableExists(await getSqlServerPool()); } catch { return false; }
 }
 
@@ -188,6 +110,7 @@ function canEditVersion(session, row) {
 }
 
 export async function createPlaybookDraft(session, payload = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.createPlaybookDraft(session, payload);
   if (!['admin', 'technician'].includes(session.role)) throw httpError("Staff authentication required", 403);
   const actor = actorValues(session);
   const content = validatePlaybookContent(normalizePlaybookContent(payload, { code: payload.code, title: payload.title }));
@@ -243,6 +166,7 @@ export async function createPlaybookDraft(session, payload = {}) {
 }
 
 export async function createPlaybookVersion(session, procedureId, payload = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.createPlaybookVersion(session, procedureId, payload);
   if (!['admin', 'technician'].includes(session.role)) throw httpError("Staff authentication required", 403);
   const actor = actorValues(session);
   const pool = await getSqlServerPool();
@@ -284,6 +208,7 @@ export async function createPlaybookVersion(session, procedureId, payload = {}) 
 }
 
 export async function updatePlaybookDraft(session, versionId, payload = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.updatePlaybookDraft(session, versionId, payload);
   const actor = actorValues(session);
   const pool = await getSqlServerPool();
   const transaction = new sql.Transaction(pool);
@@ -312,6 +237,7 @@ export async function updatePlaybookDraft(session, versionId, payload = {}) {
 }
 
 export async function submitPlaybookVersion(session, versionId) {
+  if (config.dbProvider === "postgres") return postgresGovernance.submitPlaybookVersion(session, versionId);
   const actor = actorValues(session);
   const pool = await getSqlServerPool();
   const transaction = new sql.Transaction(pool);
@@ -335,6 +261,7 @@ export async function submitPlaybookVersion(session, versionId) {
 }
 
 export async function publishPlaybookVersion(session, versionId, { reviewNote = "" } = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.publishPlaybookVersion(session, versionId, { reviewNote });
   if (session.role !== "admin") throw httpError("Chỉ quản trị viên được phê duyệt và phát hành", 403);
   const actor = actorValues(session);
   const pool = await getSqlServerPool();
@@ -382,6 +309,7 @@ export async function publishPlaybookVersion(session, versionId, { reviewNote = 
 }
 
 export async function rejectPlaybookVersion(session, versionId, { reviewNote = "" } = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.rejectPlaybookVersion(session, versionId, { reviewNote });
   if (session.role !== "admin") throw httpError("Chỉ quản trị viên được từ chối phiên bản", 403);
   if (!string(reviewNote, 1000)) throw httpError("Cần ghi rõ lý do từ chối", 422);
   const actor = actorValues(session);
@@ -409,6 +337,7 @@ export async function rejectPlaybookVersion(session, versionId, { reviewNote = "
 }
 
 export async function setProcedureLifecycle(session, procedureId, lifecycleStatus, note = "") {
+  if (config.dbProvider === "postgres") return postgresGovernance.setProcedureLifecycle(session, procedureId, lifecycleStatus, note);
   if (session.role !== "admin") throw httpError("Chỉ quản trị viên được thay đổi vòng đời procedure", 403);
   if (!PROCEDURE_STATUSES.has(lifecycleStatus)) throw httpError("Trạng thái vòng đời không hợp lệ", 422);
   const actor = actorValues(session);
@@ -424,6 +353,7 @@ export async function setProcedureLifecycle(session, procedureId, lifecycleStatu
 }
 
 export async function rollbackPlaybookVersion(session, historicalVersionId, { reviewNote = "Rollback phiên bản" } = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.rollbackPlaybookVersion(session, historicalVersionId, { reviewNote });
   if (session.role !== "admin") throw httpError("Chỉ quản trị viên được rollback", 403);
   const pool = await getSqlServerPool();
   const row = await findVersion(pool, historicalVersionId);
@@ -438,6 +368,7 @@ export async function rollbackPlaybookVersion(session, historicalVersionId, { re
 }
 
 export async function getPlaybookProcedure(procedureId) {
+  if (config.dbProvider === "postgres") return postgresGovernance.getPlaybookProcedure(procedureId);
   const pool = await getSqlServerPool();
   const req = pool.request();
   req.input("procedure_id", sql.NVarChar(64), procedureId);
@@ -493,6 +424,7 @@ export async function getPlaybookProcedure(procedureId) {
 }
 
 export async function listPlaybookProcedures({ query = "", status = "", lifecycle = "", limit = 300 } = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.listPlaybookProcedures({ query, status, lifecycle, limit });
   const pool = await getSqlServerPool();
   const req = pool.request();
   req.input("query", sql.NVarChar(300), `%${string(query, 250)}%`)
@@ -522,6 +454,10 @@ export async function listPlaybookProcedures({ query = "", status = "", lifecycl
 }
 
 export async function getPlaybookGovernanceStatus() {
+  if (!config.playbookGovernanceEnabled) {
+    return { enabled: false, ready: false, provider: config.dbProvider, error: "Playbook Governance is disabled" };
+  }
+  if (config.dbProvider === "postgres") return postgresGovernance.getPlaybookGovernanceStatus();
   if (!(await isPlaybookGovernanceReady())) return { enabled: false, ready: false, error: "Playbook lifecycle tables are not installed" };
   const pool = await getSqlServerPool();
   const counts = await pool.request().query(`
@@ -556,6 +492,7 @@ export async function getPlaybookGovernanceStatus() {
 }
 
 export async function updatePlaybookIndexState(status, detail = {}) {
+  if (config.dbProvider === "postgres") return postgresGovernance.updatePlaybookIndexState(status, detail);
   if (!(await isPlaybookGovernanceReady())) return;
   const pool = await getSqlServerPool();
   const req = pool.request();
@@ -579,6 +516,7 @@ export async function updatePlaybookIndexState(status, detail = {}) {
 }
 
 export async function loadPublishedManagedPlaybook() {
+  if (config.dbProvider === "postgres") return postgresGovernance.loadPublishedManagedPlaybook();
   if (!(await isPlaybookGovernanceReady())) return null;
   const pool = await getSqlServerPool();
   const result = await pool.request().query(`
@@ -613,6 +551,7 @@ export async function loadPublishedManagedPlaybook() {
 }
 
 export async function seedManagedPlaybookFromFile(session = { sub: "seed", name: "Baseline Seeder", role: "admin" }) {
+  if (config.dbProvider === "postgres") return postgresGovernance.seedManagedPlaybookFromFile(session);
   if (!(await isPlaybookGovernanceReady())) throw httpError("Playbook lifecycle tables are not installed", 503);
   const raw = JSON.parse(await fs.readFile(config.playbookFile, "utf8"));
   const entries = (Array.isArray(raw) ? raw : raw.entries || []);

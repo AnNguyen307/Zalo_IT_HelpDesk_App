@@ -1,26 +1,26 @@
-# Zalo IT HelpDesk v5.16.9 — Adaptive Admin Sidebar
+# Zalo IT HelpDesk v5.17.0 — PostgreSQL Playbook Governance
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.16.9 tối ưu thanh điều hướng Admin với icon SVG nhất quán, nhãn chức năng rõ ràng, mô tả ngắn, trạng thái hệ thống gọn hơn và chế độ thu gọn có ghi nhớ. Trên laptop thanh điều hướng tự chuyển thành rail; trên điện thoại nó trở thành taskbar đáy có thể cuộn ngang.
+v5.17.0 đưa toàn bộ vòng đời Playbook lên PostgreSQL cho profile Render/Supabase: Draft → Submitted → Admin Review → Published, lịch sử phiên bản bất biến, audit event, rollback và nguồn RAG chỉ đọc procedure `Published + Active`. Migration và baseline seed đều idempotent; state JSONB hiện có vẫn giữ schema `1`.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
-| `free-hosting` | Render Free | Supabase PostgreSQL state schema `1` | Supabase private Storage | Thử nghiệm/pilot không SLA |
+| `free-hosting` | Render Free | Supabase PostgreSQL state schema `1` + Playbook Governance schema `1` | Supabase private Storage | Thử nghiệm/pilot không SLA |
 | `nas` | Container trên NAS/server doanh nghiệp | SQL Server schema `10` | Docker volume/filesystem | Vận hành nội bộ ổn định |
-| `local` | Node.js trên máy phát triển | JSON hoặc SQL Server | Filesystem | Phát triển và regression test |
+| `local` | Node.js trên máy phát triển | JSON, PostgreSQL hoặc SQL Server | Filesystem | Phát triển và regression test |
 
 Không profile nào được hard-code secret. Mini App chỉ chứa URL API public; `APP_SECRET`, Zalo App Secret, database credential, Supabase Secret Key và AI keys chỉ nằm ở backend secret store.
 
 ## Trạng thái release
 
-- Backend/Admin: `5.16.9`
+- Backend/Admin: `5.17.0`
 - Mini App metadata: `5.16.6`
 - Mini App dependency baseline: Vite `6.4.3`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
 - SQL Server: schema `10`, không có migration mới
-- PostgreSQL pilot: state schema `1`, không thay đổi
-- Mini App giữ nguyên bản `5.16.6`; không cần build/publish lại cho thay đổi Admin này
+- PostgreSQL pilot: state schema `1` giữ nguyên; thêm Playbook Governance schema `1`
+- Mini App giữ nguyên bản `5.16.6`; không cần build/publish lại cho thay đổi backend này
 
 ## Kiến trúc
 
@@ -101,6 +101,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
+- PostgreSQL Playbook Governance v5.17.0: [docs/releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md](docs/releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md)
 - Sidebar thích ứng Admin v5.16.9: [docs/releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md](docs/releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md)
 - Menu Tài khoản Admin v5.16.8: [docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md](docs/releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md)
 - Banner Tổng quan Admin v5.16.7: [docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md](docs/releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md)
@@ -119,7 +120,7 @@ Free-hosting là môi trường thử nghiệm:
 
 - Render Free sleep khi idle và filesystem là ephemeral.
 - Supabase Free có quota giới hạn, có thể pause khi ít hoạt động và không có downloadable backup managed.
-- PostgreSQL pilot lưu state dạng JSONB transactionally; Playbook lifecycle governance quan hệ chỉ có đầy đủ trên SQL Server/NAS.
+- PostgreSQL pilot lưu ticket/runtime state dạng JSONB transactionally và Playbook lifecycle trong các bảng quan hệ chuẩn hóa riêng.
 - Dataset free-hosting độc lập và mặc định rỗng. Không tự động copy dữ liệu/file local lên cloud.
 
 Không dùng profile này cho dữ liệu nhạy cảm hoặc cam kết SLA doanh nghiệp.

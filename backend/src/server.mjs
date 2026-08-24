@@ -69,6 +69,20 @@ for (const warning of runtimeConfigIssues().filter((item) => item.severity === "
   console.warn(`[CONFIG] ${warning.message}`);
 }
 await initializeStore();
+if (config.dbProvider === "postgres" && config.playbookGovernanceEnabled) {
+  try {
+    const governance = await getPlaybookGovernanceStatus();
+    if (governance.ready && governance.counts?.procedures === 0) {
+      const seeded = await seedManagedPlaybookFromFile({ sub: "system", name: "Baseline Seeder", role: "admin" });
+      console.log(`[Playbook Governance] PostgreSQL baseline ready: inserted=${seeded.inserted}, skipped=${seeded.skipped}`);
+      if (seeded.inserted > 0 && config.playbookAutoReindexOnPublish) {
+        queuePlaybookReindex({ requestedBy: "Baseline Seeder" });
+      }
+    }
+  } catch (error) {
+    console.warn(`[Playbook Governance] Baseline initialization skipped; file fallback remains available: ${error.message}`);
+  }
+}
 const recoveredRetention = await flushRetentionStorageCleanup();
 for (const failure of recoveredRetention.failed) {
   console.warn(`[RETENTION] Pending attachment cleanup ${failure.cleanupId} will be retried: ${failure.error}`);
@@ -641,9 +655,9 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.16.9",
+      version: "5.17.0",
       time: nowIso(),
-      features: ["30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      features: ["postgres-playbook-governance", "normalized-playbook-lifecycle", "transactional-playbook-publishing", "published-active-rag-source", "30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
       authentication: {
         userLogin: "one-time-invite",
         deviceSessionDays: config.userRefreshTtlDays,
@@ -1569,7 +1583,7 @@ server.listen(config.port, "0.0.0.0", () => {
   const databaseLabel = config.dbProvider === "sqlserver"
     ? `sqlserver (${config.sqlServerDatabase})`
     : config.dbProvider === "postgres"
-      ? "postgres (state schema 1)"
+      ? "postgres (state schema 1; Playbook Governance schema 1)"
       : `json (${config.dataFile})`;
   console.log(`Deployment profile: ${config.deploymentProfile}; database: ${databaseLabel}; attachments: ${getAttachmentStorageStatus().provider}`);
   console.log(`AI routing: ${config.aiRouterEnabled ? config.aiProviderOrder.join(" -> ") : config.aiProvider}; cloud enabled=${config.aiCloudEnabled}; Rules/HelpDesk fallback enabled.`);

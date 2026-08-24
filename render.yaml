@@ -54,7 +54,7 @@ services:
       - key: AI_REDACTION_ENABLED
         value: "true"
       - key: PLAYBOOK_GOVERNANCE_ENABLED
-        value: "false"
+        value: "true"
       - key: MAX_ATTACHMENT_MB
         value: "10"
       - key: MAX_REPLY_UPLOAD_MB
