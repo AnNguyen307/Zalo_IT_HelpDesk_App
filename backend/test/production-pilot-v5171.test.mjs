@@ -236,6 +236,7 @@ test("v5.17.1 deploy gate requires a matching ready Backend before Zalo Testing"
 
   assert.equal(backendManifest.version, "5.17.1");
   assert.equal(miniAppManifest.version, backendManifest.version);
+  assert.match(miniAppManifest.devDependencies.vite, /^\^5\./, "ZMP CLI 4.0.3 currently requires the official Vite 5 project baseline");
   assert.equal(backendManifest.scripts["test:pilot"], "node --test test/production-pilot-v5171.test.mjs");
   assert.match(workflow, /Run Production Pilot E2E gate/);
   assert.match(workflow, /npm run test:pilot/);

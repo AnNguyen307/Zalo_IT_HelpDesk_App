@@ -14,7 +14,7 @@ function versionAtLeast(actual, expected) {
   return true;
 }
 
-test("Mini App v5.16.6 removes high dependency advisories without unsafe vendor overrides", async () => {
+test("Mini App keeps a deployable dependency baseline without unsafe vendor overrides", async () => {
   const [manifestText, lockText, appConfigText, releaseNote] = await Promise.all([
     readFile(rootFile("miniapp/package.json"), "utf8"),
     readFile(rootFile("miniapp/package-lock.json"), "utf8"),
@@ -27,14 +27,14 @@ test("Mini App v5.16.6 removes high dependency advisories without unsafe vendor 
   const appConfig = JSON.parse(appConfigText);
 
   assert.ok(versionAtLeast(manifest.version, "5.16.6"));
-  assert.equal(manifest.devDependencies.vite, "^6.4.3");
+  assert.equal(manifest.devDependencies.vite, "^5.4.10");
   assert.equal(manifest.dependencies["zmp-sdk"], "^2.53.0");
   assert.equal(manifest.overrides, undefined, "do not force an incompatible Sentry major into ZMP SDK");
   assert.equal(lock.version, manifest.version);
 
   for (const [path, minimum] of [
-    ["node_modules/vite", "6.4.3"],
-    ["node_modules/esbuild", "0.25.12"],
+    ["node_modules/vite", "5.4.21"],
+    ["node_modules/esbuild", "0.21.5"],
     ["node_modules/nanoid", "3.3.18"],
     ["node_modules/zmp-sdk", "2.53.0"],
   ]) {
