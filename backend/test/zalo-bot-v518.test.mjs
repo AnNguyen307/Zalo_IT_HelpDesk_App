@@ -227,7 +227,7 @@ test("Zalo Bot uses generative fallback without a Playbook, then auto-creates on
     const payload = await response.json();
     return payload.bot?.webhookRegistration?.ok ? payload : null;
   }, `Backend did not become healthy:\n${logs.join("")}`);
-  assert.equal(health.version, "5.18.1");
+  assert.equal(health.version, "5.18.2");
   assert.equal(health.bot.enabled, true);
   assert.equal(health.bot.configured, true);
   assert.equal(health.bot.manualTicket, true);
@@ -292,7 +292,8 @@ test("Zalo Bot uses generative fallback without a Playbook, then auto-creates on
   try {
     guided = await waitFor(async () => {
       const db = JSON.parse(await fs.readFile(dataFile, "utf8"));
-      return db.tickets?.length === 0 && botRequests.length === 1 && aiRequests.length >= 1 ? db : null;
+      const completed = db.auditLog?.some((entry) => entry.action === "zalo_bot_inbox_completed" && entry.entityId === "message-001");
+      return db.tickets?.length === 0 && botRequests.length === 1 && aiRequests.length >= 1 && completed ? db : null;
     }, "Zalo Bot did not return generative guidance");
   } catch (error) {
     const debugDb = JSON.parse(await fs.readFile(dataFile, "utf8"));

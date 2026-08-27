@@ -35,6 +35,10 @@ function setSidebarCompact(compact, { persist = true } = {}) {
     try { localStorage.setItem(SIDEBAR_STORAGE_KEY, String(Boolean(compact))); } catch {}
   }
 }
+function keepActiveMobileTabVisible(tab = document.querySelector(".sidebar-nav .tab.active")) {
+  if (!tab || !window.matchMedia("(max-width: 680px)").matches) return;
+  window.requestAnimationFrame(() => tab.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }));
+}
 const labels = {
   open: "Mới mở", waiting_user: "Chờ người dùng", in_progress: "Đang xử lý", resolved: "Đã xử lý", closed: "Đã đóng",
   urgent: "Khẩn cấp", high: "Cao", normal: "Bình thường", low: "Thấp",
@@ -225,6 +229,7 @@ function switchTab(name) {
   ["tickets", "operations", "staff", "knowledge", "governance", "playbook", "agent"].forEach((tab) => $(`#${tab}Tab`)?.classList.toggle("hidden", tab !== name));
   const [title, description] = tabMeta[name] || tabMeta.tickets;
   $("#activeSectionTitle").textContent = title; $("#activeSectionDescription").textContent = description;
+  keepActiveMobileTabVisible(document.querySelector(`.sidebar-nav .tab[data-tab="${name}"]`));
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -967,6 +972,7 @@ $("#search").oninput = renderTickets; $("#statusFilter").onchange = renderTicket
 $("#resetFiltersBtn").onclick = () => { $("#search").value = ""; $("#statusFilter").value = ""; $("#priorityFilter").value = ""; $("#categoryFilter").value = ""; renderTickets(); };
 $$(".tab").forEach((tab) => { tab.onclick = () => switchTab(tab.dataset.tab); });
 $("#sidebarToggle").onclick = () => setSidebarCompact(!$("#appView").classList.contains("sidebar-compact"));
+window.addEventListener("resize", () => keepActiveMobileTabVisible());
 $("#reportDays").onchange = async () => { try { const result = await api(`/api/admin/operations?days=${encodeURIComponent($("#reportDays").value)}`); state.report = result.report; renderOperations(); } catch (error) { toast(error.message); } };
 $("#exportReportBtn").onclick = async () => {
   try {

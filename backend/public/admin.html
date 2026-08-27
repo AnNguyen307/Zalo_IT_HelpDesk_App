@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.17.1" />
+  <link rel="stylesheet" href="/admin.css?v=5.18.2" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -67,7 +67,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.17.1</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.18.2</span></div>
     </aside>
 
     <div class="admin-main">
@@ -111,7 +111,7 @@
           </div>
           <div class="table-panel">
             <div class="table-heading"><div><span class="overline">TICKET</span><h2>Hàng đợi hỗ trợ</h2><p id="ticketResultCount">Đang tải dữ liệu…</p></div><span class="live-indicator"><i></i> 30 giây</span></div>
-            <div class="table-scroll"><table><thead><tr><th>Yêu cầu</th><th>Phân loại</th><th>Trạng thái / SLA</th><th>Quyết định Agent</th><th>Cập nhật</th></tr></thead><tbody id="ticketRows"></tbody></table></div>
+            <div class="table-scroll ticket-table-scroll"><table class="ticket-table"><thead><tr><th>Yêu cầu</th><th>Phân loại</th><th>Trạng thái / SLA</th><th>Quyết định Agent</th><th>Cập nhật</th></tr></thead><tbody id="ticketRows"></tbody></table></div>
             <div id="emptyTickets" class="empty-state hidden"><span>⌕</span><h3>Không có ticket phù hợp</h3><p>Hãy thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p></div>
           </div>
         </section>
@@ -223,7 +223,7 @@
           <div class="settings-section-heading"><span class="settings-section-icon" aria-hidden="true">↻</span><div><h3>Dữ liệu Dashboard</h3><p>Kiểm soát cách trang quản trị cập nhật dữ liệu vận hành.</p></div></div>
           <label class="settings-switch" for="autoRefreshSetting"><span><strong>Tự động làm mới</strong><small>Cập nhật ticket và trạng thái hệ thống mỗi 30 giây.</small></span><input id="autoRefreshSetting" type="checkbox" role="switch" checked /><i aria-hidden="true"></i></label>
           <button id="settingsRefreshBtn" type="button" class="button subtle-button full">↻ Làm mới dữ liệu ngay</button>
-          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.17.1</strong></div>
+          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.18.2</strong></div>
         </section>
         <section class="settings-panel active" data-settings-panel="account" role="tabpanel" aria-label="Cài đặt tài khoản">
           <div class="settings-account-profile"><span id="settingsAccountAvatar" class="header-identity-avatar" aria-hidden="true">IT</span><div><strong id="settingsAccountName">Đang tải tài khoản…</strong><small id="settingsAccountMeta">Đang xác định vai trò</small></div><span class="settings-session-state"><i></i> Đang đăng nhập</span></div>
@@ -324,6 +324,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.17.1"></script>
+  <script type="module" src="/admin.js?v=5.18.2"></script>
 </body>
 </html>
