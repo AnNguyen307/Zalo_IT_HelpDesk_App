@@ -59,7 +59,7 @@ test("staff account API reports duplicate errors and persists activation on crea
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.18.2");
+  assert.equal(health.version, "5.18.3");
   assert.deepEqual(health.deployment.retention, {
     maxStoredTickets: 30,
     terminalStatuses: ["resolved", "closed"],
