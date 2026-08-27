@@ -22,7 +22,7 @@ test("Admin distinguishes degraded cloud inference from successful Cloud AI", as
 
 test("current health metadata preserves v5.16.4 AI reliability capabilities", async () => {
   const server = await readFile(new URL("../src/server.mjs", import.meta.url), "utf8");
-  assert.match(server, /version: "5\.18\.1"/);
+  assert.match(server, /version: "5\.18\.2"/);
   assert.match(server, /"staff-preferred-cloud-failover"/);
   assert.match(server, /"structured-output-retry"/);
   assert.match(server, /"provider-operational-state"/);

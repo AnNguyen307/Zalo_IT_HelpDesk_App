@@ -11,7 +11,7 @@ test("ticket table lets vertical wheel input continue scrolling the page", async
   ]);
   const tableScrollRules = [...css.matchAll(/\.table-scroll\s*\{([^}]+)\}/g)].map((match) => match[1]).join(";");
 
-  assert.match(html, /class="table-scroll"[^>]*>\s*<table>/);
+  assert.match(html, /class="[^"]*table-scroll[^"]*"[^>]*>\s*<table/);
   assert.match(tableScrollRules, /overflow\s*:\s*auto/);
   assert.match(tableScrollRules, /overscroll-behavior-x\s*:\s*contain/);
   assert.match(tableScrollRules, /overscroll-behavior-y\s*:\s*auto/);

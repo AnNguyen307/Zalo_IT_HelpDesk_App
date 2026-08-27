@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk Backend v5.18.1 — Zalo Bot Webhook Bootstrap
+# Zalo IT HelpDesk Backend v5.18.2 — Admin Mobile Responsive
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.18.1 tự đăng ký webhook Zalo Bot an toàn sau khi Render khởi động, giải quyết giới hạn không có Shell/One-Off Job trên gói Free. Nền tảng Zalo Bot Assistant v5.18.0 vẫn ưu tiên Playbook, dùng AI linh hoạt khi không có Playbook, giữ quyền tạo ticket chủ động cho người dùng và tự tạo ticket khi hướng dẫn thất bại. Mini App vẫn ở v5.17.1 trong thời gian xét duyệt.
+v5.18.2 sửa Control Center trên điện thoại với taskbar cố định có safe-area, ticket dạng thẻ, dialog toàn màn hình và bố cục form/report thích ứng. v5.18.1 tiếp tục chịu trách nhiệm tự đăng ký webhook Zalo Bot an toàn sau khi Render khởi động; nền tảng Zalo Bot Assistant v5.18.0 vẫn ưu tiên Playbook và tự tạo ticket khi hướng dẫn thất bại. Mini App vẫn ở v5.17.1 trong thời gian xét duyệt.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend/Admin: `5.18.1`
+- Backend/Admin: `5.18.2`
 - Mini App metadata: `5.17.1`
 - Mini App dependency baseline: Vite `5.4.21`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
@@ -99,6 +99,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 ## Triển khai
 
+- Admin Mobile Responsive v5.18.2: [docs/releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md](docs/releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md)
 - Free-hosting ưu tiên: [docs/deployment/FREE_HOSTING_V5_15.md](docs/deployment/FREE_HOSTING_V5_15.md)
 - NAS chuẩn bị sẵn: [docs/deployment/NAS_V5_15.md](docs/deployment/NAS_V5_15.md)
 - Production Pilot v5.17.1: [docs/releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md](docs/releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md)
