@@ -1,8 +1,8 @@
-# Zalo IT HelpDesk Backend v5.18.0 — Zalo Bot Assistant
+# Zalo IT HelpDesk Backend v5.18.1 — Zalo Bot Webhook Bootstrap
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.18.0 bổ sung Zalo Bot Assistant như một kênh tự phục vụ tùy chọn: Bot ưu tiên Playbook, dùng AI linh hoạt khi không có Playbook, giữ quyền tạo ticket chủ động cho người dùng và tự tạo ticket khi hướng dẫn thất bại. Mini App vẫn ở v5.17.1 trong thời gian xét duyệt; PostgreSQL Playbook Governance v5.17.0 và Production Pilot v5.17.1 vẫn giữ nguyên.
+v5.18.1 tự đăng ký webhook Zalo Bot an toàn sau khi Render khởi động, giải quyết giới hạn không có Shell/One-Off Job trên gói Free. Nền tảng Zalo Bot Assistant v5.18.0 vẫn ưu tiên Playbook, dùng AI linh hoạt khi không có Playbook, giữ quyền tạo ticket chủ động cho người dùng và tự tạo ticket khi hướng dẫn thất bại. Mini App vẫn ở v5.17.1 trong thời gian xét duyệt.
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -14,9 +14,9 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 ## Trạng thái release
 
-- Backend/Admin: `5.17.1`
+- Backend/Admin: `5.18.1`
 - Mini App metadata: `5.17.1`
-- Mini App dependency baseline: Vite `6.4.3`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
+- Mini App dependency baseline: Vite `5.4.21`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
 - SQL Server: schema `10`, không có migration mới
 - PostgreSQL pilot: state schema `1` giữ nguyên; thêm Playbook Governance schema `1`

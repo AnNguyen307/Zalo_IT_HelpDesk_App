@@ -49,6 +49,25 @@ test("hosted profiles reject wildcard CORS, development identity and ephemeral s
   assert.equal(runtimeConfigIssues(validHostedConfig()).filter((item) => item.severity === "error").length, 0);
 });
 
+test("hosted automatic Zalo Bot registration requires the exact public HTTPS webhook route", () => {
+  const base = {
+    zaloBotEnabled: true,
+    zaloBotToken: "test-bot-token",
+    zaloBotWebhookSecret: "test-webhook-secret",
+    zaloBotAutoRegisterWebhook: true,
+  };
+  const invalid = runtimeConfigIssues(validHostedConfig({
+    ...base,
+    zaloBotWebhookUrl: "http://helpdesk.example/api/webhooks/zalo-bot?secret=unsafe",
+  }));
+  assert.ok(invalid.some((item) => item.code === "zalo-bot-webhook-url"));
+  const valid = runtimeConfigIssues(validHostedConfig({
+    ...base,
+    zaloBotWebhookUrl: "https://helpdesk.example/api/webhooks/zalo-bot",
+  }));
+  assert.equal(valid.filter((item) => item.severity === "error").length, 0);
+});
+
 test("v5.15.1 retention defaults enforce the approved global and attachment caps", () => {
   assert.equal(config.maxStoredTickets, 30);
   assert.equal(config.maxTicketAttachmentBytes, 10 * 1024 * 1024);
@@ -199,7 +218,7 @@ test("deployment manifests are non-secret, persistent and opt-in", async () => {
   assert.doesNotMatch(render, /dockerCommand:/);
   assert.match(render, /key: MAX_STORED_TICKETS\n\s+value: "30"/);
   assert.match(render, /key: MAX_TICKET_ATTACHMENT_MB\n\s+value: "10"/);
-  for (const key of ["POSTGRES_URL", "SUPABASE_SECRET_KEY", "ZALO_APP_SECRET", "ADMIN_PASSWORD"]) {
+  for (const key of ["POSTGRES_URL", "SUPABASE_SECRET_KEY", "ZALO_APP_SECRET", "ZALO_BOT_TOKEN", "ZALO_BOT_WEBHOOK_SECRET", "ADMIN_PASSWORD"]) {
     assert.match(render, new RegExp(`key: ${key}\\n\\s+sync: false`));
   }
   assert.match(nas, /helpdesk_data:\/app\/data/);

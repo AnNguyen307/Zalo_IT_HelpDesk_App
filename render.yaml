@@ -47,6 +47,12 @@ services:
         sync: false
       - key: ZALO_BOT_WEBHOOK_SECRET
         sync: false
+      - key: ZALO_BOT_AUTO_REGISTER_WEBHOOK
+        value: "false"
+      - key: ZALO_BOT_WEBHOOK_URL
+        value: https://zalo-it-helpdesk-pilot.onrender.com/api/webhooks/zalo-bot
+      - key: ZALO_BOT_WEBHOOK_REGISTER_DELAY_MS
+        value: "15000"
       - key: ZALO_BOT_GENERATIVE_FALLBACK
         value: "true"
       - key: ZALO_BOT_GENERATIVE_MIN_CONFIDENCE

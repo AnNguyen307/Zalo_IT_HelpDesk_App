@@ -7,7 +7,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { normalizeZaloBotEvent, verifyZaloBotWebhookSecret } from "../src/zalo-bot.mjs";
+import { normalizeZaloBotEvent, registerZaloBotWebhook, verifyZaloBotWebhookSecret } from "../src/zalo-bot.mjs";
 
 const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -73,11 +73,60 @@ test("Zalo Bot normalizes official text events and verifies the webhook secret",
   assert.equal(verifyZaloBotWebhookSecret("invalid", "test-secret"), false);
 });
 
+test("Zalo Bot registers the signed webhook without exposing token or secret in failures", async () => {
+  const requests = [];
+  const result = await registerZaloBotWebhook({
+    enabled: true,
+    automatic: true,
+    token: "unit-bot-token",
+    secret: "unit-webhook-secret",
+    webhookUrl: "https://helpdesk.example/api/webhooks/zalo-bot",
+    apiBaseUrl: "https://bot-api.example",
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return new Response(JSON.stringify({ ok: true, status_code: 200 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.httpStatus, 200);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "https://bot-api.example/botunit-bot-token/setWebhook");
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    url: "https://helpdesk.example/api/webhooks/zalo-bot",
+    secret_token: "unit-webhook-secret",
+  });
+
+  await assert.rejects(
+    registerZaloBotWebhook({
+      enabled: true,
+      automatic: true,
+      token: "redact-this-token",
+      secret: "redact-this-secret",
+      webhookUrl: "https://helpdesk.example/api/webhooks/zalo-bot",
+      apiBaseUrl: "https://bot-api.example",
+      fetchImpl: async () => new Response(JSON.stringify({
+        ok: false,
+        status_code: 401,
+        message: "redact-this-token redact-this-secret",
+      }), { status: 401, headers: { "Content-Type": "application/json" } }),
+    }),
+    (error) => {
+      assert.doesNotMatch(error.message, /redact-this-token|redact-this-secret/);
+      assert.match(error.message, /<REDACTED>/);
+      return true;
+    },
+  );
+});
+
 test("Zalo Bot uses generative fallback without a Playbook, then auto-creates one ticket when the user reports failure", { timeout: 30_000 }, async (context) => {
   const [backendPort, botApiPort] = await Promise.all([availablePort(), availablePort()]);
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "helpdesk-v518-zalo-bot-"));
   const dataFile = path.join(tempRoot, "db.json");
   const botRequests = [];
+  const registrationRequests = [];
   const aiRequests = [];
   const logs = [];
   const botApi = http.createServer(async (request, response) => {
@@ -85,6 +134,11 @@ test("Zalo Bot uses generative fallback without a Playbook, then auto-creates on
     for await (const chunk of request) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
     response.writeHead(200, { "Content-Type": "application/json" });
+    if (request.url === "/bottest-bot-token/setWebhook") {
+      registrationRequests.push({ url: request.url, body });
+      response.end(JSON.stringify({ ok: true, status_code: 200, result: { url: body.url } }));
+      return;
+    }
     if (request.url === "/openai/v1/chat/completions") {
       aiRequests.push({ url: request.url, body });
       response.end(JSON.stringify({
@@ -131,6 +185,9 @@ test("Zalo Bot uses generative fallback without a Playbook, then auto-creates on
       ZALO_BOT_TOKEN: "test-bot-token",
       ZALO_BOT_WEBHOOK_SECRET: "test-bot-secret",
       ZALO_BOT_API_BASE_URL: `http://127.0.0.1:${botApiPort}`,
+      ZALO_BOT_AUTO_REGISTER_WEBHOOK: "true",
+      ZALO_BOT_WEBHOOK_URL: `http://127.0.0.1:${backendPort}/api/webhooks/zalo-bot`,
+      ZALO_BOT_WEBHOOK_REGISTER_DELAY_MS: "0",
       ZALO_BOT_GENERATIVE_FALLBACK: "true",
       ZALO_BOT_MAX_SELF_SERVICE_ATTEMPTS: "3",
       AI_ROUTER_ENABLED: "true",
@@ -166,14 +223,24 @@ test("Zalo Bot uses generative fallback without a Playbook, then auto-creates on
   const baseUrl = `http://127.0.0.1:${backendPort}`;
   const health = await waitFor(async () => {
     const response = await fetch(`${baseUrl}/health`);
-    return response.ok ? response.json() : null;
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return payload.bot?.webhookRegistration?.ok ? payload : null;
   }, `Backend did not become healthy:\n${logs.join("")}`);
-  assert.equal(health.version, "5.18.0");
+  assert.equal(health.version, "5.18.1");
   assert.equal(health.bot.enabled, true);
   assert.equal(health.bot.configured, true);
   assert.equal(health.bot.manualTicket, true);
   assert.equal(health.bot.autoCreateOnFailure, true);
   assert.equal(health.bot.autoCreateOnNoPlaybook, false);
+  assert.equal(health.bot.webhookRegistration.automatic, true);
+  assert.equal(health.bot.webhookRegistration.ok, true);
+  assert.equal(health.bot.webhookRegistration.httpStatus, 200);
+  assert.equal(registrationRequests.length, 1);
+  assert.deepEqual(registrationRequests[0].body, {
+    url: `${baseUrl}/api/webhooks/zalo-bot`,
+    secret_token: "test-bot-secret",
+  });
   assert.ok(health.features.includes("zalo-bot-durable-inbox"));
   assert.ok(health.features.includes("zalo-bot-generative-fallback"));
 

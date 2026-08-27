@@ -51,6 +51,15 @@ const FORBIDDEN_GUIDANCE = [
 ];
 
 let processingQueue = Promise.resolve();
+let webhookRegistration = {
+  automatic: config.zaloBotAutoRegisterWebhook,
+  endpoint: config.zaloBotWebhookUrl || null,
+  attemptedAt: null,
+  ok: null,
+  httpStatus: null,
+  apiStatusCode: null,
+  error: null,
+};
 
 function compact(value, limit = 2000) {
   return String(value || "").trim().replace(/\u0000/g, "").slice(0, limit);
@@ -183,6 +192,74 @@ export function normalizeZaloBotEvent(payload) {
 
 export function verifyZaloBotWebhookSecret(providedSecret, expectedSecret = config.zaloBotWebhookSecret) {
   return Boolean(expectedSecret && providedSecret && safeEqual(providedSecret, expectedSecret));
+}
+
+function safeRegistrationError(error, secrets = []) {
+  let message = compact(error?.message || error || "Unknown Zalo Bot webhook registration error", 600);
+  for (const secret of secrets.filter(Boolean)) message = message.split(secret).join("<REDACTED>");
+  return message;
+}
+
+export async function registerZaloBotWebhook({
+  fetchImpl = fetch,
+  enabled = config.zaloBotEnabled,
+  automatic = config.zaloBotAutoRegisterWebhook,
+  token = config.zaloBotToken,
+  secret = config.zaloBotWebhookSecret,
+  webhookUrl = config.zaloBotWebhookUrl,
+  apiBaseUrl = config.zaloBotApiBaseUrl,
+  timeoutMs = config.zaloBotTimeoutMs,
+} = {}) {
+  const attemptedAt = nowIso();
+  const endpoint = compact(webhookUrl, 2048);
+  webhookRegistration = {
+    automatic: Boolean(automatic),
+    endpoint: endpoint || null,
+    attemptedAt,
+    ok: false,
+    httpStatus: null,
+    apiStatusCode: null,
+    error: null,
+  };
+  if (!enabled || !automatic) {
+    webhookRegistration.error = "Automatic webhook registration is disabled";
+    return structuredClone(webhookRegistration);
+  }
+  if (!token || !secret || !endpoint) {
+    const error = new Error("Zalo Bot webhook registration is missing token, secret, or public webhook URL");
+    webhookRegistration.error = error.message;
+    throw error;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const base = String(apiBaseUrl || "").replace(/\/$/, "");
+    const response = await fetchImpl(`${base}/bot${token}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: endpoint, secret_token: secret }),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    const apiStatusCode = Number.isFinite(Number(payload?.status_code)) ? Number(payload.status_code) : null;
+    const apiAccepted = payload?.ok !== false && (apiStatusCode === null || apiStatusCode === 200);
+    webhookRegistration.httpStatus = response.status;
+    webhookRegistration.apiStatusCode = apiStatusCode;
+    if (!response.ok || !apiAccepted) {
+      const detail = compact(payload?.message || payload?.description || "Zalo Bot API rejected setWebhook", 300);
+      throw new Error(`Zalo Bot setWebhook failed (HTTP ${response.status}${apiStatusCode === null ? "" : `, API ${apiStatusCode}`}): ${detail}`);
+    }
+    webhookRegistration.ok = true;
+    return structuredClone(webhookRegistration);
+  } catch (error) {
+    const safeMessage = safeRegistrationError(error, [token, secret]);
+    webhookRegistration.ok = false;
+    webhookRegistration.error = safeMessage;
+    throw new Error(safeMessage, { cause: error });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function ensureConfigured() {
@@ -446,7 +523,7 @@ async function processTextMessage(event, callbacks) {
   }
   if (event.chatType !== "PRIVATE") return { responseType: "ignored_group_chat" };
   if (!event.text) {
-    await sendZaloBotMessage(event.chatId, "Bot IT HelpDesk v5.18.0 hiện nhận mô tả bằng văn bản. Vui lòng gửi nội dung lỗi để tôi hỗ trợ.", callbacks.fetchImpl);
+    await sendZaloBotMessage(event.chatId, "Bot IT HelpDesk v5.18.1 hiện nhận mô tả bằng văn bản. Vui lòng gửi nội dung lỗi để tôi hỗ trợ.", callbacks.fetchImpl);
     return { responseType: "unsupported_message" };
   }
 
@@ -628,6 +705,7 @@ export function zaloBotStatus() {
     autoCreateOnFailure: true,
     autoCreateOnNoPlaybook: false,
     maxSelfServiceAttempts: config.zaloBotMaxSelfServiceAttempts,
+    webhookRegistration: structuredClone(webhookRegistration),
     supportedEvents: ["message.text.received"],
     supportedChatTypes: ["PRIVATE"],
   };

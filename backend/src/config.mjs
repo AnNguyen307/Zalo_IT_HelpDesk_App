@@ -103,6 +103,7 @@ const maxStoredTickets = Math.min(30, Math.max(1, Math.trunc(numberEnv("MAX_STOR
 const maxTicketAttachmentMb = Math.min(10, Math.max(1, numberEnv("MAX_TICKET_ATTACHMENT_MB", 10)));
 const zaloBotMaxSelfServiceAttempts = Math.min(5, Math.max(1, Math.trunc(numberEnv("ZALO_BOT_MAX_SELF_SERVICE_ATTEMPTS", 3))));
 const zaloBotGenerativeMinConfidence = Math.min(0.95, Math.max(0.1, numberEnv("ZALO_BOT_GENERATIVE_MIN_CONFIDENCE", 0.55)));
+const zaloBotWebhookRegisterDelayMs = Math.min(120000, Math.max(0, Math.trunc(numberEnv("ZALO_BOT_WEBHOOK_REGISTER_DELAY_MS", 15000))));
 
 export const config = {
   port: numberEnv("PORT", 8080),
@@ -190,6 +191,9 @@ export const config = {
   zaloBotToken: String(process.env.ZALO_BOT_TOKEN || "").trim(),
   zaloBotWebhookSecret: String(process.env.ZALO_BOT_WEBHOOK_SECRET || "").trim(),
   zaloBotApiBaseUrl: String(process.env.ZALO_BOT_API_BASE_URL || "https://bot-api.zaloplatforms.com").replace(/\/$/, ""),
+  zaloBotAutoRegisterWebhook: booleanEnv("ZALO_BOT_AUTO_REGISTER_WEBHOOK", false),
+  zaloBotWebhookUrl: String(process.env.ZALO_BOT_WEBHOOK_URL || "").trim(),
+  zaloBotWebhookRegisterDelayMs,
   zaloBotTimeoutMs: Math.min(30000, Math.max(1000, numberEnv("ZALO_BOT_TIMEOUT_MS", 10000))),
   zaloBotGenerativeFallback: booleanEnv("ZALO_BOT_GENERATIVE_FALLBACK", true),
   zaloBotGenerativeMinConfidence,
@@ -345,6 +349,21 @@ export function runtimeConfigIssues(candidate = config) {
       if (botApi.protocol !== "https:" || botApi.hostname !== "bot-api.zaloplatforms.com") throw new Error("invalid");
     } catch {
       issues.push(issue("zalo-bot-api", "Hosted Zalo Bot traffic must use https://bot-api.zaloplatforms.com."));
+    }
+    if (candidate.zaloBotAutoRegisterWebhook) {
+      try {
+        const webhookUrl = new URL(candidate.zaloBotWebhookUrl);
+        if (
+          webhookUrl.protocol !== "https:"
+          || webhookUrl.username
+          || webhookUrl.password
+          || webhookUrl.search
+          || webhookUrl.hash
+          || webhookUrl.pathname !== "/api/webhooks/zalo-bot"
+        ) throw new Error("invalid");
+      } catch {
+        issues.push(issue("zalo-bot-webhook-url", "Automatic Zalo Bot webhook registration requires a public HTTPS URL ending in /api/webhooks/zalo-bot."));
+      }
     }
   }
   if (candidate.aiCloudEnabled && !candidate.aiRedactionEnabled) {
