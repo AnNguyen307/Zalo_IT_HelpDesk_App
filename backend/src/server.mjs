@@ -51,7 +51,7 @@ import { audit, closeStore, getStoreStatus, initializeStore, pushHistory, readDb
 import { plainSystemText } from "./system-text.mjs";
 import { DEFAULT_TICKET_PRIORITY, priorityFromAgentAnalysis } from "./ticket-priority.mjs";
 import { id, json, nowIso, readJson, slug, text as sendText } from "./utils.mjs";
-import { enqueueZaloBotWebhook, recoverZaloBotQueue, zaloBotStatus } from "./zalo-bot.mjs";
+import { enqueueZaloBotWebhook, recoverZaloBotQueue, registerZaloBotWebhook, zaloBotStatus } from "./zalo-bot.mjs";
 import { handleZaloWebhookEvent, processZaloPrivacyCleanups, zaloWebhookStatus } from "./zalo-webhook.mjs";
 
 let retentionCleanupQueue = Promise.resolve();
@@ -685,9 +685,9 @@ async function handleApi(req, res, url, headers) {
     return json(res, 200, {
       ok: true,
       service: "zalo-helpdesk-zero-cost",
-      version: "5.18.0",
+      version: "5.18.1",
       time: nowIso(),
-      features: ["zalo-bot-assistant", "zalo-bot-durable-inbox", "zalo-bot-generative-fallback", "zalo-bot-auto-ticket-on-failure", "zalo-consent-revocation-webhook", "signed-webhook-verification", "privacy-data-erasure", "production-pilot-e2e", "postgres-playbook-governance", "normalized-playbook-lifecycle", "transactional-playbook-publishing", "published-active-rag-source", "30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
+      features: ["zalo-bot-assistant", "zalo-bot-durable-inbox", "zalo-bot-generative-fallback", "zalo-bot-auto-ticket-on-failure", "zalo-bot-webhook-auto-registration", "zalo-consent-revocation-webhook", "signed-webhook-verification", "privacy-data-erasure", "production-pilot-e2e", "postgres-playbook-governance", "normalized-playbook-lifecycle", "transactional-playbook-publishing", "published-active-rag-source", "30-ticket-retention-cap", "terminal-ticket-auto-eviction", "durable-attachment-gc", "10mb-ticket-attachment-budget", "dual-deployment-profiles", "free-hosting-pilot", "nas-deployment-profile", "postgres-state-store", "supabase-private-attachments", "direct-zalo-token-verification", "hosted-config-fail-fast", "bounded-request-rate-limiting", "non-root-container", "warm-industrial-ui", "signal-system", "adaptive-admin-sidebar", "compact-account-menu", "live-operations-banner", "playbook-admin-workspace", "ai-control-workspace", "ticket-workspace-three-zone", "employee-ai-detail-isolation", "provider-quota-observability", "provider-operational-state", "quota-header-null-safety", "provider-readiness-diagnostics", "copilot-independent-reasoning", "copilot-no-playbook-analysis", "copilot-multi-path-solutions", "copilot-model-selection", "staff-preferred-cloud-failover", "structured-output-retry", "openrouter-free-router", "staff-ai-copilot", "copilot-channel-isolation", "explicit-user-handoff", "ai-router-v2", "cloud-only-ai-routing", "multi-provider-fallback", "provider-circuit-breaker", "free-quota-telemetry", "bm25-playbook-retrieval", "remote-embedding-provider", "no-local-ai-dependency", "ai-quality-control", "ai-decision-telemetry", "ai-admin-review", "cloud-data-redaction", "gemini-provider", "groq-provider", "openrouter-provider", "sambanova-provider", "staff-accounts", "role-based-access", "business-hours-sla", "sla-pause-resume", "smart-queues", "operations-reporting", "csv-export", "playbook-lifecycle", "draft-review-publish", "automatic-reindex", "technician-proposals", "sql-server", "database-migration", "ai-agent", "strict-escalation", "enterprise-playbook-rag", "semantic-search", "conversation-memory", "knowledge-guardrails", "responsive-typography", "secure-attachment-preview", "reply-attachments", "streaming-multipart-upload", "human-handoff-conversation-lock", "ai-race-condition-guard", "ui-refresh", "attachments", "sla", "overdue-reminders", "notifications", "history", "reopen", "satisfaction"],
       privacy: zaloWebhookStatus(),
       bot: zaloBotStatus(),
       authentication: {
@@ -1653,6 +1653,14 @@ server.listen(config.port, "0.0.0.0", () => {
     if (status.ready) console.log(`Playbook Governance ready: ${status.counts?.published || 0} published; ${status.counts?.submitted || 0} awaiting review`);
     else console.warn(`Playbook Governance not ready: ${status.error || "install SQL migration 004"}`);
   }).catch((error) => console.warn(`Playbook Governance status check failed: ${error.message}`));
+  if (config.zaloBotEnabled && config.zaloBotAutoRegisterWebhook) {
+    const timer = setTimeout(() => {
+      registerZaloBotWebhook()
+        .then((status) => console.log(`[ZALO BOT] Webhook registered: ${status.endpoint}`))
+        .catch((error) => console.warn(`[ZALO BOT] Webhook registration failed: ${error.message}`));
+    }, config.zaloBotWebhookRegisterDelayMs);
+    timer.unref();
+  }
   console.log(`SLA monitor runs every ${config.overdueCheckSeconds} seconds.`);
 });
 

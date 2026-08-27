@@ -1,6 +1,6 @@
 # Project Handoff — Zalo IT HelpDesk
 
-> Historical handoff through v5.12.0. For the current Backend/Admin v5.18.0 and Mini App source v5.17.1, read `AGENTS.md`, `README.md`, `docs/releases/v5.18.0/`, `docs/releases/v5.17.1/`, `docs/releases/v5.17.0/`, `docs/releases/v5.16.9/`, `docs/releases/v5.16.8/`, `docs/releases/v5.16.7/`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.18.0 is the optional Zalo Bot Assistant source of truth; v5.17.1 remains the Production Pilot gate source of truth; v5.17.0 remains the PostgreSQL Playbook Governance source of truth; v5.16.9 remains the adaptive Admin sidebar source of truth, v5.16.8 owns the account/settings header and v5.16.7 fits the Overview workflow animation.
+> Historical handoff through v5.12.0. For the current Backend/Admin v5.18.1 and Mini App source v5.17.1, read `AGENTS.md`, `README.md`, `docs/releases/v5.18.1/`, `docs/releases/v5.18.0/`, `docs/releases/v5.17.1/`, `docs/releases/v5.17.0/`, `docs/releases/v5.16.9/`, `docs/releases/v5.16.8/`, `docs/releases/v5.16.7/`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.18.1 is the automatic Zalo Bot webhook bootstrap source of truth; v5.18.0 remains the optional Zalo Bot Assistant behavior source of truth.
 
 > Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
 
