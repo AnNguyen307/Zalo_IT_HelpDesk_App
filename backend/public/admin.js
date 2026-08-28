@@ -158,9 +158,26 @@ function show() {
   $("#loginView").classList.toggle("hidden", Boolean(state.token));
   $("#appView").classList.toggle("hidden", !state.token);
   if (!state.token) {
+    $("#password").value = ""; setPasswordVisibility(false);
     setAccountMenuOpen(false);
     if ($("#settingsDialog")?.open) $("#settingsDialog").close();
+    if (!window.matchMedia("(max-width: 680px)").matches) window.requestAnimationFrame(() => $("#staffUsername")?.focus());
   }
+}
+
+function setLoginBusy(busy) {
+  const form = $("#loginForm"); const button = $("#loginSubmitButton"); const label = $("#loginSubmitLabel");
+  form.setAttribute("aria-busy", busy ? "true" : "false");
+  button.disabled = Boolean(busy); button.setAttribute("aria-busy", busy ? "true" : "false");
+  label.textContent = busy ? "Đang xác thực…" : "Vào Control Centre";
+}
+
+function setPasswordVisibility(visible) {
+  const field = $("#password"); const toggle = $("#passwordVisibilityToggle"); const label = $("#passwordVisibilityLabel");
+  field.type = visible ? "text" : "password";
+  toggle.setAttribute("aria-pressed", visible ? "true" : "false");
+  toggle.setAttribute("aria-label", visible ? "Ẩn mật khẩu" : "Hiện mật khẩu");
+  label.textContent = visible ? "Ẩn" : "Hiện";
 }
 
 function setAccountMenuOpen(open) {
@@ -204,7 +221,7 @@ function endStaffSession({ switchAccount = false } = {}) {
   if ($("#settingsDialog").open) $("#settingsDialog").close();
   state.token = ""; state.user = null;
   sessionStorage.removeItem("hd_admin");
-  if (switchAccount) { $("#staffUsername").value = ""; $("#password").value = ""; }
+  if (switchAccount) { $("#staffUsername").value = ""; $("#password").value = ""; setPasswordVisibility(false); }
   show();
   if (switchAccount) window.requestAnimationFrame(() => $("#staffUsername").focus());
 }
@@ -952,7 +969,20 @@ function editKb(id = "") {
   $("#kbDialogTitle").textContent = entry ? "Sửa hướng dẫn" : "Thêm hướng dẫn"; $("#kbId").value = entry?.id || ""; $("#kbTitle").value = entry?.title || ""; $("#kbCategory").value = entry?.category || "other"; $("#kbRisk").value = entry?.risk || "low"; $("#kbKeywords").value = (entry?.keywords || []).join(", "); $("#kbSummary").value = entry?.summary || ""; $("#kbSteps").value = (entry?.steps || []).join("\n"); $("#kbAuto").checked = Boolean(entry?.autoEligible); $("#kbActive").checked = entry?.active !== false; $("#kbDialog").showModal();
 }
 
-$("#loginForm").onsubmit = async (event) => { event.preventDefault(); $("#loginError").textContent = ""; try { const result = await api("/api/auth/staff", { method: "POST", body: JSON.stringify({ username: $("#staffUsername").value, password: $("#password").value }) }); state.token = result.token; sessionStorage.setItem("hd_admin", result.token); show(); await load(); } catch (error) { $("#loginError").textContent = error.message; } };
+$("#loginForm").onsubmit = async (event) => {
+  event.preventDefault();
+  const username = $("#staffUsername"); const password = $("#password"); const errorBox = $("#loginError");
+  errorBox.textContent = ""; username.removeAttribute("aria-invalid"); password.removeAttribute("aria-invalid"); setLoginBusy(true);
+  try {
+    const result = await api("/api/auth/staff", { method: "POST", body: JSON.stringify({ username: username.value.trim(), password: password.value }) });
+    state.token = result.token; sessionStorage.setItem("hd_admin", result.token); show(); await load();
+  } catch (error) {
+    errorBox.textContent = error.message;
+    if (error.status === 401) { username.setAttribute("aria-invalid", "true"); password.setAttribute("aria-invalid", "true"); password.focus(); password.select(); }
+  } finally { setLoginBusy(false); }
+};
+$("#passwordVisibilityToggle").onclick = () => setPasswordVisibility($("#password").type === "password");
+["#staffUsername", "#password"].forEach((selector) => { $(selector).oninput = () => { $(selector).removeAttribute("aria-invalid"); $("#loginError").textContent = ""; }; });
 $("#headerIdentity").onclick = () => openSettings("account");
 $("#accountMenuToggle").onclick = (event) => { event.stopPropagation(); setAccountMenuOpen($("#accountMenuToggle").getAttribute("aria-expanded") !== "true"); };
 $$('[data-settings-view]').forEach((button) => { button.onclick = () => openSettings(button.dataset.settingsView); });

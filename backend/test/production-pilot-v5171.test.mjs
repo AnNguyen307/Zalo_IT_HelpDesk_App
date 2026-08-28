@@ -83,7 +83,7 @@ test("v5.17.1 Production Pilot covers invite through rated HelpDesk resolution",
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.18.3");
+  assert.equal(health.version, "5.18.4");
   assert.ok(health.features.includes("production-pilot-e2e"));
   assert.equal(health.authentication.userLogin, "one-time-invite");
 
@@ -223,8 +223,8 @@ test("v5.17.1 Production Pilot covers invite through rated HelpDesk resolution",
   assert.equal(persisted.includes(refreshed.body.refreshToken), false);
 });
 
-test("v5.17.1 Mini App deploy gate accepts the current ready v5.18.3 Backend", async () => {
-  const [backendManifestText, miniAppManifestText, workflow, releaseNote, checklist, botRelease, webhookRelease, mobileRelease, accountMenuRelease] = await Promise.all([
+test("v5.17.1 Mini App deploy gate accepts the current ready v5.18.4 Backend", async () => {
+  const [backendManifestText, miniAppManifestText, workflow, releaseNote, checklist, botRelease, webhookRelease, mobileRelease, accountMenuRelease, loginRelease] = await Promise.all([
     readFile(path.join(backendRoot, "package.json"), "utf8"),
     readFile(path.join(repositoryRoot, "miniapp", "package.json"), "utf8"),
     readFile(path.join(repositoryRoot, ".github", "workflows", "zalo-miniapp-deploy.yml"), "utf8"),
@@ -234,11 +234,12 @@ test("v5.17.1 Mini App deploy gate accepts the current ready v5.18.3 Backend", a
     readFile(path.join(repositoryRoot, "docs", "releases", "v5.18.1", "CHANGES_V5_18_1_ZALO_BOT_WEBHOOK_BOOTSTRAP.md"), "utf8"),
     readFile(path.join(repositoryRoot, "docs", "releases", "v5.18.2", "CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md"), "utf8"),
     readFile(path.join(repositoryRoot, "docs", "releases", "v5.18.3", "CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md"), "utf8"),
+    readFile(path.join(repositoryRoot, "docs", "releases", "v5.18.4", "CHANGES_V5_18_4_ADMIN_LOGIN.md"), "utf8"),
   ]);
   const backendManifest = JSON.parse(backendManifestText);
   const miniAppManifest = JSON.parse(miniAppManifestText);
 
-  assert.equal(backendManifest.version, "5.18.3");
+  assert.equal(backendManifest.version, "5.18.4");
   assert.equal(miniAppManifest.version, "5.17.1");
   assert.match(miniAppManifest.devDependencies.vite, /^\^5\./, "ZMP CLI 4.0.3 currently requires the official Vite 5 project baseline");
   assert.equal(backendManifest.scripts["test:pilot"], "node --test test/production-pilot-v5171.test.mjs");
@@ -254,4 +255,5 @@ test("v5.17.1 Mini App deploy gate accepts the current ready v5.18.3 Backend", a
   assert.match(webhookRelease, /Database migration: not required/);
   assert.match(mobileRelease, /Mini App build\/deployment: not required/);
   assert.match(accountMenuRelease, /Mini App build\/deployment: not required/);
+  assert.match(loginRelease, /Mini App build\/deployment: not required/);
 });

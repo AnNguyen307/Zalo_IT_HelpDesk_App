@@ -14,8 +14,8 @@ test("v5.18.2 Admin mobile layout keeps navigation fixed and content within the 
   assert.match(html, /<meta name="viewport" content="width=device-width,initial-scale=1"/);
   assert.match(html, /class="table-scroll ticket-table-scroll"/);
   assert.match(html, /<table class="ticket-table">/);
-  assert.match(html, /admin\.css\?v=5\.18\.3/);
-  assert.match(html, /admin\.js\?v=5\.18\.3/);
+  assert.match(html, /admin\.css\?v=5\.18\.4/);
+  assert.match(html, /admin\.js\?v=5\.18\.4/);
 
   const releaseOverride = css.lastIndexOf("v5.18.2 — phone-first Admin Control Center");
   assert.ok(releaseOverride > css.lastIndexOf(".sidebar{position:static"), "the release override must win over the legacy static sidebar rule");
@@ -36,6 +36,6 @@ test("v5.18.2 Admin mobile layout keeps navigation fixed and content within the 
 
 test("current health metadata preserves the v5.18.2 responsive Admin capability", async () => {
   const serverSource = await readFile(new URL("../src/server.mjs", import.meta.url), "utf8");
-  assert.match(serverSource, /version: "5\.18\.3"/);
+  assert.match(serverSource, /version: "5\.18\.4"/);
   assert.match(serverSource, /"admin-mobile-responsive-v5182"/);
 });

@@ -20,12 +20,12 @@ test("v5.18.3 account menu stays above Overview, Playbook and AI workspaces", as
   assert.match(layerCss, /@media\(max-width:680px\)[\s\S]*?\.main-header\{position:relative;overflow:visible\}/);
   assert.match(layerCss, /\.account-menu\{[\s\S]*?position:absolute;[\s\S]*?top:calc\(100% \+ 8px\);[\s\S]*?z-index:120;/);
   assert.match(script, /document\.querySelector\("\.main-header"\)\?\.classList\.toggle\("account-menu-open", Boolean\(open\)\)/);
-  assert.match(html, /admin\.css\?v=5\.18\.3/);
-  assert.match(html, /admin\.js\?v=5\.18\.3/);
+  assert.match(html, /admin\.css\?v=5\.18\.4/);
+  assert.match(html, /admin\.js\?v=5\.18\.4/);
 });
 
 test("v5.18.3 health metadata advertises the account-menu layer hotfix", async () => {
   const serverSource = await readFile(new URL("../src/server.mjs", import.meta.url), "utf8");
-  assert.match(serverSource, /version: "5\.18\.3"/);
+  assert.match(serverSource, /version: "5\.18\.4"/);
   assert.match(serverSource, /"admin-account-menu-layer-v5183"/);
 });
