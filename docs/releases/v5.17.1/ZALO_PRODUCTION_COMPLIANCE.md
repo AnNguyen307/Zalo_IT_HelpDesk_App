@@ -7,7 +7,8 @@ This backend-only compliance hardening completes the public artifacts and server
 - Public Terms of Use: `/legal/terms.html`
 - Public Privacy Policy: `/legal/privacy.html`
 - Public support email: `nguyenphantruongan123@gmail.com`
-- Owner display: individual owner of IT HelpDesk App
+- Official Mini App name: `Nguyễn Phan Trường An HelpDesk`
+- Owner display: `Nguyễn Phan Trường An` (individual owner)
 - Webhook endpoint: `/api/webhooks/zalo`
 - Supported event: `user.revoke.consent`
 - Signature verification: SHA-256 over alphabetically ordered payload values plus `ZALO_OPEN_API_KEY`, compared with `X-ZEvent-Signature`
