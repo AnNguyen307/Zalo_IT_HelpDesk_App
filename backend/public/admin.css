@@ -2357,3 +2357,15 @@ dialog::backdrop{background:rgba(22,22,22,.68);backdrop-filter:blur(2px)}
   .login-submit,.login-submit svg,.login-field .input-shell{transition:none}
   .login-submit[aria-busy="true"] svg{animation:none}
 }
+
+/* v5.18.5 — simpler login copy and neutral focus treatment. */
+.login-field .input-shell:focus-within{
+  border-color:#706b63;
+  background:#fffdf9;
+  box-shadow:0 0 0 3px rgba(32,33,36,.075);
+}
+.login-field .input-shell:focus-within .login-input-icon{stroke:#4f5358}
+.login-field input:focus-visible{outline:0;outline-offset:0}
+.password-visibility{color:#565a60}
+.password-visibility:hover{background:#f0ede6}
+.password-visibility:focus-visible{outline:2px solid rgba(32,33,36,.18);outline-offset:1px}

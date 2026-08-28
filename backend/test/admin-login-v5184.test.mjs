@@ -10,11 +10,11 @@ test("v5.18.4 Admin login has a focused operational hierarchy", async () => {
     readFile(publicFile("admin.css"), "utf8"),
   ]);
 
-  assert.match(html, /TRUNG TÂM VẬN HÀNH IT/);
-  assert.match(html, /Quản lý hỗ trợ IT/);
+  assert.match(html, /HỆ THỐNG IT HELPDESK/);
+  assert.match(html, /Quản lý/);
   assert.match(html, /class="login-operations-card"/);
   assert.match(html, /Ticket &amp; SLA/);
-  assert.match(html, /Chào mừng trở lại/);
+  assert.match(html, /<h2>Đăng nhập<\/h2>/);
   assert.match(html, /class="login-mobile-brand"/);
   assert.doesNotMatch(html, /class="showcase-art"/);
 
@@ -40,8 +40,8 @@ test("v5.18.4 login preserves accessible authentication behavior", async () => {
   assert.match(html, /id="loginSubmitButton"/);
   assert.match(html, /id="loginError" class="form-error" role="alert" aria-live="assertive"/);
   assert.match(html, /aria-describedby="loginError"/);
-  assert.match(html, /admin\.css\?v=5\.18\.4/);
-  assert.match(html, /admin\.js\?v=5\.18\.4/);
+  assert.match(html, /admin\.css\?v=5\.18\.5/);
+  assert.match(html, /admin\.js\?v=5\.18\.5/);
   assert.match(script, /function setLoginBusy\(busy\)/);
   assert.match(script, /function setPasswordVisibility\(visible\)/);
   assert.match(script, /button\.setAttribute\("aria-busy", busy \? "true" : "false"\)/);
@@ -49,6 +49,6 @@ test("v5.18.4 login preserves accessible authentication behavior", async () => {
   assert.match(script, /password\.focus\(\); password\.select\(\)/);
   assert.match(script, /\$\("#password"\)\.value = ""; setPasswordVisibility\(false\)/);
   assert.match(script, /!window\.matchMedia\("\(max-width: 680px\)"\)\.matches/);
-  assert.match(serverSource, /version: "5\.18\.4"/);
+  assert.match(serverSource, /version: "5\.18\.5"/);
   assert.match(serverSource, /"admin-login-experience-v5184"/);
 });
