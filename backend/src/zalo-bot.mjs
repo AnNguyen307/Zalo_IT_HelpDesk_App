@@ -523,7 +523,7 @@ async function processTextMessage(event, callbacks) {
   }
   if (event.chatType !== "PRIVATE") return { responseType: "ignored_group_chat" };
   if (!event.text) {
-    await sendZaloBotMessage(event.chatId, "Bot IT HelpDesk v5.18.3 hiện nhận mô tả bằng văn bản. Vui lòng gửi nội dung lỗi để tôi hỗ trợ.", callbacks.fetchImpl);
+    await sendZaloBotMessage(event.chatId, "Bot IT HelpDesk v5.18.4 hiện nhận mô tả bằng văn bản. Vui lòng gửi nội dung lỗi để tôi hỗ trợ.", callbacks.fetchImpl);
     return { responseType: "unsupported_message" };
   }
 

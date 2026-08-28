@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.18.3" />
+  <link rel="stylesheet" href="/admin.css?v=5.18.4" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -13,33 +13,72 @@
 
   <main id="loginView" class="login-screen">
     <section class="login-showcase" aria-hidden="true">
-      <div class="showcase-brand"><span class="brand-symbol">IT</span><span>Enterprise HelpDesk</span></div>
+      <header class="login-showcase-top">
+        <div class="showcase-brand">
+          <span class="brand-symbol">IT</span>
+          <span class="showcase-brand-copy"><strong>IT HelpDesk</strong><small>Control Centre</small></span>
+        </div>
+        <span class="login-environment"><i></i> Internal operations</span>
+      </header>
       <div class="showcase-copy">
-        <span class="overline">CỔNG NHÂN VIÊN</span>
-        <h1>Đăng nhập<br/>HelpDesk</h1>
-        <p>Dành cho quản trị viên và kỹ thuật viên.</p>
-        <div class="showcase-points">
-          <div><span>01</span><strong>Quản lý ticket</strong></div>
-          <div><span>02</span><strong>Theo dõi SLA</strong></div>
-          <div><span>03</span><strong>Tra cứu Playbook</strong></div>
+        <span class="overline">TRUNG TÂM VẬN HÀNH IT</span>
+        <h1>Quản lý hỗ trợ IT<br/><span>trong một không gian.</span></h1>
+        <p>Tiếp nhận ticket, theo dõi SLA và tra cứu Playbook đã duyệt.</p>
+        <div class="login-operations-card">
+          <div class="login-operations-head"><span>WORKSPACE</span><strong><i></i> Sẵn sàng</strong></div>
+          <div class="login-operation-row"><span class="login-operation-index">01</span><span><strong>Ticket &amp; SLA</strong><small>Theo dõi tiến độ và người phụ trách</small></span><b>LIVE</b></div>
+          <div class="login-operation-row"><span class="login-operation-index">02</span><span><strong>Playbook</strong><small>Tra cứu quy trình hỗ trợ đã phát hành</small></span><b>READY</b></div>
+          <div class="login-operation-row"><span class="login-operation-index">03</span><span><strong>Hệ thống &amp; AI</strong><small>Kiểm tra trạng thái dịch vụ tập trung</small></span><b>ONLINE</b></div>
         </div>
       </div>
-      <img class="showcase-art" src="/assets/admin-operations-1280.webp" alt="" width="1280" height="720" />
-      <div class="showcase-glow"></div>
+      <footer class="login-showcase-footer"><span>HelpDesk Operations</span><span>Ticket · SLA · Playbook</span></footer>
     </section>
 
     <section class="login-panel">
-      <form id="loginForm" class="login-card">
-        <div class="login-logo">IT</div>
-        <span class="overline">TÀI KHOẢN HELPDESK</span>
-        <h2>Đăng nhập</h2>
-        <p>Nhập tài khoản nhân sự để tiếp tục.</p>
-        <label class="field-label" for="staffUsername">Tên đăng nhập</label><div class="input-shell"><span>IT</span><input id="staffUsername" autocomplete="username" placeholder="VD: an.nguyen hoặc admin" required /></div><label class="field-label login-password-label" for="password">Mật khẩu</label>
-        <div class="input-shell"><span>●</span><input id="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required /></div>
-        <button class="button primary-button login-submit" type="submit"><span>Đăng nhập</span><b>→</b></button>
-        <div id="loginError" class="form-error" role="alert"></div>
-        <div class="login-foot"><span class="status-dot"></span> Dữ liệu được lưu trong hệ thống nội bộ</div>
-      </form>
+      <div class="login-panel-inner">
+        <div class="login-mobile-brand">
+          <span class="brand-symbol">IT</span>
+          <span><strong>IT HelpDesk</strong><small>Control Centre</small></span>
+        </div>
+
+        <form id="loginForm" class="login-card">
+          <div class="login-card-heading">
+            <span class="login-access-kicker"><i></i> KHU VỰC NHÂN VIÊN</span>
+            <h2>Chào mừng trở lại</h2>
+            <p>Đăng nhập bằng tài khoản quản trị hoặc kỹ thuật viên.</p>
+          </div>
+
+          <div class="login-field">
+            <label class="field-label" for="staffUsername">Tên đăng nhập</label>
+            <div class="input-shell">
+              <svg class="login-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/></svg>
+              <input id="staffUsername" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="VD: an.nguyen hoặc admin" aria-describedby="loginError" required />
+            </div>
+          </div>
+
+          <div class="login-field">
+            <label class="field-label" for="password">Mật khẩu</label>
+            <div class="input-shell">
+              <svg class="login-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V8a6 6 0 0 1 12 0v2M5 10h14v11H5zM12 15v2"/></svg>
+              <input id="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" aria-describedby="loginError" required />
+              <button id="passwordVisibilityToggle" class="password-visibility" type="button" aria-controls="password" aria-pressed="false" aria-label="Hiện mật khẩu"><span id="passwordVisibilityLabel">Hiện</span></button>
+            </div>
+          </div>
+
+          <button id="loginSubmitButton" class="button primary-button login-submit" type="submit">
+            <span id="loginSubmitLabel">Vào Control Centre</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <div id="loginError" class="form-error" role="alert" aria-live="assertive"></div>
+
+          <div class="login-security-note">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6zM9 12l2 2 4-4"/></svg>
+            <span><strong>Phiên đăng nhập nội bộ</strong><small>Chỉ dành cho nhân sự IT được cấp quyền.</small></span>
+          </div>
+        </form>
+
+        <footer class="login-panel-footer"><span>IT HelpDesk · Internal use only</span><span>v5.18.4</span></footer>
+      </div>
     </section>
   </main>
 
@@ -67,7 +106,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.18.3</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.18.4</span></div>
     </aside>
 
     <div class="admin-main">
@@ -223,7 +262,7 @@
           <div class="settings-section-heading"><span class="settings-section-icon" aria-hidden="true">↻</span><div><h3>Dữ liệu Dashboard</h3><p>Kiểm soát cách trang quản trị cập nhật dữ liệu vận hành.</p></div></div>
           <label class="settings-switch" for="autoRefreshSetting"><span><strong>Tự động làm mới</strong><small>Cập nhật ticket và trạng thái hệ thống mỗi 30 giây.</small></span><input id="autoRefreshSetting" type="checkbox" role="switch" checked /><i aria-hidden="true"></i></label>
           <button id="settingsRefreshBtn" type="button" class="button subtle-button full">↻ Làm mới dữ liệu ngay</button>
-          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.18.3</strong></div>
+          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.18.4</strong></div>
         </section>
         <section class="settings-panel active" data-settings-panel="account" role="tabpanel" aria-label="Cài đặt tài khoản">
           <div class="settings-account-profile"><span id="settingsAccountAvatar" class="header-identity-avatar" aria-hidden="true">IT</span><div><strong id="settingsAccountName">Đang tải tài khoản…</strong><small id="settingsAccountMeta">Đang xác định vai trò</small></div><span class="settings-session-state"><i></i> Đang đăng nhập</span></div>
@@ -324,6 +363,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.18.3"></script>
+  <script type="module" src="/admin.js?v=5.18.4"></script>
 </body>
 </html>

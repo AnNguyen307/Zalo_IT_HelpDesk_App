@@ -227,7 +227,7 @@ test("Zalo Bot uses generative fallback without a Playbook, then auto-creates on
     const payload = await response.json();
     return payload.bot?.webhookRegistration?.ok ? payload : null;
   }, `Backend did not become healthy:\n${logs.join("")}`);
-  assert.equal(health.version, "5.18.3");
+  assert.equal(health.version, "5.18.4");
   assert.equal(health.bot.enabled, true);
   assert.equal(health.bot.configured, true);
   assert.equal(health.bot.manualTicket, true);
