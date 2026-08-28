@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "IT HelpDesk",
-    "headerTitle": "IT HelpDesk",
+    "title": "Nguyễn Phan Trường An HelpDesk",
+    "headerTitle": "Nguyễn Phan Trường An HelpDesk",
     "headerColor": "#0866FF",
     "textColor": "white",
     "statusBarColor": "#0866FF",
@@ -11,10 +11,10 @@
   },
   "debug": false,
   "listCSS": [
-    "assets/index.BInmWKQp.css"
+    "assets/index.Bwaxgt4o.css"
   ],
   "listSyncJS": [
-    "assets/index.BUZmIFRm.module.js"
+    "assets/index.D6v_sMQ1.module.js"
   ],
   "listAsyncJS": []
 }

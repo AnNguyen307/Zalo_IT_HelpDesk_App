@@ -94,7 +94,7 @@ test("public legal pages identify the individual owner and support address", asy
     fs.readFile(path.join(backendRoot, "public/legal/privacy.html"), "utf8"),
   ]);
   for (const document of [terms, privacy]) {
-    assert.match(document, /Chủ sở hữu: Cá nhân/);
+    assert.match(document, /Chủ sở hữu: Nguyễn Phan Trường An/);
     assert.match(document, /nguyenphantruongan123@gmail\.com/);
   }
   assert.match(terms, /rút lại sự đồng ý trên Zalo/);

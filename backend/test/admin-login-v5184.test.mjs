@@ -40,8 +40,8 @@ test("v5.18.4 login preserves accessible authentication behavior", async () => {
   assert.match(html, /id="loginSubmitButton"/);
   assert.match(html, /id="loginError" class="form-error" role="alert" aria-live="assertive"/);
   assert.match(html, /aria-describedby="loginError"/);
-  assert.match(html, /admin\.css\?v=5\.18\.5/);
-  assert.match(html, /admin\.js\?v=5\.18\.5/);
+  assert.match(html, /admin\.css\?v=5\.18\.6/);
+  assert.match(html, /admin\.js\?v=5\.18\.6/);
   assert.match(script, /function setLoginBusy\(busy\)/);
   assert.match(script, /function setPasswordVisibility\(visible\)/);
   assert.match(script, /button\.setAttribute\("aria-busy", busy \? "true" : "false"\)/);
@@ -49,6 +49,6 @@ test("v5.18.4 login preserves accessible authentication behavior", async () => {
   assert.match(script, /password\.focus\(\); password\.select\(\)/);
   assert.match(script, /\$\("#password"\)\.value = ""; setPasswordVisibility\(false\)/);
   assert.match(script, /!window\.matchMedia\("\(max-width: 680px\)"\)\.matches/);
-  assert.match(serverSource, /version: "5\.18\.5"/);
+  assert.match(serverSource, /version: "5\.18\.6"/);
   assert.match(serverSource, /"admin-login-experience-v5184"/);
 });
