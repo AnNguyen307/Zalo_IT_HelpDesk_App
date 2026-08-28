@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#202124" />
   <title>IT HelpDesk Control Center</title>
-  <link rel="stylesheet" href="/admin.css?v=5.18.4" />
+  <link rel="stylesheet" href="/admin.css?v=5.18.5" />
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -21,9 +21,9 @@
         <span class="login-environment"><i></i> Internal operations</span>
       </header>
       <div class="showcase-copy">
-        <span class="overline">TRUNG TÂM VẬN HÀNH IT</span>
-        <h1>Quản lý hỗ trợ IT<br/><span>trong một không gian.</span></h1>
-        <p>Tiếp nhận ticket, theo dõi SLA và tra cứu Playbook đã duyệt.</p>
+        <span class="overline">HỆ THỐNG IT HELPDESK</span>
+        <h1>Quản lý<br/><span>IT HelpDesk</span></h1>
+        <p>Tiếp nhận ticket, theo dõi SLA và tra cứu Playbook.</p>
         <div class="login-operations-card">
           <div class="login-operations-head"><span>WORKSPACE</span><strong><i></i> Sẵn sàng</strong></div>
           <div class="login-operation-row"><span class="login-operation-index">01</span><span><strong>Ticket &amp; SLA</strong><small>Theo dõi tiến độ và người phụ trách</small></span><b>LIVE</b></div>
@@ -43,9 +43,9 @@
 
         <form id="loginForm" class="login-card">
           <div class="login-card-heading">
-            <span class="login-access-kicker"><i></i> KHU VỰC NHÂN VIÊN</span>
-            <h2>Chào mừng trở lại</h2>
-            <p>Đăng nhập bằng tài khoản quản trị hoặc kỹ thuật viên.</p>
+            <span class="login-access-kicker"><i></i> ĐĂNG NHẬP NỘI BỘ</span>
+            <h2>Đăng nhập</h2>
+            <p>Dành cho quản trị viên và kỹ thuật viên.</p>
           </div>
 
           <div class="login-field">
@@ -66,7 +66,7 @@
           </div>
 
           <button id="loginSubmitButton" class="button primary-button login-submit" type="submit">
-            <span id="loginSubmitLabel">Vào Control Centre</span>
+            <span id="loginSubmitLabel">Đăng nhập</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <div id="loginError" class="form-error" role="alert" aria-live="assertive"></div>
@@ -77,7 +77,7 @@
           </div>
         </form>
 
-        <footer class="login-panel-footer"><span>IT HelpDesk · Internal use only</span><span>v5.18.4</span></footer>
+        <footer class="login-panel-footer"><span>IT HelpDesk · Internal use only</span><span>v5.18.5</span></footer>
       </div>
     </section>
   </main>
@@ -106,7 +106,7 @@
         <div><span id="topAgentState" class="health-dot pending"></span><p><strong>AI Agent</strong><small id="topAgentText">Đang kiểm tra…</small></p></div>
         <div><span id="topPlaybookState" class="health-dot pending"></span><p><strong>Playbook</strong><small id="topPlaybookText">Đang kiểm tra…</small></p></div>
       </div>
-      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.18.4</span></div>
+      <div class="sidebar-footer"><small id="staffIdentity">IT HelpDesk Enterprise</small><span>v5.18.5</span></div>
     </aside>
 
     <div class="admin-main">
@@ -262,7 +262,7 @@
           <div class="settings-section-heading"><span class="settings-section-icon" aria-hidden="true">↻</span><div><h3>Dữ liệu Dashboard</h3><p>Kiểm soát cách trang quản trị cập nhật dữ liệu vận hành.</p></div></div>
           <label class="settings-switch" for="autoRefreshSetting"><span><strong>Tự động làm mới</strong><small>Cập nhật ticket và trạng thái hệ thống mỗi 30 giây.</small></span><input id="autoRefreshSetting" type="checkbox" role="switch" checked /><i aria-hidden="true"></i></label>
           <button id="settingsRefreshBtn" type="button" class="button subtle-button full">↻ Làm mới dữ liệu ngay</button>
-          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.18.4</strong></div>
+          <div class="settings-version"><span>Phiên bản ứng dụng</span><strong>Backend/Admin v5.18.5</strong></div>
         </section>
         <section class="settings-panel active" data-settings-panel="account" role="tabpanel" aria-label="Cài đặt tài khoản">
           <div class="settings-account-profile"><span id="settingsAccountAvatar" class="header-identity-avatar" aria-hidden="true">IT</span><div><strong id="settingsAccountName">Đang tải tài khoản…</strong><small id="settingsAccountMeta">Đang xác định vai trò</small></div><span class="settings-session-state"><i></i> Đang đăng nhập</span></div>
@@ -363,6 +363,6 @@
   </dialog>
 
   <div id="toast" class="toast hidden" role="status"></div>
-  <script type="module" src="/admin.js?v=5.18.4"></script>
+  <script type="module" src="/admin.js?v=5.18.5"></script>
 </body>
 </html>
