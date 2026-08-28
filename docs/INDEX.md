@@ -78,6 +78,7 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 - [releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md](./releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md)
 - [releases/v5.18.1/CHANGES_V5_18_1_ZALO_BOT_WEBHOOK_BOOTSTRAP.md](./releases/v5.18.1/CHANGES_V5_18_1_ZALO_BOT_WEBHOOK_BOOTSTRAP.md)
 - [releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md](./releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md)
+- [releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md](./releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md)
 - [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
 - [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
 - [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)

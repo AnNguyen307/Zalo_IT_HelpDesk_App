@@ -1,6 +1,6 @@
 # Project Handoff — Zalo IT HelpDesk
 
-> Historical handoff through v5.12.0. For the current Backend/Admin v5.18.2 and Mini App source v5.17.1, read `AGENTS.md`, `README.md`, `docs/releases/v5.18.2/`, `docs/releases/v5.18.1/`, `docs/releases/v5.18.0/`, `docs/releases/v5.17.1/`, `docs/releases/v5.17.0/`, `docs/releases/v5.16.9/`, `docs/releases/v5.16.8/`, `docs/releases/v5.16.7/`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.18.2 is the Admin phone-layout source of truth; v5.18.1 remains the automatic Zalo Bot webhook bootstrap source of truth and v5.18.0 remains the optional Zalo Bot Assistant behavior source of truth.
+> Historical handoff through v5.12.0. For the current Backend/Admin v5.18.3 and Mini App source v5.17.1, read `AGENTS.md`, `README.md`, `docs/releases/v5.18.3/`, `docs/releases/v5.18.2/`, `docs/releases/v5.18.1/`, `docs/releases/v5.18.0/`, `docs/releases/v5.17.1/`, `docs/releases/v5.17.0/`, `docs/releases/v5.16.9/`, `docs/releases/v5.16.8/`, `docs/releases/v5.16.7/`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.18.3 is the Account menu layer source of truth; v5.18.2 remains the Admin phone-layout source of truth; v5.18.1 remains the automatic Zalo Bot webhook bootstrap source of truth and v5.18.0 remains the optional Zalo Bot Assistant behavior source of truth.
 
 > Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
 

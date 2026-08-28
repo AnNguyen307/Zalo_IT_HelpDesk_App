@@ -168,6 +168,7 @@ function setAccountMenuOpen(open) {
   if (!menu || !toggle) return;
   menu.classList.toggle("hidden", !open);
   toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  document.querySelector(".main-header")?.classList.toggle("account-menu-open", Boolean(open));
 }
 
 function selectSettingsView(view = "account") {

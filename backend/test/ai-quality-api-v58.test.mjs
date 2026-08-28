@@ -70,7 +70,7 @@ test("Admin can review a v5.8 AI decision and apply corrections to the ticket", 
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.18.2");
+  assert.equal(health.version, "5.18.3");
   assert.equal(health.agent.provider, "rules-local");
 
   const adminLogin = await request(baseUrl, "/api/auth/staff", { method: "POST", body: { username: "admin", password: "AdminTest2026" } });
@@ -219,7 +219,7 @@ test("ticket survives total Router V2 provider failure with attempt telemetry", 
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl, () => logs);
-  assert.equal(health.version, "5.18.2");
+  assert.equal(health.version, "5.18.3");
   assert.equal(health.agent.provider, "ai-router-v2");
   assert.equal(health.agent.paidApiRequired, false);
 
