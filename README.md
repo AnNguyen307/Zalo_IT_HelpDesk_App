@@ -2,7 +2,9 @@
 
 Zalo IT HelpDesk là hệ thống ticket nội bộ gồm Zalo Mini App cho nhân viên, Node.js API + Admin cho HelpDesk, Enterprise Playbook RAG và Cloud AI Router có Rules fallback.
 
-v5.18.6 đồng bộ tên ứng dụng đã được Zalo xác thực vào tài liệu công khai và metadata Mini App v5.17.2. Nhãn chức năng bên trong vẫn dùng `IT HelpDesk` ngắn gọn; phiên bản mới chỉ được deploy Testing và phải qua Production Pilot trước khi gửi xét duyệt.
+v5.18.6 đồng bộ tên ứng dụng đã được Zalo xác thực vào tài liệu công khai và metadata Mini App v5.17.2. Nhãn chức năng bên trong vẫn dùng `IT HelpDesk` ngắn gọn. Zalo Mini App phiên bản 33 đã hoàn tất Production Pilot, được xét duyệt và đang Live 100%.
+
+Hướng dẫn thao tác cho nhân viên, HelpDesk và quản trị viên: [docs/guides/USER_GUIDE.md](docs/guides/USER_GUIDE.md).
 
 | Profile | Backend | Database | File đính kèm | Mục đích |
 |---|---|---|---|---|
@@ -16,11 +18,12 @@ Không profile nào được hard-code secret. Mini App chỉ chứa URL API pub
 
 - Backend/Admin: `5.18.6`
 - Mini App metadata: `5.17.2`
+- Zalo Mini App Production: phiên bản `33`, Live 100%
 - Mini App dependency baseline: Vite `5.4.21`, ZMP SDK `2.53.0`, Nano ID `3.3.18`
 - Cloud AI: `Gemini → Groq → OpenRouter → SambaNova`, có retry/failover kể cả khi HelpDesk chọn model ưu tiên
 - SQL Server: schema `10`, không có migration mới
 - PostgreSQL pilot: state schema `1` giữ nguyên; thêm Playbook Governance schema `1`
-- Mini App cần build/deploy Testing để chạy Production Pilot; không tự publish Production
+- Mini App phiên bản 33 đã được build, kiểm thử E2E, Zalo xét duyệt và publish Production
 
 ## Kiến trúc
 
@@ -99,6 +102,7 @@ Endpoint Zalo cũ vẫn được giữ để rollback tương thích, nhưng Min
 
 ## Triển khai
 
+- Hướng dẫn sử dụng đầy đủ: [docs/guides/USER_GUIDE.md](docs/guides/USER_GUIDE.md)
 - Official App Identity v5.18.6 / Mini App v5.17.2: [docs/releases/v5.18.6/CHANGES_V5_18_6_OFFICIAL_APP_IDENTITY.md](docs/releases/v5.18.6/CHANGES_V5_18_6_OFFICIAL_APP_IDENTITY.md)
 - Account Menu Layer Hotfix v5.18.3: [docs/releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md](docs/releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md)
 - Admin Mobile Responsive v5.18.2: [docs/releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md](docs/releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md)

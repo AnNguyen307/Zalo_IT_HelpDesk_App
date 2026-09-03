@@ -4,6 +4,8 @@ Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`
 
 - [PROJECT_HANDOFF.md](../PROJECT_HANDOFF.md) — trạng thái hiện tại, guardrail, deploy và hướng tiếp tục dự án.
 
+- [guides/USER_GUIDE.md](./guides/USER_GUIDE.md) — hướng dẫn sử dụng đầy đủ cho nhân viên, HelpDesk và quản trị viên trên Production phiên bản 33.
+
 - [components/README_AI_AGENT.md](./components/README_AI_AGENT.md)
 - [components/README_ENTERPRISE_PLAYBOOK.md](./components/README_ENTERPRISE_PLAYBOOK.md)
 - [components/README_PLAYBOOK_LIFECYCLE.md](./components/README_PLAYBOOK_LIFECYCLE.md)
