@@ -1,5 +1,9 @@
 # v5.18.2 — Admin Mobile Responsive
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 IT HelpDesk Control Center now adapts to phone viewports without horizontal page overflow or a misplaced navigation sidebar.

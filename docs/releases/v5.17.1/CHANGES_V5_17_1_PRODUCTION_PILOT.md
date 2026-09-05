@@ -1,5 +1,9 @@
 # v5.17.1 — Zalo Mini App Production Pilot Readiness
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 `v5.17.1` biến luồng pilot Zalo Mini App thành một release gate có thể lặp lại. Gate khởi động Backend cô lập, dùng đúng API mà Mini App/Admin đang gọi và kiểm tra xuyên suốt:

@@ -1,5 +1,9 @@
 # v5.16.4 — Cloud AI Reliability
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 Cloud AI Router không còn chuyển thẳng về `rules_fallback` chỉ vì model do HelpDesk chọn lỗi. Model đó được gọi trước, sau đó router thử các provider cloud còn lại theo route `Gemini → Groq → OpenRouter → SambaNova`; Rules/Playbook chỉ được dùng khi không provider nào trả quyết định hợp lệ.

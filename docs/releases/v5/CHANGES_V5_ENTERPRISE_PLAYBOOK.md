@@ -1,5 +1,9 @@
 # IT HelpDesk v5.0 - Enterprise Playbook RAG
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Mục tiêu
 
 Thay vì để AI trả lời chủ yếu từ kiến thức chung, phiên bản này ưu tiên quy trình nội bộ đã được duyệt theo thứ tự:

@@ -1,5 +1,9 @@
 # Hướng dẫn nâng cấp IT HelpDesk lên v5.2
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 Bản patch v5.2 là bản tích lũy, có thể áp dụng trên dự án v4 hoặc v5 hiện tại. Patch bao gồm Enterprise Playbook, AI autostart, thứ tự khởi động Ollama, Strict Escalation và giao diện mới.
 
 ## 1. Dừng hệ thống

@@ -1,5 +1,9 @@
 # Zalo IT HelpDesk v5.7.2 — Admin Ticket Scroll
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Sửa lỗi
 
 - Con lăn chuột và touchpad tiếp tục cuộn trang khi con trỏ nằm trên bảng **Yêu cầu**.

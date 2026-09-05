@@ -460,6 +460,8 @@ Khi báo lỗi hệ thống, cung cấp:
 
 Không gửi mật khẩu, mã mời còn hiệu lực, Bot Token, webhook secret, Zalo App Secret, database URL hoặc AI key vào ticket/GitHub.
 
+Nếu lỗi không được mô tả trong tài liệu này, xem [Xử lý sự cố](../troubleshooting/README.md). Người quản trị nên đọc thêm [Runbook vận hành](../operations/OPERATIONS_RUNBOOK.md) và [Hướng dẫn bảo mật](../security/SECURITY_GUIDE.md).
+
 ---
 
 Cập nhật theo Production phiên bản 33, Mini App source `v5.17.2` và Backend/Admin `v5.18.6`.

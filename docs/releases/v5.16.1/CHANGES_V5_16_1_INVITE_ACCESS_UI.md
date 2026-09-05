@@ -1,5 +1,9 @@
 # v5.16.1 — Readable employee invite access UI
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 - Tăng cỡ chữ cho tên, mã nhân viên, trạng thái phiên và thời điểm hoạt động.

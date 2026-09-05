@@ -12,7 +12,7 @@ scripts/windows/launchers/
 - Cập nhật tham chiếu trong `.vscode`, `docs`, `scripts` và tài liệu ở root.
 - Tiếp tục phân loại `CHANGES_*.md` và `UPGRADE_*.md`.
 - Tạo `scripts/windows/launchers/README.md`.
-- Cập nhật `docs/INDEX.md`.
+- Giữ nguyên `docs/INDEX.md` đã biên tập và cập nhật `docs/FILE_INVENTORY.md`.
 
 ## Chạy xem trước
 
@@ -38,13 +38,7 @@ powershell.exe `
 
 ## Sau khi dọn
 
-Không chạy:
-
-```powershell
-.\scripts\windows\launchers\START_HELPDESK_VSCODE.bat
-```
-
-Mà chạy:
+Chạy launcher ở vị trí chuẩn:
 
 ```powershell
 .\scripts\windows\launchers\START_HELPDESK_VSCODE.bat

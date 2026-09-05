@@ -1,5 +1,9 @@
 # Zalo IT HelpDesk v5.5.1 – Large Attachment Streaming
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Mục tiêu
 
 Nâng giới hạn từ 5 MB lên **nhỏ hơn 100 MB/file** mà không chuyển file lớn thành Base64 trong RAM.

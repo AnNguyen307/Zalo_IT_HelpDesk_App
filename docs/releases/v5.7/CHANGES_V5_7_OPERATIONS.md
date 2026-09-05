@@ -1,5 +1,9 @@
 # Zalo IT HelpDesk v5.7 — Operations
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 v5.7 chuyển HelpDesk từ tài khoản dùng chung và SLA 24/7 sang mô hình vận hành có danh tính, phân quyền, lịch làm việc và báo cáo.
 
 ## Tài khoản và phân quyền

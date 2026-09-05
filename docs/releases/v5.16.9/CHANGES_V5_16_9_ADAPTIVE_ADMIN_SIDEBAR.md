@@ -1,5 +1,9 @@
 # v5.16.9 — Adaptive Admin Sidebar
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 Thanh điều hướng Admin được tổ chức lại để dễ quét, dễ nhận biết và chiếm ít không gian hơn khi cần. Desktop có chế độ đầy đủ và thu gọn; laptop tự dùng rail; điện thoại dùng taskbar đáy có thể cuộn ngang.

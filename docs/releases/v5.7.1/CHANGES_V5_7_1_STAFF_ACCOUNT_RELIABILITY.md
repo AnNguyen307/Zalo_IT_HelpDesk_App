@@ -1,5 +1,9 @@
 # Zalo IT HelpDesk v5.7.1 — Staff Account Reliability
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Sửa lỗi
 
 - Lỗi tạo tài khoản trùng tên đăng nhập hiện trực tiếp trong dialog thay vì bị che và chỉ thấy ở terminal backend.

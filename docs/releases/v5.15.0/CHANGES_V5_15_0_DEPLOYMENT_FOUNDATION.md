@@ -1,5 +1,9 @@
 # v5.15.0 — Production Deployment Foundation
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 Một codebase hiện hỗ trợ hai profile triển khai: free-hosting pilot ưu tiên trước và NAS enterprise chuẩn bị sẵn. Release không tự deploy service, tạo secret, chạy migration cloud hoặc publish Zalo Mini App.

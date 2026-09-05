@@ -1,5 +1,9 @@
 # v5.13.0 — Provider quota observability và sửa false zero
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Vấn đề
 
 V5.12.0 dùng `Number(headers.get(name))` để đọc quota header. Khi provider không gửi header, Fetch trả `null` nhưng `Number(null)` bằng `0`. Sau một request Gemini thành công, router có thể ghi sai quota còn lại là `0`, rồi đánh dấu Gemini `daily_budget_exhausted` dù Google chưa hề báo hết RPM, TPM, RPD hoặc TPD.

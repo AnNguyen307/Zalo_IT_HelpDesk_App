@@ -1,5 +1,9 @@
 # v5.15.1 — Storage Retention
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 Release này giới hạn dữ liệu ticket theo chính sách đã duyệt cho môi trường free tier:

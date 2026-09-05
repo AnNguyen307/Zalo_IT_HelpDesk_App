@@ -1,5 +1,9 @@
 # Upgrade to v5.15.1
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Trước khi deploy
 
 1. Backup database/state và attachment storage nếu môi trường đã có dữ liệu quan trọng.

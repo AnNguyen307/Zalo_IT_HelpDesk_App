@@ -1,5 +1,9 @@
 # Upgrade v5.13.0 — Provider Quota Observability
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 Sau khi v5.13.0 được merge vào `main`, tại máy Windows:
 
 ```powershell

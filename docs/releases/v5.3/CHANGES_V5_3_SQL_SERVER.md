@@ -1,5 +1,9 @@
 # Zalo IT HelpDesk v5.3 — SQL Server Database
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Mục tiêu
 
 Chuyển dữ liệu vận hành khỏi `backend/data/db.json` sang Microsoft SQL Server, trong khi giữ nguyên API, Zalo Mini App, Admin Dashboard, Ollama, Enterprise Playbook RAG, ngrok và file upload hiện tại.

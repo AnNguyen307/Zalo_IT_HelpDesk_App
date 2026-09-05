@@ -1,4 +1,6 @@
-# SQL Server schema hotfix
+# SQL Server schema hotfix — hồ sơ lịch sử
+
+> Tài liệu ghi lại lỗi tạo schema ở migration đời đầu. Hệ thống hiện tại yêu cầu SQL Server schema `10`; không chạy riêng các bước cũ dưới đây trên database hiện hành nếu chưa xác định migration đang thiếu. Với sự cố mới, bắt đầu tại [Troubleshooting](./README.md).
 
 This hotfix fixes migration failure when the application login has `db_ddladmin`
 but cannot create a schema owned by `dbo`.

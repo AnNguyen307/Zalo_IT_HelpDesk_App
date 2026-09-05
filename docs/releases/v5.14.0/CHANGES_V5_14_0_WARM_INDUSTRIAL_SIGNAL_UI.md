@@ -1,5 +1,9 @@
 # v5.14.0 — Warm Industrial + Signal System UI
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 The complete existing Admin/Technician and Zalo Mini App surfaces now share one operational design language: warm ivory/sand surfaces, graphite structure, restrained Signal Blue actions and explicit state/ownership/next-step signals.

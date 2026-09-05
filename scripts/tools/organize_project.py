@@ -273,6 +273,11 @@ class Organizer:
                 write_text(file_path, updated, encoding)
 
     def write_launcher_readme(self) -> None:
+        readme_path = self.launcher_dir / "README.md"
+        if readme_path.exists():
+            self.log("Preserve curated scripts/windows/launchers/README.md")
+            return
+
         if not self.apply_changes:
             self.log("Generate scripts/windows/launchers/README.md")
             return
@@ -292,32 +297,43 @@ class Organizer:
             "",
         ]
         lines.extend(f"- `{name}`" for name in launchers)
-        (self.launcher_dir / "README.md").write_text(
+        readme_path.write_text(
             "\n".join(lines) + "\n",
             encoding="utf-8",
         )
 
-    def write_docs_index(self) -> None:
+    def write_docs_inventory(self) -> None:
         if not self.apply_changes:
-            self.log("Generate docs/INDEX.md")
+            self.log("Generate docs/FILE_INVENTORY.md; preserve curated docs/INDEX.md")
             return
 
         self.docs_root.mkdir(parents=True, exist_ok=True)
-        index_path = self.docs_root / "INDEX.md"
+        index_path = self.docs_root / "FILE_INVENTORY.md"
+        excluded_names = {"INDEX.md", "FILE_INVENTORY.md"}
         files = sorted(
             path
             for path in self.docs_root.rglob("*")
-            if path.is_file() and path != index_path
+            if path.is_file() and path.name not in excluded_names
         )
         lines = [
-            "# Tài liệu dự án",
+            "# Danh sách file tài liệu",
             "",
-            "Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`.",
+            "Danh sách này được tạo tự động bởi `scripts/tools/organize_project.py`.",
+            "Để tìm tài liệu theo nhu cầu, xem [Trung tâm tài liệu](./INDEX.md).",
             "",
         ]
+        grouped: dict[str, list[Path]] = {}
         for file_path in files:
-            relative = file_path.relative_to(self.docs_root).as_posix()
-            lines.append(f"- [{relative}](./{relative})")
+            relative = file_path.relative_to(self.docs_root)
+            section = relative.parts[0] if len(relative.parts) > 1 else "Khác"
+            grouped.setdefault(section, []).append(relative)
+
+        for section, relative_paths in grouped.items():
+            lines.extend([f"## {section}", ""])
+            for relative in relative_paths:
+                posix_path = relative.as_posix()
+                lines.append(f"- [{posix_path}](./{posix_path})")
+            lines.append("")
         index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def verify(self) -> None:
@@ -339,7 +355,7 @@ class Organizer:
         self.move_bat_launchers()
         self.update_references()
         self.write_launcher_readme()
-        self.write_docs_index()
+        self.write_docs_inventory()
         self.verify()
 
 

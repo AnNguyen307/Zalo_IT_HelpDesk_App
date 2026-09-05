@@ -1,4 +1,6 @@
-# Organizer v2.1 syntax hotfix
+# Organizer v2.1 syntax hotfix — hồ sơ lịch sử
+
+> Bản PowerShell v2.1 đã được thay thế bằng [Project Organizer v3](./PROJECT_ORGANIZER_V3.md). Nội dung dưới đây chỉ dùng để truy vết sự cố cũ, không dùng làm hướng dẫn hiện hành.
 
 Bản này sửa lỗi parser PowerShell ở hàm tạo README launcher.
 
