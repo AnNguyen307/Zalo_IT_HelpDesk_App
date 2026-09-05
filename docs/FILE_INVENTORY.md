@@ -136,4 +136,3 @@ Danh sách này được tạo tự động bởi `scripts/tools/organize_projec
 
 - [troubleshooting/README.md](./troubleshooting/README.md)
 - [troubleshooting/README_SQL_SCHEMA_FIX.md](./troubleshooting/README_SQL_SCHEMA_FIX.md)
-

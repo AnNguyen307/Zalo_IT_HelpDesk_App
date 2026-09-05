@@ -206,4 +206,4 @@ Runbook: [docs/operations/OPERATIONS_RUNBOOK.md](docs/operations/OPERATIONS_RUNB
 - [Security Guide](docs/security/SECURITY_GUIDE.md)
 - [Troubleshooting](docs/troubleshooting/README.md)
 
-Cập nhật lần cuối: 2026-09-03, theo Production Mini App version 33 và Backend/Admin `5.18.6`.
+Cập nhật lần cuối: 2026-09-05, theo Production Mini App version 33 và Backend/Admin `5.18.6`.
