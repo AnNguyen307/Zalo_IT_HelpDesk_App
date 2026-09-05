@@ -1,5 +1,9 @@
 # v5.15.2 — Zalo Profile authentication hotfix
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 Backend direct Zalo authentication now calls the Profile API with the explicit query `fields=id,name,picture`, matching the current Zalo Mini App server-side login example. Previously the request omitted `fields`; a response without `id` was collapsed into the generic `Zalo token verification failed` error.

@@ -1,4 +1,6 @@
-# v5.15.1 — Free-hosting pilot (Render + Supabase)
+# Render + Supabase Free — Production pilot
+
+> Tài liệu được giới thiệu ở v5.15.1 và đã cập nhật cho Backend/Admin `v5.18.6`, Mini App source `v5.17.2`, Production version `33`. Render Free và Supabase Free phù hợp pilot, không phải môi trường có SLA.
 
 ## Phạm vi
 
@@ -19,7 +21,7 @@ Zalo Mini App
       → Supabase private bucket / helpdesk-attachments
 ```
 
-Database lưu state nghiệp vụ trong một hàng JSONB có `SELECT ... FOR UPDATE`, revision và transaction. Cách này giảm rủi ro port schema cho pilot nhưng không thay SQL Server schema `9` của bản NAS.
+Database lưu state nghiệp vụ trong một hàng JSONB có `SELECT ... FOR UPDATE`, revision và transaction. Cách này giảm rủi ro port schema cho pilot nhưng không thay SQL Server schema `10` của profile NAS.
 
 ## 1. Chuẩn bị Supabase
 
@@ -43,7 +45,7 @@ Lấy App Secret của đúng Zalo Mini App đang dùng. Backend sẽ:
 3. gọi `https://graph.zalo.me/v2.0/me?fields=id,name,picture` với hai header `access_token` và `appsecret_proof`;
 4. dùng profile trả về để phát session riêng.
 
-Đây là luồng Zalo khuyến nghị hiện hành. [Zalo Mini App user authentication](https://miniapp.zaloplatforms.com/documents/intro/authen-user/)
+Đây là lớp xác minh danh tính Zalo phía server. Luồng truy cập nhân viên hiện tại còn yêu cầu **mã mời dùng một lần** do Admin cấp; access token hoặc `userId` phía client không tự tạo quyền truy cập HelpDesk. [Zalo Mini App user authentication](https://miniapp.zaloplatforms.com/documents/intro/authen-user/)
 
 ## 3. Tạo Render Blueprint
 
@@ -89,7 +91,7 @@ Kỳ vọng:
 
 ```text
 ok = true
-version = 5.15.1
+version = 5.18.6
 deployment.profile = free-hosting
 deployment.attachments.provider = supabase
 deployment.retention.maxStoredTickets = 30
@@ -98,7 +100,7 @@ database.provider = postgres
 database.stateSchema = 1
 ```
 
-Các feature phải có `free-hosting-pilot`, `postgres-state-store`, `supabase-private-attachments`, `direct-zalo-token-verification`, `30-ticket-retention-cap`, `terminal-ticket-auto-eviction`, `durable-attachment-gc` và `10mb-ticket-attachment-budget`.
+Các feature nền tảng phải có `free-hosting-pilot`, `postgres-state-store`, `supabase-private-attachments`, `direct-zalo-token-verification`, `30-ticket-retention-cap`, `terminal-ticket-auto-eviction`, `durable-attachment-gc` và `10mb-ticket-attachment-budget`. Feature mới hơn có thể xuất hiện thêm; đối chiếu version và `ok=true` trước khi tiếp tục.
 
 Sau cold start đầu tiên có thể mất khoảng một phút theo giới hạn Render Free.
 
@@ -110,7 +112,8 @@ Manifest bật `LEGACY_STAFF_LOGIN_ENABLED=true` để database mới không b�
 2. tạo ít nhất một named Admin account;
 3. đăng xuất và kiểm tra named Admin đăng nhập được;
 4. đổi Render env `LEGACY_STAFF_LOGIN_ENABLED=false`;
-5. redeploy/restart và xác nhận legacy admin không còn đăng nhập được.
+5. redeploy/restart và xác nhận legacy admin không còn đăng nhập được;
+6. tạo lời mời một lần cho tài khoản nhân viên và kiểm tra mã hết hạn/đã dùng bị từ chối.
 
 Không để bootstrap login hoạt động suốt pilot.
 
@@ -122,7 +125,7 @@ Chỉ sau khi health, Admin, Zalo login, ticket và upload đều đạt:
 VITE_API_BASE_URL=https://<render-service>.onrender.com
 ```
 
-Sau đó build/deploy Mini App v5.15.1. URL API được đóng vào bundle nên đổi backend URL luôn yêu cầu deploy lại Mini App.
+Sau đó build source Mini App `v5.17.2`, deploy Testing, hoàn tất E2E và chỉ Publish version đã được Zalo duyệt. Production hiện là version `33`. URL API được đóng vào bundle nên đổi backend URL luôn yêu cầu build/deploy lại Mini App.
 
 ## 7. Smoke test bắt buộc
 
@@ -140,8 +143,8 @@ Sau đó build/deploy Mini App v5.15.1. URL API được đóng vào bundle nên
 
 ## Giới hạn và rollback
 
-- Dataset cloud mặc định rỗng; v5.15.1 không tự upload dữ liệu/file local.
-- Playbook lifecycle governance dùng SQL Server không hoạt động trên Postgres pilot; file Playbook + Rules/RAG vẫn hoạt động.
-- Rollback về v5.15.0 không khôi phục ticket/file đã bị retention xóa và sẽ bỏ giới hạn tăng trưởng mới.
+- Dataset cloud mặc định rỗng; deploy không tự upload dữ liệu/file local.
+- PostgreSQL pilot hiện hỗ trợ Playbook Governance; chỉ Published + Active được dùng cho RAG.
+- Rollback mã nguồn không khôi phục ticket/file đã bị retention xóa và không tự rollback schema/dữ liệu.
 - Tắt Render service hoặc đổi Mini App về backend/ngrok cũ để rollback. Dữ liệu local không bị sửa.
 - Trước dữ liệu pilot quan trọng, xuất PostgreSQL bằng công cụ chuẩn và copy Storage bằng Supabase CLI/S3; Free plan không cung cấp downloadable managed backup.

@@ -1,5 +1,9 @@
 # v5.12.0 — Copilot phân tích độc lập ngoài Playbook
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Mục tiêu
 
 Staff AI Copilot không còn dừng ở việc diễn đạt lại procedure. Playbook vẫn là nguồn nội bộ đã phê duyệt, nhưng mỗi lần phân tích cloud hợp lệ phải tạo thêm các giả thuyết và hướng giải quyết độc lập để Helpdesk kiểm chứng.

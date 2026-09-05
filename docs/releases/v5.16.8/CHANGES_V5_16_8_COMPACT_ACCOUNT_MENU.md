@@ -1,5 +1,9 @@
 # v5.16.8 — Compact Account Menu
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 Header Admin chỉ còn nút **Tài khoản** và một nút mở rộng. Các hành động ứng dụng và phiên đăng nhập được gom vào một menu thống nhất, giảm độ rộng của cụm điều khiển nhưng vẫn truy cập nhanh trên desktop và điện thoại.

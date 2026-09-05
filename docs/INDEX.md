@@ -1,89 +1,92 @@
-# Tài liệu dự án
+# Trung tâm tài liệu
 
-Danh mục được tạo tự động bởi `scripts/tools/organize_project.py`.
+Trang này giúp người đọc chọn đúng tài liệu thay vì phải đoán theo tên file hoặc phiên bản. Thông tin hiện hành luôn ưu tiên hơn hồ sơ trong `releases/`.
 
-- [PROJECT_HANDOFF.md](../PROJECT_HANDOFF.md) — trạng thái hiện tại, guardrail, deploy và hướng tiếp tục dự án.
+## Bắt đầu theo vai trò
 
-- [guides/USER_GUIDE.md](./guides/USER_GUIDE.md) — hướng dẫn sử dụng đầy đủ cho nhân viên, HelpDesk và quản trị viên trên Production phiên bản 33.
+| Tôi cần… | Đọc trước |
+|---|---|
+| Sử dụng Mini App/Admin/Bot | [Hướng dẫn sử dụng](./guides/USER_GUIDE.md) |
+| Hiểu các thành phần và luồng dữ liệu | [Tổng quan kiến trúc](./architecture/SYSTEM_OVERVIEW.md) |
+| Chạy và sửa mã nguồn | [Hướng dẫn phát triển](./development/DEVELOPER_GUIDE.md) |
+| Triển khai Render, NAS hoặc local | [Hướng dẫn triển khai](./deployment/README.md) |
+| Theo dõi Production và xử lý incident | [Runbook vận hành](./operations/OPERATIONS_RUNBOOK.md) |
+| Quản lý secret/quyền/dữ liệu | [Hướng dẫn bảo mật](./security/SECURITY_GUIDE.md) |
+| Chẩn đoán một lỗi cụ thể | [Troubleshooting](./troubleshooting/README.md) |
+| Tiếp tục phát triển dự án | [Project Handoff](../PROJECT_HANDOFF.md) và [AGENTS.md](../AGENTS.md) |
 
-- [components/README_AI_AGENT.md](./components/README_AI_AGENT.md)
-- [components/README_ENTERPRISE_PLAYBOOK.md](./components/README_ENTERPRISE_PLAYBOOK.md)
-- [components/README_PLAYBOOK_LIFECYCLE.md](./components/README_PLAYBOOK_LIFECYCLE.md)
-- [deployment/AUTO_NGROK.md](./deployment/AUTO_NGROK.md)
-- [deployment/DEPLOYMENT_CHECKLIST.md](./deployment/DEPLOYMENT_CHECKLIST.md)
-- [deployment/FREE_DEPLOYMENT.md](./deployment/FREE_DEPLOYMENT.md)
-- [deployment/FREE_HOSTING_V5_15.md](./deployment/FREE_HOSTING_V5_15.md)
-- [deployment/NAS_V5_15.md](./deployment/NAS_V5_15.md)
-- [deployment/README_VSCODE_TERMINALS.txt](./deployment/README_VSCODE_TERMINALS.txt)
-- [maintenance/MOVE_ROOT_BAT_FILES.md](./maintenance/MOVE_ROOT_BAT_FILES.md)
-- [maintenance/ORGANIZER_V2_1_HOTFIX.md](./maintenance/ORGANIZER_V2_1_HOTFIX.md)
-- [maintenance/PROJECT_ORGANIZER_V3.md](./maintenance/PROJECT_ORGANIZER_V3.md)
-- [PATCH_FILE_STRUCTURE.md](./PATCH_FILE_STRUCTURE.md)
-- [releases/legacy-zero-cost/CHANGES_ZERO_COST.md](./releases/legacy-zero-cost/CHANGES_ZERO_COST.md)
-- [releases/v3/CHANGES_V3.md](./releases/v3/CHANGES_V3.md)
-- [releases/v3/UPGRADE_V3.md](./releases/v3/UPGRADE_V3.md)
-- [releases/v4/CHANGES_V4_AI_AGENT.md](./releases/v4/CHANGES_V4_AI_AGENT.md)
-- [releases/v5/CHANGES_V5_ENTERPRISE_PLAYBOOK.md](./releases/v5/CHANGES_V5_ENTERPRISE_PLAYBOOK.md)
-- [releases/v5/UPGRADE_V5_ENTERPRISE_PLAYBOOK.md](./releases/v5/UPGRADE_V5_ENTERPRISE_PLAYBOOK.md)
-- [releases/v5.2/CHANGES_V5_2_STRICT_ESCALATION_UI.md](./releases/v5.2/CHANGES_V5_2_STRICT_ESCALATION_UI.md)
-- [releases/v5.2/UPGRADE_V5_2_STRICT_ESCALATION_UI.md](./releases/v5.2/UPGRADE_V5_2_STRICT_ESCALATION_UI.md)
-- [releases/v5.3/CHANGES_V5_3_SQL_SERVER.md](./releases/v5.3/CHANGES_V5_3_SQL_SERVER.md)
-- [releases/v5.3/UPGRADE_V5_3_SQL_SERVER.md](./releases/v5.3/UPGRADE_V5_3_SQL_SERVER.md)
-- [releases/v5.4/CHANGES_V5_4_PLAYBOOK_LIFECYCLE.md](./releases/v5.4/CHANGES_V5_4_PLAYBOOK_LIFECYCLE.md)
-- [releases/v5.4/UPGRADE_V5_4_PLAYBOOK_LIFECYCLE.md](./releases/v5.4/UPGRADE_V5_4_PLAYBOOK_LIFECYCLE.md)
-- [releases/v5.5/CHANGES_V5_5_UI_ATTACHMENTS.md](./releases/v5.5/CHANGES_V5_5_UI_ATTACHMENTS.md)
-- [releases/v5.5/UPGRADE_V5_5_UI_ATTACHMENTS.md](./releases/v5.5/UPGRADE_V5_5_UI_ATTACHMENTS.md)
-- [releases/v5.5.1/CHANGES_V5_5_1_LARGE_UPLOADS.md](./releases/v5.5.1/CHANGES_V5_5_1_LARGE_UPLOADS.md)
-- [releases/v5.5.1/UPGRADE_V5_5_1_LARGE_UPLOADS.md](./releases/v5.5.1/UPGRADE_V5_5_1_LARGE_UPLOADS.md)
-- [releases/v5.5.2.30/CHANGES_V5_5_2_30MB_UPLOAD_LIMIT.md](./releases/v5.5.2.30/CHANGES_V5_5_2_30MB_UPLOAD_LIMIT.md)
-- [releases/v5.5.2.30/UPGRADE_V5_5_2_30MB_UPLOAD_LIMIT.md](./releases/v5.5.2.30/UPGRADE_V5_5_2_30MB_UPLOAD_LIMIT.md)
-- [releases/v5.6.0/CHANGES_V5_6_0_HUMAN_HANDOFF_LOCK.md](./releases/v5.6.0/CHANGES_V5_6_0_HUMAN_HANDOFF_LOCK.md)
-- [releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md](./releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md)
-- [releases/v5.7/CHANGES_V5_7_OPERATIONS.md](./releases/v5.7/CHANGES_V5_7_OPERATIONS.md)
-- [releases/v5.7/UPGRADE_V5_7_OPERATIONS.md](./releases/v5.7/UPGRADE_V5_7_OPERATIONS.md)
-- [releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md](./releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md)
-- [releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md](./releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md)
-- [releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md](./releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md)
-- [releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md](./releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md)
-- [releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md](./releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md)
-- [releases/v5.9.0/CHANGES_V5_9_0_AI_ROUTER_V2.md](./releases/v5.9.0/CHANGES_V5_9_0_AI_ROUTER_V2.md)
-- [releases/v5.10.0/CHANGES_V5_10_0_STAFF_AI_COPILOT.md](./releases/v5.10.0/CHANGES_V5_10_0_STAFF_AI_COPILOT.md)
-- [releases/v5.10.0/UPGRADE_V5_10_0_STAFF_AI_COPILOT.md](./releases/v5.10.0/UPGRADE_V5_10_0_STAFF_AI_COPILOT.md)
-- [releases/v5.11.0/CHANGES_V5_11_0_COPILOT_MODEL_SELECTION.md](./releases/v5.11.0/CHANGES_V5_11_0_COPILOT_MODEL_SELECTION.md)
-- [releases/v5.11.0/UPGRADE_V5_11_0_COPILOT_MODEL_SELECTION.md](./releases/v5.11.0/UPGRADE_V5_11_0_COPILOT_MODEL_SELECTION.md)
-- [releases/v5.12.0/CHANGES_V5_12_0_COPILOT_INDEPENDENT_REASONING.md](./releases/v5.12.0/CHANGES_V5_12_0_COPILOT_INDEPENDENT_REASONING.md)
-- [releases/v5.12.0/UPGRADE_V5_12_0_COPILOT_INDEPENDENT_REASONING.md](./releases/v5.12.0/UPGRADE_V5_12_0_COPILOT_INDEPENDENT_REASONING.md)
-- [releases/v5.13.0/CHANGES_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md](./releases/v5.13.0/CHANGES_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md)
-- [releases/v5.13.0/UPGRADE_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md](./releases/v5.13.0/UPGRADE_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md)
-- [design/WARM_INDUSTRIAL_SIGNAL_SYSTEM.md](./design/WARM_INDUSTRIAL_SIGNAL_SYSTEM.md)
-- [releases/v5.14.0/CHANGES_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md](./releases/v5.14.0/CHANGES_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md)
-- [releases/v5.14.0/UPGRADE_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md](./releases/v5.14.0/UPGRADE_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md)
-- [releases/v5.14.1/CHANGES_V5_14_1_CLIENT_HOME_READABILITY.md](./releases/v5.14.1/CHANGES_V5_14_1_CLIENT_HOME_READABILITY.md)
-- [releases/v5.15.0/CHANGES_V5_15_0_DEPLOYMENT_FOUNDATION.md](./releases/v5.15.0/CHANGES_V5_15_0_DEPLOYMENT_FOUNDATION.md)
-- [releases/v5.15.0/UPGRADE_V5_15_0_DEPLOYMENT_FOUNDATION.md](./releases/v5.15.0/UPGRADE_V5_15_0_DEPLOYMENT_FOUNDATION.md)
-- [releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md](./releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md)
-- [releases/v5.15.1/UPGRADE_V5_15_1_STORAGE_RETENTION.md](./releases/v5.15.1/UPGRADE_V5_15_1_STORAGE_RETENTION.md)
-- [releases/v5.16.0/CHANGES_V5_16_0_ONE_TIME_INVITES.md](./releases/v5.16.0/CHANGES_V5_16_0_ONE_TIME_INVITES.md)
-- [releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md](./releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md)
-- [releases/v5.16.1/CHANGES_V5_16_1_INVITE_ACCESS_UI.md](./releases/v5.16.1/CHANGES_V5_16_1_INVITE_ACCESS_UI.md)
-- [releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md](./releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md)
-- [releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md](./releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md)
-- [releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md](./releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md)
-- [releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md](./releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md)
-- [releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md](./releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md)
-- [releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md](./releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md)
-- [releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md](./releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md)
-- [releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md](./releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md)
-- [releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md](./releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md)
-- [releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md](./releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md)
-- [releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md](./releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md)
-- [releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md](./releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md)
-- [releases/v5.18.1/CHANGES_V5_18_1_ZALO_BOT_WEBHOOK_BOOTSTRAP.md](./releases/v5.18.1/CHANGES_V5_18_1_ZALO_BOT_WEBHOOK_BOOTSTRAP.md)
-- [releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md](./releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md)
-- [releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md](./releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md)
-- [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
-- [troubleshooting/README_AI_AUTOSTART_FIX.txt](./troubleshooting/README_AI_AUTOSTART_FIX.txt)
-- [troubleshooting/README_AI_START_ORDER_FIX.txt](./troubleshooting/README_AI_START_ORDER_FIX.txt)
-- [troubleshooting/README_SQL_SCHEMA_FIX.md](./troubleshooting/README_SQL_SCHEMA_FIX.md)
-- [VS_Enterprise_IT_HelpDesk_Playbook_2026.docx](./VS_Enterprise_IT_HelpDesk_Playbook_2026.docx)
-- [VS_Enterprise_IT_HelpDesk_Playbook_2026.pdf](./VS_Enterprise_IT_HelpDesk_Playbook_2026.pdf)
+## Nguồn thông tin hiện hành
+
+| Tài liệu | Phạm vi |
+|---|---|
+| [README](../README.md) | Giới thiệu, trạng thái, quick start và liên kết chính |
+| [User Guide](./guides/USER_GUIDE.md) | Hướng dẫn chi tiết cho nhân viên, HelpDesk và Admin |
+| [System Overview](./architecture/SYSTEM_OVERVIEW.md) | Kiến trúc, luồng ticket, auth, AI, storage và SLA |
+| [Developer Guide](./development/DEVELOPER_GUIDE.md) | Local setup, build, test, database và PR |
+| [Deployment](./deployment/README.md) | Chọn profile, phát hành, migration và rollback |
+| [Operations Runbook](./operations/OPERATIONS_RUNBOOK.md) | Health, Bot, capacity, incident và kiểm tra sau deploy |
+| [Security Guide](./security/SECURITY_GUIDE.md) | Secret, RBAC, webhook, attachment, AI và incident |
+| [Troubleshooting](./troubleshooting/README.md) | Chẩn đoán theo triệu chứng |
+| [Project Handoff](../PROJECT_HANDOFF.md) | Trạng thái kỹ thuật và nợ kỹ thuật mới nhất |
+
+## Thành phần hệ thống
+
+- [AI Agent và Staff Copilot](./components/README_AI_AGENT.md)
+- [Enterprise Playbook RAG](./components/README_ENTERPRISE_PLAYBOOK.md)
+- [Playbook Governance Lifecycle](./components/README_PLAYBOOK_LIFECYCLE.md)
+
+## Tài liệu Playbook phát hành kèm repository
+
+- [Enterprise Playbook 2026 — Word](./VS_Enterprise_IT_HelpDesk_Playbook_2026.docx)
+- [Enterprise Playbook 2026 — PDF](./VS_Enterprise_IT_HelpDesk_Playbook_2026.pdf)
+
+Hai file trên là bản tài liệu tham khảo dành cho người đọc. Nguồn runtime và quy trình publish vẫn tuân theo [Enterprise Playbook và RAG](./components/README_ENTERPRISE_PLAYBOOK.md); không chỉnh trực tiếp file PDF để thay đổi nội dung đang phục vụ hệ thống.
+
+## Triển khai
+
+| Tài liệu | Trạng thái sử dụng |
+|---|---|
+| [Deployment README](./deployment/README.md) | Điểm bắt đầu hiện hành |
+| [Deployment Checklist](./deployment/DEPLOYMENT_CHECKLIST.md) | Checklist hiện hành cho mọi profile |
+| [Render + Supabase](./deployment/FREE_HOSTING_V5_15.md) | Profile Production pilot hiện hành |
+| [NAS + SQL Server](./deployment/NAS_V5_15.md) | Profile NAS, schema 10 |
+| [Local/PC + tunnel](./deployment/FREE_DEPLOYMENT.md) | Phát triển/demo, không SLA |
+| [Ngrok URL sync](./deployment/AUTO_NGROK.md) | Development/Testing khi URL tạm thay đổi |
+| [VS Code terminals](./deployment/README_VSCODE_TERMINALS.txt) | Hướng dẫn launcher Windows |
+
+## Chất lượng và thiết kế
+
+- [Tiêu chuẩn kiểm thử chức năng và ngoại lệ](./quality/EXCEPTION_TESTING_STANDARD.md)
+- [Warm Industrial + Signal System](./design/WARM_INDUSTRIAL_SIGNAL_SYSTEM.md)
+
+## Bảo trì repository
+
+- [Quy tắc tổ chức file](./PATCH_FILE_STRUCTURE.md)
+- [Project Organizer v3](./maintenance/PROJECT_ORGANIZER_V3.md)
+- [Dọn BAT khỏi thư mục gốc](./maintenance/MOVE_ROOT_BAT_FILES.md)
+- [Organizer v2.1 syntax hotfix](./maintenance/ORGANIZER_V2_1_HOTFIX.md) — lịch sử
+- [Windows launchers](../scripts/windows/launchers/README.md)
+
+## Hồ sơ phát hành
+
+[Release History](./releases/README.md) liệt kê đầy đủ changelog và upgrade guide từ Zero-Cost/v3 đến `v5.18.6`.
+
+Các file trong `docs/releases/` là hồ sơ của phiên bản tại thời điểm phát hành. Chúng có thể mô tả version, schema, provider hoặc quy trình đã được phiên bản sau thay thế. Khi vận hành hiện tại, luôn dùng tài liệu ở các mục phía trên.
+
+Nếu cần kiểm kê theo đường dẫn, xem [Danh sách file tài liệu](./FILE_INVENTORY.md). File này do công cụ tổ chức repository tạo tự động; `INDEX.md` vẫn là trang điều hướng chính được biên tập cho người đọc.
+
+## Quy ước trạng thái tài liệu
+
+- **Hiện hành**: nguồn nên dùng cho hệ thống đang chạy.
+- **Theo profile**: chỉ áp dụng cho môi trường được ghi rõ.
+- **Lịch sử**: giữ để truy vết quyết định/release; không dùng như runbook hiện tại.
+- **Template**: phải thay placeholder và kiểm tra môi trường trước khi chạy.
+
+## Trạng thái tài liệu theo Production
+
+- Zalo Mini App: phiên bản `33`, Live 100%.
+- Mini App source: `5.17.2`.
+- Backend/Admin: `5.18.6`.
+- SQL Server: schema `10`.
+- PostgreSQL state/governance: schema `1/1`.
+- Cập nhật tài liệu: 2026-09-03.

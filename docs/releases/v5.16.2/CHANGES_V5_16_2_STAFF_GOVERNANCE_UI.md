@@ -1,5 +1,9 @@
 # v5.16.2 — Staff and Playbook governance UI
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 - Hiển thị tên tài khoản, vai trò và username hiện đang đăng nhập ở góc phải Admin header.

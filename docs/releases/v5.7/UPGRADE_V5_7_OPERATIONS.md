@@ -1,5 +1,9 @@
 # Nâng cấp lên v5.7 Operations
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## 1. Sao lưu
 
 Trước khi nâng cấp, dừng backend và chạy script backup hiện có. Xác nhận đã có bản sao database JSON hoặc SQL Server và thư mục upload.

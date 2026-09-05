@@ -1,5 +1,7 @@
 # Tự động đồng bộ URL ngrok
 
+> Chỉ dùng cho Development/Testing local. Production version `33` đang trỏ Render HTTPS cố định; không chạy công cụ này cho Production.
+
 Khi tài khoản/gói ngrok cấp URL thay đổi sau mỗi lần chạy, Mini App cần được build và deploy lại vì `VITE_API_BASE_URL` được Vite nhúng vào JavaScript lúc build.
 
 Script Windows sau tự thực hiện toàn bộ quy trình:
@@ -17,13 +19,13 @@ Script Windows sau tự thực hiện toàn bộ quy trình:
 Nhấp đúp:
 
 ```text
-scripts\windows\start-helpdesk-auto.bat
+scripts\windows\launchers\START_HELPDESK_AUTO.bat
 ```
 
 Hoặc chạy bằng PowerShell:
 
 ```powershell
-cd "C:\Users\ADMIN\Downloads\Zalo_IT_HelpDesk_Zero_Cost_v2\zalo-helpdesk-ai"
+cd "C:\duong-dan\Zalo_IT_HelpDesk_App"
 .\scripts\windows\start-helpdesk-auto.ps1
 ```
 
@@ -31,7 +33,7 @@ Script tự dò ngrok trong PATH và thư mục Downloads. Có thể chỉ đị
 
 ```powershell
 .\scripts\windows\start-helpdesk-auto.ps1 `
-  -NgrokPath "C:\Users\ADMIN\Downloads\ngrok-v3-stable-windows-amd64\ngrok.exe"
+  -NgrokPath "C:\Tools\ngrok\ngrok.exe"
 ```
 
 ## Tham số hữu ích

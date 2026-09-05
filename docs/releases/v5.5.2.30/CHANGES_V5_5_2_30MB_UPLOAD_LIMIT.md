@@ -1,5 +1,9 @@
 # Changes v5.5.2
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 - Đặt giới hạn mặc định thành tối đa 30 MB/file.
 - Cho phép file đúng 30 MB; chỉ chặn file lớn hơn giới hạn.
 - Đặt tổng tối đa 120 MB cho một phản hồi có nhiều file.

@@ -1,5 +1,9 @@
 # IT HelpDesk v5.4 — Playbook Lifecycle Governance
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Mục tiêu
 
 Cho phép kỹ thuật viên và quản trị viên liên tục cập nhật kiến thức doanh nghiệp mà không để AI học trực tiếp từ dữ liệu chưa được xác minh.

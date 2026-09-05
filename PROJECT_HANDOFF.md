@@ -1,217 +1,209 @@
-# Project Handoff — Zalo IT HelpDesk
+# Project Handoff — Nguyễn Phan Trường An HelpDesk
 
-> Historical handoff through v5.12.0. For the current Backend/Admin v5.18.3 and Mini App source v5.17.1, read `AGENTS.md`, `README.md`, `docs/releases/v5.18.3/`, `docs/releases/v5.18.2/`, `docs/releases/v5.18.1/`, `docs/releases/v5.18.0/`, `docs/releases/v5.17.1/`, `docs/releases/v5.17.0/`, `docs/releases/v5.16.9/`, `docs/releases/v5.16.8/`, `docs/releases/v5.16.7/`, `docs/releases/v5.16.6/`, `docs/releases/v5.16.5/`, `docs/releases/v5.16.4/` and `docs/releases/v5.16.0/` before acting. v5.18.3 is the Account menu layer source of truth; v5.18.2 remains the Admin phone-layout source of truth; v5.18.1 remains the automatic Zalo Bot webhook bootstrap source of truth and v5.18.0 remains the optional Zalo Bot Assistant behavior source of truth.
-
-> Tài liệu bàn giao sống. Cập nhật khi bắt đầu/kết thúc phiên bản, trước khi dừng giữa chừng và trước khi merge release.
+Tài liệu bàn giao sống cho người tiếp tục phát triển hoặc vận hành repository. Cập nhật khi trạng thái Production, schema, version, kiến trúc hoặc quy trình phát hành thay đổi.
 
 ## 1. Trạng thái hiện tại
 
-| Trường | Giá trị |
+| Hạng mục | Giá trị |
 |---|---|
 | Repository | `AnNguyen307/Zalo_IT_HelpDesk_App` |
 | Nhánh chuẩn | `main` |
-| Baseline release | v5.11.0, merge commit `599227a` |
-| Phiên bản phát hành | `5.12.0` |
-| Mục tiêu | Staff Copilot phân tích độc lập và đưa nhiều hướng giải quyết kể cả khi không khớp Playbook |
-| Nhánh phát triển | `agent/copilot-independent-reasoning` |
-| Baseline | Cây mã v5.11.0 đã phát hành qua PR #15 |
-| Trạng thái | Mã nguồn và validation hoàn tất; chờ review/merge vào `main`; chưa deploy Windows |
-| Database migration | Không có migration mới; giữ schema version `9` |
-| Validation | Syntax đạt; `84/84` test đạt; benchmark đạt; Mini App build đạt |
-| Cập nhật lần cuối | 2026-08-10 (Asia/Ho_Chi_Minh) |
+| Tên Zalo đã xác thực | `Nguyễn Phan Trường An HelpDesk` |
+| Zalo Mini App ID | `4185582976193315701` |
+| Mini App Production | Phiên bản `33`, Live 100% |
+| Mini App source | `5.17.2` |
+| Backend/Admin | `5.18.6` |
+| Production Backend | `https://zalo-it-helpdesk-pilot.onrender.com` |
+| Production profile | Render Free + Supabase Free |
+| SQL Server schema | `10` |
+| PostgreSQL state schema | `1` |
+| PostgreSQL governance schema | `1` |
+| Validation baseline | `154/154` backend tests + Mini App Production E2E version 33 |
+| Migration đang chờ | Không |
+| Mini App deploy đang chờ | Không |
 
-Máy Windows đã pull merge commit v5.11.0; lần khởi động được ghi nhận ban đầu còn thiếu migrations 008–009. Chưa có output tiếp theo xác nhận schema version `9` và health v5.11.0. Endpoint ngrok cũ chỉ là endpoint tạm; không ghi cứng URL vào mã nghiệp vụ.
+Tài liệu hiện hành bắt đầu tại [docs/INDEX.md](docs/INDEX.md). Hồ sơ trong `docs/releases/` là lịch sử theo phiên bản, không tự động trở thành hướng dẫn vận hành hiện tại.
 
-## 2. Quyết định kiến trúc v5.12.0
+## 2. Những gì đang chạy
 
-Khóa `human_only` chỉ chặn AI Agent khỏi kênh User; nó không tắt Staff AI Copilot:
+### Mini App
 
-- AI Agent chỉ hướng dẫn User khi Playbook phù hợp và đạt guardrail.
-- User có hai kết quả rõ ràng: **Tôi đã xử lý được** hoặc **Tôi vẫn chưa xử lý được**.
-- Handoff rõ ràng đổi `waiting_user → open`, tiếp tục SLA và xếp Copilot run nền.
-- Copilot chỉ dùng endpoint `/api/staff/...`, lưu ở `ai_copilot_runs` và không được đưa vào public ticket/messages.
-- Bước Playbook được ánh xạ nguyên văn; kiến thức riêng của model luôn gắn nhãn `ai_inference`.
-- Playbook là căn cứ nhưng không còn là giới hạn của Staff Copilot: mỗi cloud run hợp lệ bắt buộc có tối thiểu hai giả thuyết và hai hướng giải quyết độc lập.
-- Copilot đánh giá Playbook `matched | partial | none`; khi `none`, nó chuyển `ai_led`, không tạo bước Playbook giả và vẫn hỗ trợ Helpdesk.
-- Mỗi giả thuyết có rationale, confidence và cách kiểm chứng; mỗi hướng có các bước, tín hiệu thành công, điều kiện dừng/chuyển cấp và mức rủi ro.
-- Backend từ chối output trực tiếp yêu cầu credential, lệnh phá hủy hoặc vô hiệu hóa bảo mật; provider khác được thử theo router trước khi fallback Rules.
-- Phân tích hiển thị là reasoning summary có thể kiểm chứng, không xuất chain-of-thought.
-- Bản nháp chỉ được chép vào ô reply; kỹ thuật viên vẫn phải duyệt và bấm gửi.
-- Helpdesk chọn `auto|gemini|groq|openrouter|sambanova`; chỉ provider nằm trong route và đã cấu hình mới hợp lệ.
-- Lịch sử v5.12: `auto` giữ failover cloud, còn model cụ thể từng chỉ gọi đúng provider đã chọn. Quy tắc này đã được v5.16.4 thay thế: model cụ thể là ưu tiên đầu tiên, sau đó router failover qua cloud route trước khi dùng Rules/Playbook.
-- Mỗi run lưu riêng provider/model được yêu cầu và provider/model thực tế; trình duyệt không bao giờ nhận API key.
+- Nhân viên đăng nhập bằng mã mời dùng một lần và rolling device session.
+- Các tab chính: Trang chủ, Yêu cầu, Thông báo, Cá nhân.
+- Ticket hỗ trợ hội thoại, file private, self-service, human handoff, reopen và rating.
+- Production version 33 đã được Zalo duyệt và Publish 100%.
 
-Quyết định cloud-only của v5.9.1 vẫn giữ nguyên:
+### Backend/Admin
 
-Ollama bị loại khỏi toàn bộ đường chạy hiện tại:
+- Node.js Backend, Admin responsive và trang đăng nhập đã tinh gọn.
+- Account menu có lớp hiển thị riêng trên mobile.
+- Ticket Workspace gồm queue, conversation, context/dispatch.
+- RBAC: `admin`, `technician`, `viewer`.
+- Reports, SLA, smart queues, CSV, Knowledge Base, Playbook Governance và AI quality.
 
-- Không còn provider local trong AI Router V2.
-- Không còn provider embedding local trong Enterprise Playbook RAG.
-- Không còn biến `OLLAMA_*`, model local, health probe hoặc request tới cổng `11434`.
-- Không còn task/script Windows cài, chạy, chờ hoặc kiểm tra local AI.
-- Các giá trị `.env` cũ `AGENT_MODE=ollama`, `AI_PROVIDER=ollama` và `PLAYBOOK_EMBED_PROVIDER=ollama` bị từ chối và fail closed về `rules`/`none`.
+### Zalo Bot
 
-Release note lịch sử trước v5.9.1 vẫn được giữ nguyên để phản ánh đúng các phiên bản cũ; chúng không phải hướng dẫn vận hành hiện tại.
+- Endpoint: `/api/webhooks/zalo-bot`.
+- Production đã cấu hình Bot Token và webhook secret server-side.
+- Bot ưu tiên Playbook, có bounded generative fallback và tự tạo ticket khi self-service thất bại.
+- Webhook được đăng ký lại sau Render startup khi cấu hình Production cho phép.
+- Render Free cold start vẫn là giới hạn vận hành thực tế.
 
-## 3. Kiến trúc hiện tại
+## 3. Kiến trúc hiện hành
 
 ```text
-Ticket / message
-  → Rule classification
-  → BM25 Enterprise Playbook Top-K
-  → optional Gemini embedding hybrid score
-  → AI Router V2
-      Gemini → Groq → OpenRouter → SambaNova
-  → backend schema + confidence + Playbook guardrail
-  → decision record + attempt telemetry + Audit Log
-  → Playbook guidance hoặc Rules/HelpDesk handoff
-  → sau handoff: Staff AI Copilot nền
-      → đánh giá độ khớp Playbook
-      → hybrid hoặc AI-led independent analysis
-      → nhiều giả thuyết + nhiều solution path có guardrail
-      → auto route hoặc model Helpdesk chọn
-      → kỹ thuật viên duyệt bản nháp
-  → Admin Đúng/Cần sửa + quality dashboard
+Mini App / Admin / Zalo Bot
+            │
+            ▼
+       Node.js API
+       ├── Auth + RBAC + rate limit
+       ├── Ticket/message/SLA/audit
+       ├── Attachment authorization
+       ├── Playbook Governance + retrieval
+       ├── User AI Agent
+       └── Staff Copilot
+            │
+     ┌──────┴──────┐
+     ▼             ▼
+Database       Private storage
 ```
 
-Module quan trọng:
+Chi tiết: [System Overview](docs/architecture/SYSTEM_OVERVIEW.md).
 
-- `backend/src/ai-router.mjs`: cloud provider registry, ordering, quota, retry, timeout, circuit breaker và attempt telemetry.
-- `backend/src/embeddings.mjs`: `none|gemini` cho Playbook embedding.
-- `backend/src/playbook.mjs`: BM25 lexical, optional hybrid scoring và lexical fallback.
-- `backend/src/ai-agent.mjs`: JSON schema, confidence acceptance và Playbook guardrail.
-- `backend/src/ai-copilot.mjs`: phân tích staff-only, nguồn Playbook, giả thuyết AI và queue nền.
-- `backend/src/ai-quality.mjs`: decision record và quality reporting.
-- `backend/test/no-local-ai-v591.test.mjs`: release guard chống tái đưa local AI vào runtime/startup.
+## 4. Các bất biến phải giữ
 
-## 4. Cấu hình chuẩn
+1. Mọi cloud provider lỗi vẫn phải tạo được ticket hoặc bàn giao rõ ràng.
+2. AI Agent kênh nhân viên chỉ dùng bước thuộc Playbook đã duyệt.
+3. Staff Copilot không tự gửi, tự thực thi, đổi trạng thái hoặc đóng ticket.
+4. Copilot/provider/model/confidence/internal routing không xuất hiện ở Employee API/UI.
+5. Runtime Playbook chỉ dùng procedure `Published + Active`.
+6. Technician được soạn/gửi duyệt nhưng chỉ Admin được publish/reject/rollback.
+7. File private và quyền tải gắn với ticket.
+8. Không xóa ticket đang hoạt động trong retention.
+9. Secret không vào source, log, tài liệu, screenshot hoặc PR.
+10. UI/docs-only release không có database migration.
 
-```env
-AI_ROUTER_ENABLED=true
-AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova
-AI_ROUTING_POLICY=fixed
-AI_PROVIDER=rules
-AGENT_MODE=rules
-AI_CLOUD_ENABLED=true
-AI_REDACTION_ENABLED=true
-AI_PROVIDER_RETRIES=1
-AI_CIRCUIT_FAILURE_THRESHOLD=2
-AI_CIRCUIT_COOLDOWN_MS=60000
+## 5. AI và Playbook
+
+Cloud route:
+
+```text
+Gemini → Groq → OpenRouter → SambaNova → Rules fallback
 ```
 
-Provider cloud chỉ chạy khi đồng thời có `AI_CLOUD_ENABLED=true`, feature flag tương ứng và API key phía server. API key luôn ở `backend/.env`/secret store, không commit và không gửi xuống Mini App/Admin frontend.
+- Provider được chọn thủ công là ưu tiên đầu tiên, không phải điểm thất bại duy nhất; router vẫn failover qua cloud provider phù hợp còn lại.
+- Missing quota header là `unknown`, không phải `0`.
+- Không có Ollama/local model.
+- Baseline retrieval là BM25 lexical; Gemini embedding hybrid là tùy chọn.
+- Staff Copilot có `matched | partial | none`, đưa nhiều giả thuyết/hướng giải quyết và điều kiện dừng.
 
-Mock data hiện được phép đặt `AI_REDACTION_ENABLED=false`. Trước dữ liệu thật phải đánh giá lại và thường bật redaction.
+Chi tiết: [AI Agent](docs/components/README_AI_AGENT.md), [Enterprise Playbook](docs/components/README_ENTERPRISE_PLAYBOOK.md), [Playbook Lifecycle](docs/components/README_PLAYBOOK_LIFECYCLE.md).
 
-## 5. Playbook RAG
+## 6. Storage và retention
 
-Baseline không gọi AI:
+### Free-hosting Production
 
-```env
-PLAYBOOK_RETRIEVAL_MODE=lexical
-PLAYBOOK_EMBED_PROVIDER=none
-PLAYBOOK_SEMANTIC=false
-PLAYBOOK_AUTO_INDEX=false
-PLAYBOOK_TOP_K=5
-PLAYBOOK_MIN_SCORE=0.20
-PLAYBOOK_AUTO_MIN_SCORE=0.72
-```
+- PostgreSQL state-document adapter dùng transaction/revision.
+- PostgreSQL Playbook Governance schema riêng.
+- Attachment trong Supabase private bucket.
+- Hard-cap 30 ticket, 8 file/ticket, 4 file mỗi phản hồi, 10 MB/ticket.
+- Ticket terminal cũ nhất có thể bị loại khi cần chỗ; ticket active không bị tự xóa.
 
-Hybrid tùy chọn chỉ dùng remote embedding:
+### NAS
 
-```env
-PLAYBOOK_RETRIEVAL_MODE=hybrid
-PLAYBOOK_EMBED_PROVIDER=gemini
-PLAYBOOK_EMBED_MODEL=gemini-embedding-001
-PLAYBOOK_AUTO_INDEX=true
-```
+- SQL Server schema `10`.
+- Persistent Docker volume/filesystem cho attachment/index.
+- Không public SQL Server `1433`.
+- Chuyển dữ liệu giữa PostgreSQL pilot và SQL Server cần migration/đối soát riêng.
 
-Nếu embedding/index lỗi, search tự quay về BM25. Script `scripts/windows/install-enterprise-playbook.ps1` cấu hình baseline lexical và chạy benchmark, không tải model.
+## 7. Authentication
 
-## 6. Guardrail bắt buộc
+- Mã mời: `XXXX-XXXX-XXXX`, dùng một lần, mặc định 24 giờ, lưu HMAC hash.
+- Access token nhân viên: tối đa 60 phút.
+- Refresh session: gắn thiết bị, rotation, tối đa 90 ngày.
+- Revocation có hiệu lực ngay.
+- Staff account dùng RBAC; không dùng chung tài khoản.
+- Production Zalo verification thực hiện server-side.
 
-1. Ticket luôn tạo được khi mọi cloud provider lỗi.
-2. Priority mặc định là `normal` (**Bình thường**).
-3. AI chỉ đổi priority khi `priorityDetermined=true`, confidence đạt ngưỡng và giá trị hợp lệ.
-4. Không có Playbook phù hợp, confidence thấp, provider lỗi hoặc rủi ro cao phải handoff kỹ thuật viên.
-5. AI Agent kênh User không sinh checklist ngoài Playbook; Staff Copilot được đề xuất hướng ngoài Playbook nhưng không tự thực thi và phải gắn nhãn AI/risk/stop condition.
-6. Admin review không tự gỡ human handoff.
-7. Copilot không được xuất hiện trong public ticket, Mini App API hoặc conversation messages.
-8. Copilot không có quyền tự gửi reply, tự đổi trạng thái hoặc tự đóng ticket.
-9. Model Copilot phải lấy từ allowlist server; không nhận model ID tùy ý từ trình duyệt.
+## 8. Cấu hình quan trọng
 
-## 7. API và compatibility
+Không ghi giá trị secret vào tài liệu. Các nhóm biến cần biết:
 
-- `GET /health` trả `version: 5.12.0` và feature `copilot-independent-reasoning`, `copilot-no-playbook-analysis`, `copilot-multi-path-solutions`, `copilot-model-selection`.
-- Router status chỉ liệt kê Gemini, Groq, OpenRouter và SambaNova.
-- `POST /api/tickets/:ticketId/request-human-help` chỉ dành cho User sở hữu ticket.
-- `GET/POST /api/staff/tickets/:ticketId/copilot[/runs]` yêu cầu staff session; POST chỉ Admin/Technician và nhận provider từ allowlist.
-- JSON store tự thêm trường; SQL Server bắt buộc chạy migrations 008 và 009 trước khi restart.
+- Core: `APP_SECRET`, `DEPLOYMENT_PROFILE`, `ALLOWED_ORIGINS`.
+- Database: `DB_PROVIDER`, `POSTGRES_URL`, `SQLSERVER_*`.
+- Attachment: `ATTACHMENT_STORAGE_PROVIDER`, `SUPABASE_*`.
+- Zalo: `ZALO_AUTH_MODE`, `ZALO_APP_SECRET`, `ZALO_MINI_APP_ID`.
+- Bot: `ZALO_BOT_*`.
+- AI: `AI_CLOUD_ENABLED`, `AI_PROVIDER_ORDER`, provider flags/keys.
+- Playbook: `PLAYBOOK_RETRIEVAL_MODE`, `PLAYBOOK_GOVERNANCE_ENABLED`.
+- Limits: `MAX_STORED_TICKETS`, `MAX_TICKET_ATTACHMENT_MB`.
 
-## 8. Validation bắt buộc
+Nguồn đầy đủ: `backend/.env.example`, `render.yaml`, `deploy/nas/.env.example`.
 
-```bash
-git status -sb
-git diff --check
+## 9. Validation
 
-cd backend
+Backend/cross-system:
+
+```powershell
+cd .\backend
+npm ci
 npm run check
 npm test
-npm run playbook:benchmark
+```
 
-cd ../miniapp
+Playbook:
+
+```powershell
+npm run playbook:benchmark
+```
+
+Mini App:
+
+```powershell
+cd ..\miniapp
+npm ci
 npm run build
 ```
 
-Release gate:
+Release phải có credential scan, regression coverage phù hợp, migration statement, deployment statement và rollback.
 
-- Full backend suite đạt, gồm test cấu hình legacy fail closed.
-- Runtime/source/startup script không còn integration local AI.
-- Benchmark Hit@5 ≥ `0.90`, MRR ≥ `0.65`.
-- All-provider failure vẫn trả HTTP `201`, priority `normal`, `agent_unavailable` và attempt telemetry chỉ có bốn cloud provider.
-- Mini App production build đạt.
-- Không có `.env`, API key, database local, upload/cache rác trong diff.
+## 10. Deploy hiện tại
 
-## 9. Deploy và rollback
+- Render Blueprint: `render.yaml`, `autoDeployTrigger: off`.
+- Render chạy image Backend bằng Node.js 22 Alpine, user không phải root.
+- Container init PostgreSQL idempotent rồi mới start Backend.
+- Mini App CI/CD nằm trong `.github/workflows/` và dùng ZMP CLI `4.0.3`.
+- Mini App chỉ deploy khi có yêu cầu phát hành riêng.
 
-Sau khi v5.12.0 được merge:
+Runbook: [docs/operations/OPERATIONS_RUNBOOK.md](docs/operations/OPERATIONS_RUNBOOK.md).
 
-1. Pull `main` trên máy Windows.
-2. Sao lưu theo quy trình vận hành hiện hành và giữ nguyên `backend/.env`.
-3. Không có migration mới; xác nhận database vẫn ở schema version `9`.
-4. Restart backend và kiểm tra local/ngrok `/health` đều là `5.12.0`.
-5. Hard refresh Admin; không bắt buộc deploy lại Mini App cho riêng thay đổi Copilot này.
-6. Smoke test ticket có Playbook (`hybrid`) và không khớp Playbook (`ai_led`), mỗi run có tối thiểu hai giả thuyết/hướng.
-7. Smoke test dropdown model, Dùng làm bản nháp, guardrail output và kiểm tra không rò sang User.
-8. Tắt toàn bộ cloud provider và xác nhận Copilot/Agent đều fallback an toàn.
+## 11. Khi bắt đầu một thay đổi mới
 
-Rollback an toàn không dùng AI model:
+1. Đọc `AGENTS.md`, `README.md`, tài liệu hiện hành liên quan và release note gần nhất.
+2. Kiểm tra `git status -sb`, nhánh và remote base.
+3. Không đè thay đổi của chủ dự án.
+4. Tạo nhánh tập trung.
+5. Triển khai, test và cập nhật tài liệu.
+6. Tạo PR có outcome, impact, validation, rollback.
+7. Sau merge, xác minh `main`, version, schema và yêu cầu deploy.
 
-```env
-AI_ROUTER_ENABLED=false
-AI_PROVIDER=rules
-AGENT_MODE=rules
-AI_CLOUD_ENABLED=false
-PLAYBOOK_RETRIEVAL_MODE=lexical
-PLAYBOOK_EMBED_PROVIDER=none
-```
+## 12. Nợ kỹ thuật và hướng tiếp theo
 
-## 10. Hướng phát triển tiếp theo
+- Chuyển Backend webhook sang hạ tầng always-on nếu cần phản hồi Bot thời gian thực ổn định.
+- Thiết lập backup/restore được kiểm thử trước khi dùng dữ liệu quan trọng.
+- Xây pipeline CI backend đầy đủ cho mọi PR, không chỉ Mini App deployment workflow.
+- Đưa quota/circuit/queue state khỏi process memory nếu chạy multi-instance.
+- Thiết kế migration có đối soát từ PostgreSQL pilot sang SQL Server/NAS khi cần.
+- Xây monitoring/alerting và retention audit phù hợp môi trường doanh nghiệp.
 
-- v6.0: repository refactor theo nghiệp vụ, PostgreSQL, private Object Storage, migration đối soát và backup/restore test.
-- v6.1: Docker/always-on backend, stable HTTPS domain, job locking/worker và `ZALO_AUTH_MODE=remote`.
-- v6.2: CI/CD backend, monitoring/alerting, secret rotation, rollback và audit retention.
+## 13. Tài liệu ưu tiên
 
-Nợ kiến trúc: quota/circuit state vẫn nằm trong process memory; attachment/index vẫn phụ thuộc filesystem; SLA timer, reindex queue và cache chưa hỗ trợ multi-instance.
+- [Documentation Index](docs/INDEX.md)
+- [User Guide](docs/guides/USER_GUIDE.md)
+- [Developer Guide](docs/development/DEVELOPER_GUIDE.md)
+- [Deployment](docs/deployment/README.md)
+- [Operations Runbook](docs/operations/OPERATIONS_RUNBOOK.md)
+- [Security Guide](docs/security/SECURITY_GUIDE.md)
+- [Troubleshooting](docs/troubleshooting/README.md)
 
-## 11. Kết quả validation và việc tiếp theo
-
-- `npm run check`: đạt.
-- `npm test`: `84/84` đạt.
-- `npm run playbook:benchmark`: Hit@1 `0.90`, Hit@5 `1.00`, MRR `0.95`.
-- `miniapp npm run build`: đạt; asset mới `index.g5nlUXhh.module.js`, `index.WPkxLTZQ.css`.
-- `git diff --check`: đạt.
-- Không phát hiện secret hoặc runtime reference local AI trong diff.
-- Workspace Linux không có `pwsh`, vì vậy chưa chạy PowerShell AST parser; script Windows cần smoke test trên máy deploy.
-
-Bước tiếp theo: review/merge draft PR v5.12.0, pull `main` trên Windows, restart backend và smoke test `hybrid`/`ai_led`/`rules_fallback` trong Admin.
+Cập nhật lần cuối: 2026-09-03, theo Production Mini App version 33 và Backend/Admin `5.18.6`.

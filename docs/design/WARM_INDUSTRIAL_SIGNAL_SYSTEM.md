@@ -1,6 +1,6 @@
 # Warm Industrial + Signal System
 
-Design source of truth for Zalo IT HelpDesk v5.14.0.
+Design source of truth được giới thiệu ở v5.14.0 và tiếp tục áp dụng cho Backend/Admin `v5.18.6` cùng Mini App source `v5.17.2`.
 
 ## Product principles
 
@@ -9,6 +9,8 @@ Design source of truth for Zalo IT HelpDesk v5.14.0.
 3. Employee surfaces never expose provider, model, confidence or retrieval scores.
 4. Technical does not mean cyberpunk. Warm service-sheet structure replaces decorative dashboard chrome.
 5. Status is always expressed with text or icons in addition to color.
+6. Copy is concise and functional; avoid promotional slogans in operational screens.
+7. Focus must be visible without nested outlines, layout shifts or excessive signal-blue frames.
 
 ## Core tokens
 
@@ -43,6 +45,25 @@ Radii use 4/6/8/10px for operational UI. Shadows are restrained; borders and spa
 - Admin uses three Ticket Workspace zones above 1260px, two zones on compact laptops and one column on narrow screens.
 - Operational tables retain horizontal scrolling; navigation becomes non-fixed on narrow screens.
 - Focus rings, reduced-motion support and text labels accompany all signals.
+- Account menus and dialogs must render above animated/sticky workspaces at every breakpoint.
+- Login and critical forms keep labels visible, errors next to the affected field and a single clear primary action.
+
+## Accessibility and interaction
+
+- Keyboard focus follows reading order and never becomes trapped behind overlays.
+- Icon-only actions require accessible names and an equivalent text cue where ambiguity remains.
+- Error, warning and success states combine color with icon/text.
+- Text and interactive controls maintain usable contrast on Warm Ivory and dark Graphite surfaces.
+- Loading actions disable duplicate submission and explain what is happening.
+- Reduced-motion users receive the same information without relying on animation.
+
+## Review checklist
+
+- Desktop: 1366px and 1920px wide.
+- Mobile: 360px, 390px and 430px wide, including safe-area bottom inset.
+- Long Vietnamese labels, empty states, validation errors and network failures.
+- Open Account menu on Overview, Playbook and System & AI.
+- Login with empty, wrong and valid credentials; show/hide password; keyboard-only submission.
 
 ## AI disclosure boundary
 

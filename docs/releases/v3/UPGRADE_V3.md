@@ -1,5 +1,9 @@
 # Nâng cấp IT HelpDesk v3.0
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Tính năng mới
 
 - Upload ảnh và file đính kèm (tối đa 8 file/ticket, mặc định 5 MB/file).

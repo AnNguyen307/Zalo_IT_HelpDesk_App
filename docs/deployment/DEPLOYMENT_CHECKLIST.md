@@ -1,103 +1,108 @@
-# Deployment Checklist — Zero-Cost Edition
+# Checklist triển khai và phát hành
 
-> Checklist lịch sử cho local/PC/NAS. Với v5.16.0, dùng tài liệu profile v5.15 làm nền cùng release notes `docs/releases/v5.16.0/`.
+Checklist này áp dụng cho Backend/Admin `v5.18.6` và Mini App source `v5.17.2`. Production hiện dùng Mini App version `33`. Chỉ đánh dấu một mục khi đã có bằng chứng kiểm tra tương ứng.
 
-## Mục tiêu chi phí
+## 1. Xác định phạm vi
 
-- [ ] Không có OpenAI/API AI key trong `.env`.
-- [ ] Không thuê cloud VM hoặc managed database mới.
-- [ ] Không dùng notification OA/SMS/email trả phí.
-- [ ] Backend chạy trên PC/NAS/server doanh nghiệp đã có.
-- [ ] Xác nhận rõ chi phí còn lại: điện, Internet, vận hành và domain hiện hữu.
+- [ ] Ghi rõ component thay đổi: Backend, Admin, Mini App, Playbook, database hay hạ tầng.
+- [ ] Ghi phiên bản hiện tại và phiên bản đích.
+- [ ] Chọn đúng profile: Render + Supabase, NAS + SQL Server, hoặc local development.
+- [ ] Xác định có migration, deploy Mini App, đổi biến môi trường hoặc thao tác dữ liệu hay không.
+- [ ] Có phương án rollback và người chịu trách nhiệm xác nhận.
 
-## Backend nội bộ
+## 2. Mã nguồn và bảo mật
 
-- [ ] Cài Node.js 20+.
-- [ ] Copy `backend/.env.example` thành `backend/.env`.
-- [ ] Đổi `APP_SECRET` thành chuỗi ngẫu nhiên dài.
-- [ ] Đổi `ADMIN_PASSWORD`.
-- [ ] Đặt `AI_PROVIDER=rules` cho cấu hình nhẹ nhất (`AGENT_MODE=rules` vẫn là alias tương thích).
-- [ ] Chạy `npm run check` và `npm test`.
-- [ ] Chạy backend dưới user không có quyền admin hệ điều hành nếu có thể.
-- [ ] Tắt Sleep trên máy backend trong thời gian phục vụ.
-- [ ] Không mở trực tiếp port 8080 trên Internet.
+- [ ] Working tree chỉ chứa file thuộc phạm vi thay đổi.
+- [ ] Không có `.env`, token, mật khẩu, cookie, connection string hoặc dữ liệu người dùng thật trong diff.
+- [ ] Secret mới chỉ được lưu trong secret store của môi trường đích.
+- [ ] Dependency và lockfile đồng bộ nếu package thay đổi.
+- [ ] Tài liệu, version metadata và release note khớp với hành vi thực tế.
+- [ ] `git diff --check` không báo lỗi khoảng trắng hoặc conflict marker.
 
-## HTTPS
+## 3. Quality gate
 
-### Pilot
+### Backend/Admin
 
-- [ ] Cài `cloudflared`.
-- [ ] Chạy Quick Tunnel tới `http://localhost:8080`.
-- [ ] Ghi nhận URL Quick Tunnel là tạm thời.
-- [ ] Không coi Quick Tunnel là production có SLA.
+- [ ] `cd backend && npm ci` hoàn tất.
+- [ ] `npm run check` đạt.
+- [ ] `npm test` đạt.
+- [ ] Regression test bao phủ bug hoặc hành vi mới.
+- [ ] Smoke test local `/health`, `/admin` và API bị ảnh hưởng đạt.
 
-### Dùng ổn định
+### Mini App
 
-- [ ] Dùng domain/subdomain doanh nghiệp đang sở hữu.
-- [ ] Tạo named tunnel hoặc reverse proxy HTTPS hiện có.
-- [ ] Chỉ expose backend qua HTTPS.
-- [ ] Hạn chế dashboard `/admin` bằng IP/VPN/Access nếu hạ tầng cho phép.
+- [ ] `cd miniapp && npm ci` hoàn tất.
+- [ ] `npm run build` đạt với Vite `5.4.x` và ZMP CLI `4.0.3`.
+- [ ] Kiểm tra quyền Zalo, trạng thái tải/lỗi/rỗng và từ chối quyền profile.
+- [ ] E2E trên điện thoại thật đạt ở đúng Testing version.
+- [ ] Không còn API URL, App ID hoặc tên ứng dụng của môi trường khác trong bundle.
 
-## Zalo Mini App
+### Tài liệu hoặc công cụ
 
-- [ ] Tạo hoặc chọn Zalo Mini App ID.
-- [ ] Liên kết project bằng `zmp init`.
-- [ ] Đặt `VITE_API_BASE_URL=https://...`.
-- [ ] Build thành công.
-- [ ] Deploy Development và kiểm thử trên điện thoại thật.
-- [ ] Test khi người dùng từ chối quyền tên/ảnh.
-- [ ] Không publish khi còn `ZALO_AUTH_MODE=development` trên public backend.
+- [ ] Liên kết nội bộ tồn tại và mở đúng tài liệu.
+- [ ] Lệnh, đường dẫn và tên biến môi trường khớp repository.
+- [ ] Script thay đổi đã qua syntax check và preview/dry-run nếu có.
+- [ ] Hồ sơ lịch sử không bị viết lại như trạng thái hiện tại.
 
-## Xác thực production
+## 4. Database và dữ liệu
 
-- [ ] Đặt `ZALO_AUTH_MODE=remote`.
-- [ ] Cấu hình `ZALO_TOKEN_VERIFY_URL`.
-- [ ] Verifier không tin `userId` do client gửi nếu chưa xác minh.
-- [ ] Log không chứa access token, mật khẩu hoặc OTP.
-- [ ] CORS chỉ chứa origin cần thiết.
+- [ ] Xác định provider: PostgreSQL state/governance, SQL Server hoặc JSON local.
+- [ ] Backup trước migration hoặc thay đổi dữ liệu.
+- [ ] Migration được đọc và kiểm tra trên bản sao trước môi trường chính.
+- [ ] PostgreSQL state/governance schema mong đợi: `1`/`1`.
+- [ ] SQL Server schema mong đợi: `10`.
+- [ ] Migration chạy đúng một lần; không chạy chỉ vì deploy mã nguồn.
+- [ ] Kiểm tra dữ liệu cũ, file đính kèm, lifecycle Playbook và audit log sau deploy.
 
-## AI guardrails
+## 5. Cấu hình runtime
 
-- [ ] IT senior review toàn bộ Knowledge Base.
-- [ ] Chỉ bật `autoEligible` cho quy trình rủi ro thấp, có thể hoàn tác.
-- [ ] Account, security, data loss, BSOD, hardware và infrastructure luôn escalation.
-- [ ] AI Agent kênh User không tự tạo command/checklist ngoài Playbook; Staff Copilot chỉ đưa phương án nội bộ có nhãn AI, mức rủi ro và điều kiện dừng.
-- [ ] Kiểm tra confidence threshold bằng ticket thực tế.
+- [ ] `APP_SECRET` ổn định và đủ mạnh; không tự tạo lại khi redeploy.
+- [ ] `ADMIN_PASSWORD` chỉ dùng bootstrap và không còn là đường đăng nhập thường xuyên khi đã có named Admin.
+- [ ] `LEGACY_STAFF_LOGIN_ENABLED=false` sau bootstrap.
+- [ ] CORS chỉ cho phép origin cần thiết.
+- [ ] Database và attachment provider đúng profile.
+- [ ] AI provider thiếu key bị skip; Rules/HelpDesk fallback vẫn hoạt động.
+- [ ] Playbook chỉ lấy Published + Active và index ở trạng thái ready.
+- [ ] Nếu bật Zalo Bot, token/secret có mặt, webhook đăng ký thành công và log không lộ secret.
 
-## AI Router V2, RAG và Copilot v5.13.0
+## 6. Deploy Backend/Admin
 
-- [ ] `AI_PROVIDER_ORDER=gemini,groq,openrouter,sambanova`; Rules/HelpDesk là fallback cuối.
-- [ ] Máy backend không cần local model, local embedding service hoặc AI autostart task.
-- [ ] API key chỉ nằm trong `backend/.env`/secret store phía server; provider chưa có key phải được skip.
-- [ ] Mock data có thể dùng `AI_REDACTION_ENABLED=false`; bật lại trước dữ liệu thật.
-- [ ] Kiểm thử `429`, timeout, schema lỗi, confidence thấp và circuit breaker đều chuyển provider tiếp theo.
-- [ ] Tắt toàn bộ provider và xác nhận ticket vẫn tạo với priority Bình thường, `agent_unavailable` và attempt telemetry.
-- [ ] `PLAYBOOK_RETRIEVAL_MODE=lexical`, `PLAYBOOK_EMBED_PROVIDER=none` vẫn tìm đúng Top-K khi cloud AI tắt.
-- [ ] Chạy `npm run playbook:benchmark` và lưu kết quả cùng release validation.
-- [ ] Chạy `npm run db:migrate` và xác nhận schema version `10` trước khi restart backend.
-- [ ] Kiểm tra `/health` là `5.13.0`, có `provider-quota-observability`, `quota-header-null-safety`, `provider-readiness-diagnostics`, `copilot-independent-reasoning`, `copilot-model-selection`.
-- [ ] Gọi Gemini thành công khi response không có quota header; xác nhận Gemini vẫn sẵn sàng và quota token hiển thị “Không xác định”, không phải `0`.
-- [ ] Admin → AI Agent hiển thị token/request đã quan sát, ngân sách app, quota provider, lỗi gần nhất và circuit mà không lộ API key.
-- [ ] Chọn **Tôi vẫn chưa xử lý được** và xác nhận AI Agent không phản hồi User thêm.
-- [ ] Admin → ticket → Copilot hiển thị nội dung nội bộ; User/Mini App không nhận bất kỳ suggestion Copilot nào.
-- [ ] Chạy Copilot với **Tự động** và ít nhất một model cụ thể; xác nhận run hiển thị đúng model yêu cầu và model thực tế.
-- [ ] Test ticket có Playbook: Copilot hiển thị cả bước Playbook và tối thiểu hai giả thuyết/hướng AI độc lập.
-- [ ] Test ticket không khớp Playbook: `fit=none`, không có bước Playbook giả, chế độ `AI-led` vẫn có tối thiểu hai hướng giải quyết.
-- [ ] Mỗi hướng AI có cách kiểm chứng, tín hiệu thành công, điều kiện dừng/chuyển cấp và mức rủi ro; không có credential hoặc thao tác phá hủy.
-- [ ] Rollback: `AI_ROUTER_ENABLED=false`, `AI_PROVIDER=rules`, `AI_CLOUD_ENABLED=false`.
+- [ ] Merge đúng commit đã kiểm tra vào `main`.
+- [ ] Render/NAS checkout đúng commit, không deploy nhầm branch.
+- [ ] Build image thành công và health check qua.
+- [ ] `/health` trả `ok=true`, version `5.18.6` và đúng profile.
+- [ ] Database, attachment, Playbook, AI và Bot có trạng thái mong đợi.
+- [ ] Admin đăng nhập, menu, ticket workspace và giao diện mobile hoạt động.
+- [ ] Không mất ticket, message, attachment hoặc audit event.
 
-## Dữ liệu và backup
+## 7. Deploy Mini App
 
-- [ ] Chạy `backup-data` thủ công thành công.
-- [ ] Lên lịch backup hằng ngày.
-- [ ] Lưu ít nhất một bản ở ổ đĩa/máy khác.
-- [ ] Kiểm thử restore bằng cách copy file backup về `backend/data/db.json` khi backend đã dừng.
-- [ ] Giới hạn quyền đọc `backend/data` và `backups`.
+- [ ] `APP_ID=4185582976193315701` trong cấu hình build Mini App.
+- [ ] Tên chính thức là `Nguyễn Phan Trường An HelpDesk` trong metadata cần xét duyệt.
+- [ ] `VITE_API_BASE_URL` trỏ backend HTTPS production.
+- [ ] Deploy Testing, ghi version và artifact/commit.
+- [ ] Hoàn tất E2E: lời mời một lần, đăng nhập, tạo ticket, upload, reply, xử lý và đánh giá.
+- [ ] Gửi Zalo xét duyệt với mô tả ngắn, chính xác và không chứa secret.
+- [ ] Chỉ Publish sau khi trạng thái Approved và người có thẩm quyền xác nhận.
+- [ ] Sau Publish, xác nhận version Live `100%` và mở bằng QR Production.
 
-## Pilot nội bộ
+## 8. Smoke test sau phát hành
 
-- [ ] 10–30 người dùng thử từ nhiều phòng ban.
-- [ ] Có kỹ thuật viên nhận ticket escalation.
-- [ ] Theo dõi tỷ lệ tự xử lý, first response, reopen và lỗi phân loại.
-- [ ] Review Knowledge Base hàng tuần.
-- [ ] Chỉ mở rộng khi backend PC, tunnel và backup ổn định.
+- [ ] Người dùng hợp lệ đăng nhập; invite hết hạn/đã dùng bị từ chối đúng.
+- [ ] User chỉ xem được ticket thuộc quyền.
+- [ ] Tạo ticket khi AI cloud tắt vẫn thành công.
+- [ ] Reply, upload, preview/download và xóa file đúng quyền.
+- [ ] Giới hạn 30 ticket và 10 MB/ticket trả thông báo có thể hành động.
+- [ ] Handoff khóa phản hồi tự động cho người dùng; Copilot chỉ hiện với staff.
+- [ ] Ticket resolved/closed có thể đánh giá và reopen trong giới hạn 14 ngày.
+- [ ] Render cold start hoặc restart không làm mất dữ liệu; webhook Bot tự đăng ký lại nếu bật.
+
+## 9. Rollback và bàn giao
+
+- [ ] Ghi commit/version trước và sau phát hành.
+- [ ] Rollback mã nguồn không tự rollback database; đánh giá tương thích trước khi thực hiện.
+- [ ] Không xóa database, bucket hoặc volume cũ trước khi đối soát.
+- [ ] Ghi rõ migration/deploy/Ctrl+F5 có cần hay không trong bàn giao.
+- [ ] Cập nhật [Runbook vận hành](../operations/OPERATIONS_RUNBOOK.md) hoặc release note nếu quy trình thay đổi.
+
+Xem [Tổng quan triển khai](./README.md) để chọn profile và thứ tự thực hiện.

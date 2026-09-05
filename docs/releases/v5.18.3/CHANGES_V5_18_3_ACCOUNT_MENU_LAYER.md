@@ -1,5 +1,9 @@
 # v5.18.3 — Account Menu Layer Hotfix
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 - Menu mở rộng của **Tài khoản** luôn hiển thị phía trên nội dung tại **Tổng quan**, **Playbook** và **Hệ thống & AI**.

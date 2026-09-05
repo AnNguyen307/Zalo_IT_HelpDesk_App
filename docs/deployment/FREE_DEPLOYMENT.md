@@ -1,6 +1,6 @@
 # Triển khai theo hướng không phát sinh phí dịch vụ
 
-> Tài liệu này dành cho backend local/PC + tunnel. Với free-hosting v5.15.1 dùng Render + Supabase, xem `FREE_HOSTING_V5_15.md`.
+> Tài liệu này dành cho local/development hoặc pilot ngắn hạn trên PC + tunnel. Với production pilot hiện tại dùng Render + Supabase, xem [Render + Supabase Free](./FREE_HOSTING_V5_15.md). Không dùng Quick Tunnel như một production endpoint ổn định.
 
 ## 1. Chi phí đã loại bỏ
 
@@ -104,12 +104,12 @@ VITE_API_BASE_URL=https://helpdesk-api.example.com
 
 ## 4. Chế độ Agent không tốn phí
 
-### Chế độ nhẹ, khuyến nghị
+### Chế độ nhẹ
 
 `backend/.env`:
 
 ```env
-AGENT_MODE=rules
+AI_PROVIDER=rules
 ```
 
 Ưu điểm:
@@ -121,7 +121,7 @@ AGENT_MODE=rules
 
 ### Cloud AI free tier tùy chọn
 
-Router v5.12.0 có thể dùng Gemini, Groq, OpenRouter và SambaNova cho AI Agent và Staff Copilot khi provider được bật, có API key phía server và `AI_CLOUD_ENABLED=true`. Helpdesk có thể dùng route tự động hoặc chọn một model đã cấu hình cho từng lần phân tích. Copilot bắt buộc tạo phân tích độc lập nhiều hướng, kể cả khi không có Playbook khớp. Không cần cài model hoặc AI service trên máy backend.
+Router hiện tại có thể dùng Gemini, Groq, OpenRouter và SambaNova cho AI Agent và Staff Copilot khi provider được bật, có API key phía server và `AI_CLOUD_ENABLED=true`. Route tự động thử provider theo thứ tự cấu hình; model được chọn sẽ được ưu tiên trước rồi mới failover sang provider cloud khác. Copilot tạo phân tích nội bộ nhiều hướng, kể cả khi không có Playbook khớp. Không cần cài model hoặc AI service trên máy backend.
 
 Nếu không có key hoặc toàn bộ provider lỗi, backend tự dùng Rules/HelpDesk fallback nên ticket vẫn hoạt động.
 
@@ -150,10 +150,10 @@ hoặc:
 
 Có thể dùng Windows Task Scheduler/cron để chạy mỗi ngày. Nên sao chép thư mục `backups` sang ổ NAS hoặc ổ đĩa khác mà doanh nghiệp đã có.
 
-## 7. Những tính năng cố ý không dùng để giữ chi phí bằng 0
+## 7. Những thành phần không nên bổ sung chỉ để chạy pilot local
 
 - SMS/email/OA push tự động.
-- Upload file lên cloud.
+- Object storage cloud khi filesystem nội bộ đã đáp ứng và được backup.
 - Speech-to-text hoặc OCR cloud.
 - Vector database và embedding API.
 - Remote control tự động.

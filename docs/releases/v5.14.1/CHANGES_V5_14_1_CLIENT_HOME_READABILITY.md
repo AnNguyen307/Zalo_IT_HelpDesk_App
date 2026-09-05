@@ -1,5 +1,9 @@
 # v5.14.1 — Client Home readability patch
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 The Zalo Client home hero now remains readable and collision-free on narrow Mini App viewports while preserving the Warm Industrial + Signal direction.

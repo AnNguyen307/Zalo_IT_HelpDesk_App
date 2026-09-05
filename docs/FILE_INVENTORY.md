@@ -1,0 +1,139 @@
+# Danh sách file tài liệu
+
+Danh sách này được tạo tự động bởi `scripts/tools/organize_project.py`.
+Để tìm tài liệu theo nhu cầu, xem [Trung tâm tài liệu](./INDEX.md).
+
+## Khác
+
+- [PATCH_FILE_STRUCTURE.md](./PATCH_FILE_STRUCTURE.md)
+- [VS_Enterprise_IT_HelpDesk_Playbook_2026.docx](./VS_Enterprise_IT_HelpDesk_Playbook_2026.docx)
+- [VS_Enterprise_IT_HelpDesk_Playbook_2026.pdf](./VS_Enterprise_IT_HelpDesk_Playbook_2026.pdf)
+
+## architecture
+
+- [architecture/SYSTEM_OVERVIEW.md](./architecture/SYSTEM_OVERVIEW.md)
+
+## components
+
+- [components/README_AI_AGENT.md](./components/README_AI_AGENT.md)
+- [components/README_ENTERPRISE_PLAYBOOK.md](./components/README_ENTERPRISE_PLAYBOOK.md)
+- [components/README_PLAYBOOK_LIFECYCLE.md](./components/README_PLAYBOOK_LIFECYCLE.md)
+
+## deployment
+
+- [deployment/AUTO_NGROK.md](./deployment/AUTO_NGROK.md)
+- [deployment/DEPLOYMENT_CHECKLIST.md](./deployment/DEPLOYMENT_CHECKLIST.md)
+- [deployment/FREE_DEPLOYMENT.md](./deployment/FREE_DEPLOYMENT.md)
+- [deployment/FREE_HOSTING_V5_15.md](./deployment/FREE_HOSTING_V5_15.md)
+- [deployment/NAS_V5_15.md](./deployment/NAS_V5_15.md)
+- [deployment/README.md](./deployment/README.md)
+- [deployment/README_VSCODE_TERMINALS.txt](./deployment/README_VSCODE_TERMINALS.txt)
+
+## design
+
+- [design/WARM_INDUSTRIAL_SIGNAL_SYSTEM.md](./design/WARM_INDUSTRIAL_SIGNAL_SYSTEM.md)
+
+## development
+
+- [development/DEVELOPER_GUIDE.md](./development/DEVELOPER_GUIDE.md)
+
+## guides
+
+- [guides/USER_GUIDE.md](./guides/USER_GUIDE.md)
+
+## maintenance
+
+- [maintenance/MOVE_ROOT_BAT_FILES.md](./maintenance/MOVE_ROOT_BAT_FILES.md)
+- [maintenance/ORGANIZER_V2_1_HOTFIX.md](./maintenance/ORGANIZER_V2_1_HOTFIX.md)
+- [maintenance/PROJECT_ORGANIZER_V3.md](./maintenance/PROJECT_ORGANIZER_V3.md)
+
+## operations
+
+- [operations/OPERATIONS_RUNBOOK.md](./operations/OPERATIONS_RUNBOOK.md)
+
+## quality
+
+- [quality/EXCEPTION_TESTING_STANDARD.md](./quality/EXCEPTION_TESTING_STANDARD.md)
+
+## releases
+
+- [releases/README.md](./releases/README.md)
+- [releases/legacy-zero-cost/CHANGES_ZERO_COST.md](./releases/legacy-zero-cost/CHANGES_ZERO_COST.md)
+- [releases/v3/CHANGES_V3.md](./releases/v3/CHANGES_V3.md)
+- [releases/v3/UPGRADE_V3.md](./releases/v3/UPGRADE_V3.md)
+- [releases/v4/CHANGES_V4_AI_AGENT.md](./releases/v4/CHANGES_V4_AI_AGENT.md)
+- [releases/v5/CHANGES_V5_ENTERPRISE_PLAYBOOK.md](./releases/v5/CHANGES_V5_ENTERPRISE_PLAYBOOK.md)
+- [releases/v5/UPGRADE_V5_ENTERPRISE_PLAYBOOK.md](./releases/v5/UPGRADE_V5_ENTERPRISE_PLAYBOOK.md)
+- [releases/v5.10.0/CHANGES_V5_10_0_STAFF_AI_COPILOT.md](./releases/v5.10.0/CHANGES_V5_10_0_STAFF_AI_COPILOT.md)
+- [releases/v5.10.0/UPGRADE_V5_10_0_STAFF_AI_COPILOT.md](./releases/v5.10.0/UPGRADE_V5_10_0_STAFF_AI_COPILOT.md)
+- [releases/v5.11.0/CHANGES_V5_11_0_COPILOT_MODEL_SELECTION.md](./releases/v5.11.0/CHANGES_V5_11_0_COPILOT_MODEL_SELECTION.md)
+- [releases/v5.11.0/UPGRADE_V5_11_0_COPILOT_MODEL_SELECTION.md](./releases/v5.11.0/UPGRADE_V5_11_0_COPILOT_MODEL_SELECTION.md)
+- [releases/v5.12.0/CHANGES_V5_12_0_COPILOT_INDEPENDENT_REASONING.md](./releases/v5.12.0/CHANGES_V5_12_0_COPILOT_INDEPENDENT_REASONING.md)
+- [releases/v5.12.0/UPGRADE_V5_12_0_COPILOT_INDEPENDENT_REASONING.md](./releases/v5.12.0/UPGRADE_V5_12_0_COPILOT_INDEPENDENT_REASONING.md)
+- [releases/v5.13.0/CHANGES_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md](./releases/v5.13.0/CHANGES_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md)
+- [releases/v5.13.0/UPGRADE_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md](./releases/v5.13.0/UPGRADE_V5_13_0_PROVIDER_QUOTA_OBSERVABILITY.md)
+- [releases/v5.14.0/CHANGES_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md](./releases/v5.14.0/CHANGES_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md)
+- [releases/v5.14.0/UPGRADE_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md](./releases/v5.14.0/UPGRADE_V5_14_0_WARM_INDUSTRIAL_SIGNAL_UI.md)
+- [releases/v5.14.1/CHANGES_V5_14_1_CLIENT_HOME_READABILITY.md](./releases/v5.14.1/CHANGES_V5_14_1_CLIENT_HOME_READABILITY.md)
+- [releases/v5.15.0/CHANGES_V5_15_0_DEPLOYMENT_FOUNDATION.md](./releases/v5.15.0/CHANGES_V5_15_0_DEPLOYMENT_FOUNDATION.md)
+- [releases/v5.15.0/UPGRADE_V5_15_0_DEPLOYMENT_FOUNDATION.md](./releases/v5.15.0/UPGRADE_V5_15_0_DEPLOYMENT_FOUNDATION.md)
+- [releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md](./releases/v5.15.1/CHANGES_V5_15_1_STORAGE_RETENTION.md)
+- [releases/v5.15.1/UPGRADE_V5_15_1_STORAGE_RETENTION.md](./releases/v5.15.1/UPGRADE_V5_15_1_STORAGE_RETENTION.md)
+- [releases/v5.15.2/CHANGES_V5_15_2_ZALO_AUTH_PROFILE_FIELDS.md](./releases/v5.15.2/CHANGES_V5_15_2_ZALO_AUTH_PROFILE_FIELDS.md)
+- [releases/v5.16.0/CHANGES_V5_16_0_ONE_TIME_INVITES.md](./releases/v5.16.0/CHANGES_V5_16_0_ONE_TIME_INVITES.md)
+- [releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md](./releases/v5.16.0/UPGRADE_V5_16_0_ONE_TIME_INVITES.md)
+- [releases/v5.16.0/assets/admin-user-access-review.svg](./releases/v5.16.0/assets/admin-user-access-review.svg)
+- [releases/v5.16.0/assets/miniapp-invite-login-review.svg](./releases/v5.16.0/assets/miniapp-invite-login-review.svg)
+- [releases/v5.16.1/CHANGES_V5_16_1_INVITE_ACCESS_UI.md](./releases/v5.16.1/CHANGES_V5_16_1_INVITE_ACCESS_UI.md)
+- [releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md](./releases/v5.16.2/CHANGES_V5_16_2_STAFF_GOVERNANCE_UI.md)
+- [releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md](./releases/v5.16.3/CHANGES_V5_16_3_ADMIN_VISUAL_REFRESH.md)
+- [releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md](./releases/v5.16.4/CHANGES_V5_16_4_AI_RELIABILITY.md)
+- [releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md](./releases/v5.16.5/CHANGES_V5_16_5_FUNCTIONAL_ADMIN_UI.md)
+- [releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md](./releases/v5.16.6/CHANGES_V5_16_6_MINIAPP_DEPENDENCY_SECURITY.md)
+- [releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md](./releases/v5.16.7/CHANGES_V5_16_7_OVERVIEW_BANNER_FIT.md)
+- [releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md](./releases/v5.16.8/CHANGES_V5_16_8_COMPACT_ACCOUNT_MENU.md)
+- [releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md](./releases/v5.16.9/CHANGES_V5_16_9_ADAPTIVE_ADMIN_SIDEBAR.md)
+- [releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md](./releases/v5.17.0/CHANGES_V5_17_0_POSTGRES_PLAYBOOK_GOVERNANCE.md)
+- [releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md](./releases/v5.17.1/CHANGES_V5_17_1_PRODUCTION_PILOT.md)
+- [releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md](./releases/v5.17.1/PRODUCTION_PILOT_CHECKLIST.md)
+- [releases/v5.17.1/ZALO_PRODUCTION_COMPLIANCE.md](./releases/v5.17.1/ZALO_PRODUCTION_COMPLIANCE.md)
+- [releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md](./releases/v5.18.0/CHANGES_V5_18_0_ZALO_BOT_ASSISTANT.md)
+- [releases/v5.18.1/CHANGES_V5_18_1_ZALO_BOT_WEBHOOK_BOOTSTRAP.md](./releases/v5.18.1/CHANGES_V5_18_1_ZALO_BOT_WEBHOOK_BOOTSTRAP.md)
+- [releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md](./releases/v5.18.2/CHANGES_V5_18_2_ADMIN_MOBILE_RESPONSIVE.md)
+- [releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md](./releases/v5.18.3/CHANGES_V5_18_3_ACCOUNT_MENU_LAYER.md)
+- [releases/v5.18.4/CHANGES_V5_18_4_ADMIN_LOGIN.md](./releases/v5.18.4/CHANGES_V5_18_4_ADMIN_LOGIN.md)
+- [releases/v5.18.5/CHANGES_V5_18_5_LOGIN_POLISH.md](./releases/v5.18.5/CHANGES_V5_18_5_LOGIN_POLISH.md)
+- [releases/v5.18.6/CHANGES_V5_18_6_OFFICIAL_APP_IDENTITY.md](./releases/v5.18.6/CHANGES_V5_18_6_OFFICIAL_APP_IDENTITY.md)
+- [releases/v5.2/CHANGES_V5_2_STRICT_ESCALATION_UI.md](./releases/v5.2/CHANGES_V5_2_STRICT_ESCALATION_UI.md)
+- [releases/v5.2/UPGRADE_V5_2_STRICT_ESCALATION_UI.md](./releases/v5.2/UPGRADE_V5_2_STRICT_ESCALATION_UI.md)
+- [releases/v5.3/CHANGES_V5_3_SQL_SERVER.md](./releases/v5.3/CHANGES_V5_3_SQL_SERVER.md)
+- [releases/v5.3/UPGRADE_V5_3_SQL_SERVER.md](./releases/v5.3/UPGRADE_V5_3_SQL_SERVER.md)
+- [releases/v5.4/CHANGES_V5_4_PLAYBOOK_LIFECYCLE.md](./releases/v5.4/CHANGES_V5_4_PLAYBOOK_LIFECYCLE.md)
+- [releases/v5.4/UPGRADE_V5_4_PLAYBOOK_LIFECYCLE.md](./releases/v5.4/UPGRADE_V5_4_PLAYBOOK_LIFECYCLE.md)
+- [releases/v5.5/CHANGES_V5_5_UI_ATTACHMENTS.md](./releases/v5.5/CHANGES_V5_5_UI_ATTACHMENTS.md)
+- [releases/v5.5/UPGRADE_V5_5_UI_ATTACHMENTS.md](./releases/v5.5/UPGRADE_V5_5_UI_ATTACHMENTS.md)
+- [releases/v5.5.1/CHANGES_V5_5_1_LARGE_UPLOADS.md](./releases/v5.5.1/CHANGES_V5_5_1_LARGE_UPLOADS.md)
+- [releases/v5.5.1/UPGRADE_V5_5_1_LARGE_UPLOADS.md](./releases/v5.5.1/UPGRADE_V5_5_1_LARGE_UPLOADS.md)
+- [releases/v5.5.2.30/CHANGES_V5_5_2_30MB_UPLOAD_LIMIT.md](./releases/v5.5.2.30/CHANGES_V5_5_2_30MB_UPLOAD_LIMIT.md)
+- [releases/v5.5.2.30/UPGRADE_V5_5_2_30MB_UPLOAD_LIMIT.md](./releases/v5.5.2.30/UPGRADE_V5_5_2_30MB_UPLOAD_LIMIT.md)
+- [releases/v5.6.0/CHANGES_V5_6_0_HUMAN_HANDOFF_LOCK.md](./releases/v5.6.0/CHANGES_V5_6_0_HUMAN_HANDOFF_LOCK.md)
+- [releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md](./releases/v5.6.0/UPGRADE_V5_6_0_HUMAN_HANDOFF_LOCK.md)
+- [releases/v5.7/CHANGES_V5_7_OPERATIONS.md](./releases/v5.7/CHANGES_V5_7_OPERATIONS.md)
+- [releases/v5.7/UPGRADE_V5_7_OPERATIONS.md](./releases/v5.7/UPGRADE_V5_7_OPERATIONS.md)
+- [releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md](./releases/v5.7.1/CHANGES_V5_7_1_STAFF_ACCOUNT_RELIABILITY.md)
+- [releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md](./releases/v5.7.2/CHANGES_V5_7_2_ADMIN_TICKET_SCROLL.md)
+- [releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md](./releases/v5.7.3/CHANGES_V5_7_3_AI_PRIORITY_CLASSIFICATION.md)
+- [releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md](./releases/v5.7.4/CHANGES_V5_7_4_ADMIN_SIDEBAR.md)
+- [releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md](./releases/v5.8.0/CHANGES_V5_8_0_AI_QUALITY_CONTROL.md)
+- [releases/v5.9.0/CHANGES_V5_9_0_AI_ROUTER_V2.md](./releases/v5.9.0/CHANGES_V5_9_0_AI_ROUTER_V2.md)
+- [releases/v5.9.1/CHANGES_V5_9_1_REMOVE_LOCAL_AI.md](./releases/v5.9.1/CHANGES_V5_9_1_REMOVE_LOCAL_AI.md)
+
+## security
+
+- [security/SECURITY_GUIDE.md](./security/SECURITY_GUIDE.md)
+
+## troubleshooting
+
+- [troubleshooting/README.md](./troubleshooting/README.md)
+- [troubleshooting/README_SQL_SCHEMA_FIX.md](./troubleshooting/README_SQL_SCHEMA_FIX.md)
+

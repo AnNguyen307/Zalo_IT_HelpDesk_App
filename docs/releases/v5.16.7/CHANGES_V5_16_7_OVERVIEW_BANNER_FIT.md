@@ -1,5 +1,9 @@
 # v5.16.7 — Overview Banner Fit
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 GIF quy trình HelpDesk trên Tổng quan Admin không còn giãn theo toàn bộ vùng nội dung trên màn hình rộng. Banner được căn giữa, gọn hơn và để hàng đợi ticket xuất hiện sớm hơn trong khung nhìn.

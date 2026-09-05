@@ -1,5 +1,9 @@
 # Zalo IT HelpDesk v5.6.0 — Human Handoff Conversation Lock
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Mục tiêu
 
 Sau khi AI Agent quyết định `escalate`, AI chỉ được gửi **một thông báo bàn giao cuối cùng**. Từ đó trở đi, ticket chuyển sang chế độ `HUMAN ONLY`:

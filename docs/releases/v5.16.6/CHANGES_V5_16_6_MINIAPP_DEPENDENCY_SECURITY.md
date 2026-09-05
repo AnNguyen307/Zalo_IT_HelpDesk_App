@@ -1,5 +1,9 @@
 # v5.16.6 — Mini App Dependency Security
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 Mini App loại bỏ toàn bộ dependency advisory mức **high** đang có ở v5.16.5 mà không thay đổi giao diện, API hoặc luồng xác thực.

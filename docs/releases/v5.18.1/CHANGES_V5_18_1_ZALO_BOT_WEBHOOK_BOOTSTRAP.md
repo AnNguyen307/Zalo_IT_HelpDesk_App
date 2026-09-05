@@ -1,5 +1,9 @@
 # v5.18.1 — Zalo Bot Webhook Bootstrap
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Outcome
 
 Backend v5.18.1 can register the signed Zalo Bot webhook automatically after startup. This allows the Render Free pilot to activate the Bot without paid Shell or One-Off Job access.

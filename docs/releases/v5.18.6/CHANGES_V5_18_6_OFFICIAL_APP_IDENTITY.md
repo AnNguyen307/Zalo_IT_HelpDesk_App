@@ -1,5 +1,9 @@
 # v5.18.6 / Mini App v5.17.2 — Official App Identity
 
+> [!NOTE]
+> Đây là hồ sơ phát hành lịch sử. Nội dung phản ánh hệ thống tại thời điểm phiên bản này được phát hành và có thể đã được bản mới thay thế. Khi vận hành hiện tại, xem [Trung tâm tài liệu](../../INDEX.md).
+
+
 ## Kết quả
 
 - Đồng bộ tên đã được Zalo xác thực: `Nguyễn Phan Trường An HelpDesk`.
