@@ -334,7 +334,7 @@ class Organizer:
                 posix_path = relative.as_posix()
                 lines.append(f"- [{posix_path}](./{posix_path})")
             lines.append("")
-        index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        index_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
     def verify(self) -> None:
         if not self.apply_changes:

@@ -89,4 +89,4 @@ Nếu cần kiểm kê theo đường dẫn, xem [Danh sách file tài liệu](.
 - Backend/Admin: `5.18.6`.
 - SQL Server: schema `10`.
 - PostgreSQL state/governance: schema `1/1`.
-- Cập nhật tài liệu: 2026-09-03.
+- Cập nhật tài liệu: 2026-09-05.
